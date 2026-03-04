@@ -1,0 +1,31 @@
+# Python cache/build metadata
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Local virtualenvs
+.venv/
+venv/
+
+# Sage native build/runtime artifacts
+sage_rl/rl_module/client
+sage_rl/rl_module/sage
+sage_rl/rl_module/mem-manager
+sage_rl/rl_module/sage_models/
+sage_rl/log/
+sage_rl/dataset/
+sage_rl/*.tr
+sage_rl/*.svg
+sage_rl/*.dat
+sage_rl/res_tmp
+sage_rl/res_tmp2
+
+# Generic crash/temp files
+*.core
+core
+*.swp
+*.swo
+*~

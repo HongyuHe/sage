@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 
 	char *savePtr;
 	char* server=(char*)malloc(16*sizeof(char));;	//IP address (e.g. 192.168.101.101) 
-	char query[100];	                                //query=data_size+' '+deadline+' '+agnostic
+	char query[256];	                                //query=data_size+' '+deadline+' '+agnostic
 	int port;                                   	//TCP port number
 	int data_size;	                                //Request data size (KB)	We allocate 20bits for this in nfmark [0, 4GB]
 	int flowid;	
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 	//Initialize ‘server’
 	memset(server,'\0',16);
 	//Initialize 'query'
-	memset(query,'\0',150);
+	memset(query,'\0',sizeof(query));
 
 	//Get server address
 	server=argv[1];
@@ -268,5 +268,4 @@ void usage()
 {
 	DBGERROR("./client [server IP address] [flowid] [server port] \n");
 }
-
 
