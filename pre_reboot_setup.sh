@@ -11,12 +11,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SAGE_DIR="${SCRIPT_DIR}"
 LINUX_PATCH_DIR="${SAGE_DIR}/linux-patch"
-CCBENCH_DIR="${HOME}/ccBench"
-MAHIMAHI_DIR="${CCBENCH_DIR}/mahimahi"
 VENV_DIR="${HOME}/venvpy36"
 KERNEL_VER="4.19.112-0062"
 KERNEL_IMAGE_DEB="linux-image-${KERNEL_VER}_${KERNEL_VER}-10.00.Custom_amd64.deb"
 KERNEL_HEADERS_DEB="linux-headers-${KERNEL_VER}_${KERNEL_VER}-10.00.Custom_amd64.deb"
+
+# Prefer in-repo ccBench (./ccBench). Fall back to legacy ~/ccBench if needed.
+if [[ -d "${SAGE_DIR}/ccBench" ]]; then
+  CCBENCH_DIR="${SAGE_DIR}/ccBench"
+elif [[ -d "${HOME}/ccBench" ]]; then
+  CCBENCH_DIR="${HOME}/ccBench"
+else
+  CCBENCH_DIR="${SAGE_DIR}/ccBench"
+fi
+MAHIMAHI_DIR="${CCBENCH_DIR}/mahimahi"
 
 SKIP_MAHIMAHI=0
 SKIP_PYTHON=0

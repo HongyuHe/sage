@@ -1,0 +1,11 @@
+--- src/frontend/link_queue.cc	2018-10-06 00:23:48.351097300 -0400
++++ src/frontend/link_queue.cc	2019-05-25 16:46:24.112054100 -0400
+@@ -137,7 +140,7 @@ void LinkQueue::record_departure( const
+     /* log the delivery */
+     if ( log_ ) {
+         *log_ << departure_time << " - " << packet.contents.size()
+-              << " " << departure_time - packet.arrival_time << endl;
++              << " " << departure_time - packet.arrival_time << " " << packet.queue_num<<endl;
+     }
+ 
+     /* meter the delivery */

@@ -1,3 +1,5 @@
+examples/
+
 # Python cache/build metadata
 __pycache__/
 *.py[cod]
