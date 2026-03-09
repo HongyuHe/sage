@@ -33,6 +33,8 @@
 #define USER "soheil"
 
 #include <cstdlib>
+#include <cstring>
+#include <memory>
 #include <sys/select.h>
 #include "define.h"
 
@@ -96,6 +98,103 @@ fsm cc_state=state_DRL;
 int save=1;
 u32 iterations=0;
 u64 send_begun;
+
+namespace {
+
+constexpr int kSageInputDim = 77;
+
+const char * getenv_or_default( const char * name, const char * fallback )
+{
+    const char * value = getenv( name );
+    if ( value == NULL || value[0] == '\0' ) {
+        return fallback;
+    }
+    return value;
+}
+
+double getenv_double_or_default( const char * name, const double fallback )
+{
+    const char * value = getenv( name );
+    if ( value == NULL || value[0] == '\0' ) {
+        return fallback;
+    }
+    return atof( value );
+}
+
+int getenv_int_or_default( const char * name, const int fallback )
+{
+    const char * value = getenv( name );
+    if ( value == NULL || value[0] == '\0' ) {
+        return fallback;
+    }
+    return atoi( value );
+}
+
+void write_attack_keys_file( const char * path_to_file )
+{
+    if ( path_to_file == NULL || path_to_file[0] == '\0' ) {
+        return;
+    }
+
+    ofstream keys_file( path_to_file );
+    if ( not keys_file.is_open() ) {
+        DBGERROR("Failed to open attack keys file: %s\n", path_to_file);
+        return;
+    }
+
+    keys_file << "{\n";
+    keys_file << "  \"mem_r\": " << (int)key << ",\n";
+    keys_file << "  \"mem_w\": " << (int)key_rl << ",\n";
+    keys_file << "  \"actor_id\": " << actor_id << ",\n";
+    keys_file << "  \"client_port\": " << client_port << ",\n";
+    keys_file << "  \"flows_num\": " << flows_num << ",\n";
+    keys_file << "  \"env_bw\": " << env_bw << ",\n";
+    keys_file << "  \"reward_index\": 75,\n";
+    keys_file << "  \"input_dim\": 77,\n";
+    keys_file << "  \"obs_dim\": 69\n";
+    keys_file << "}\n";
+    keys_file.close();
+}
+
+bool write_placeholder_observation(
+    const int rid,
+    const double reward = 0.0,
+    const double previous_action = 0.0 )
+{
+    if ( shared_memory == NULL || shmem_size <= 0 ) {
+        return false;
+    }
+
+    int written = snprintf( shared_memory, shmem_size, "%d", rid );
+    if ( written < 0 || written >= shmem_size ) {
+        return false;
+    }
+
+    for ( int idx = 0; idx < kSageInputDim; ++idx ) {
+        double value = 0.0;
+        if ( idx == (kSageInputDim - 2) ) {
+            value = reward;
+        }
+        else if ( idx == (kSageInputDim - 1) ) {
+            value = previous_action;
+        }
+
+        const int delta = snprintf( shared_memory + written, shmem_size - written, " %.7f", value );
+        if ( delta < 0 ) {
+            return false;
+        }
+        if ( delta >= (shmem_size - written) ) {
+            shared_memory[shmem_size - 1] = '\0';
+            return false;
+        }
+        written += delta;
+    }
+
+    return true;
+}
+
+} /* namespace */
+
 int main(int argc, char **argv)
 {
     DBGPRINT(DBGSERVER,4,"Main\n");
@@ -222,13 +321,13 @@ void start_server(int flow_num, int client_port)
     }
 
     
-    char container_cmd[500];
-    char tmp_cmd[500];
-    char pre_cmd[500];
+    char container_cmd[2048];
+    char tmp_cmd[2048];
+    char pre_cmd[2048];
     sprintf(tmp_cmd," ");
     sprintf(pre_cmd," ");
-    char cmd[1000];
-    char final_cmd[1000];
+    char cmd[4096];
+    char final_cmd[4096];
     
 #ifdef EVALUATION
 #ifdef STANDALONE
@@ -239,7 +338,32 @@ void start_server(int flow_num, int client_port)
     }
 
     sprintf(container_cmd,"%s sudo -u `echo $USER` %s/client $MAHIMAHI_BASE 1 %d",tmp_cmd,path,client_port);  
-    if(save)
+    const char * adv_control_file = getenv("SAGE_MM_ADV_CONTROL_FILE");
+    const bool use_adv_net = (adv_control_file != NULL) && (adv_control_file[0] != '\0');
+    if (use_adv_net)
+    {
+        const char * adv_net_bin = getenv_or_default("SAGE_MM_ADV_BIN", "mm-adv-net");
+        const double adv_uplink_bw = getenv_double_or_default("SAGE_MM_ADV_UPLINK_BW", env_bw);
+        const double adv_downlink_bw = getenv_double_or_default("SAGE_MM_ADV_DOWNLINK_BW", env_bw);
+        const double adv_uplink_loss = getenv_double_or_default("SAGE_MM_ADV_UPLINK_LOSS", mm_loss_rate);
+        const double adv_downlink_loss = getenv_double_or_default("SAGE_MM_ADV_DOWNLINK_LOSS", mm_loss_rate);
+        const double adv_uplink_delay = getenv_double_or_default("SAGE_MM_ADV_UPLINK_DELAY_MS", delay_ms);
+        const double adv_downlink_delay = getenv_double_or_default("SAGE_MM_ADV_DOWNLINK_DELAY_MS", delay_ms);
+        const int adv_uplink_queue = getenv_int_or_default("SAGE_MM_ADV_UPLINK_QUEUE_PACKETS", qsize);
+        const int adv_downlink_queue = getenv_int_or_default("SAGE_MM_ADV_DOWNLINK_QUEUE_PACKETS", qsize);
+        const int adv_uplink_queue_bytes = getenv_int_or_default("SAGE_MM_ADV_UPLINK_QUEUE_BYTES", 0);
+        const int adv_downlink_queue_bytes = getenv_int_or_default("SAGE_MM_ADV_DOWNLINK_QUEUE_BYTES", 0);
+
+        if(save)
+        {
+            sprintf(cmd, "%s sudo -u `echo $USER` %s --control-file=%s --uplink-bw=%.7f --downlink-bw=%.7f --uplink-loss=%.7f --downlink-loss=%.7f --uplink-delay=%.7f --downlink-delay=%.7f --uplink-queue=%d --downlink-queue=%d --uplink-queue-bytes=%d --downlink-queue-bytes=%d --uplink-log=%s/../log/up-%s --downlink-log=%s/../log/down-%s --uplink-init-timestamp=%s/../log/up-%s_init_timestamp --downlink-init-timestamp=%s/../log/down-%s_init_timestamp -- sh -c \'%s\' &",pre_cmd,adv_net_bin,adv_control_file,adv_uplink_bw,adv_downlink_bw,adv_uplink_loss,adv_downlink_loss,adv_uplink_delay,adv_downlink_delay,adv_uplink_queue,adv_downlink_queue,adv_uplink_queue_bytes,adv_downlink_queue_bytes,path,log_file,path,log_file,path,log_file,path,log_file,container_cmd);
+        }
+        else
+        {
+            sprintf(cmd, "%s sudo -u `echo $USER` %s --control-file=%s --uplink-bw=%.7f --downlink-bw=%.7f --uplink-loss=%.7f --downlink-loss=%.7f --uplink-delay=%.7f --downlink-delay=%.7f --uplink-queue=%d --downlink-queue=%d --uplink-queue-bytes=%d --downlink-queue-bytes=%d --uplink-init-timestamp=%s/../log/up-%s_init_timestamp --downlink-init-timestamp=%s/../log/down-%s_init_timestamp -- sh -c \'%s\' &",pre_cmd,adv_net_bin,adv_control_file,adv_uplink_bw,adv_downlink_bw,adv_uplink_loss,adv_downlink_loss,adv_uplink_delay,adv_downlink_delay,adv_uplink_queue,adv_downlink_queue,adv_uplink_queue_bytes,adv_downlink_queue_bytes,path,log_file,path,log_file,container_cmd);
+        }
+    }
+    else if(save)
     {
         sprintf(cmd, "%s sudo -u `echo $USER` mm-delay %d mm-loss downlink %.7f mm-loss uplink %.7f mm-link %s/../../traces/%s %s/../../traces/%s --downlink-log=%s/../log/down-%s --uplink-queue=droptail --uplink-queue-args=\"packets=%d\" --downlink-queue=droptail --downlink-queue-args=\"packets=%d\" -- sh -c \'%s\' &",pre_cmd,delay_ms,mm_loss_rate,mm_loss_rate,path,uplink,path,downlink,path,log_file,qsize,qsize,container_cmd);
     }
@@ -281,6 +405,10 @@ void start_server(int flow_num, int client_port)
         printf("Error attaching shared memory id");
         return;
     } 
+    write_attack_keys_file(getenv("SAGE_ATTACK_KEYS_FILE"));
+    if ( !write_placeholder_observation(0) ) {
+        DBGERROR("Failed to write bootstrap observation into shared memory (rid=0)\n");
+    }
 
     if (first_time==0)
     {
@@ -313,9 +441,12 @@ void start_server(int flow_num, int client_port)
 #ifdef EVALUATION
     while(!got_ready_signal_from_rl)
     {
+        std::unique_ptr<char[]> ready_signal_copy(new char[shmem_size]);
+        memcpy(ready_signal_copy.get(), shared_memory_rl, shmem_size);
+        ready_signal_copy[shmem_size - 1] = '\0';
         //Get alpha from RL-Module
         signal_check_counter++;
-        num=strtok_r(shared_memory_rl," ",&save_ptr);
+        num=strtok_r(ready_signal_copy.get()," ",&save_ptr);
         alpha=strtok_r(NULL," ",&save_ptr);
         if(num!=NULL && alpha!=NULL)
         {
@@ -547,15 +678,16 @@ void* CntThread(void* information)
 #endif
 
     }
-    char message[1000];
-    char* shared_memory_rl2=  (char*)malloc(strlen(shared_memory_rl));
-    char message_summarized[1000];
+    char message[4096];
+    char* shared_memory_rl2=  (char*)malloc(shmem_size);
+    char message_summarized[4096];
     char *num;
     char*alpha;
     char*save_ptr;
     int got_no_zero=0;
     uint64_t t0,t1,t2,t3,diff_fairness_time,t4,t5,t1_pre,start_time,time_tmp;
     t2=timestamp();
+    u64 last_fallback_emit_ts = t2;
 
     //Time to start the Logic
     struct tcp_deepcc_info tcp_info_pre;
@@ -564,6 +696,9 @@ void* CntThread(void* information)
     int actor_is_dead_counter=0;
     int tmp_step=0;
     int fairness_phase_cnt=0;
+    bool logged_positive_sample=false;
+    bool logged_first_observation=false;
+    bool logged_startup_stall=false;
 
     //FILE *measurement_file;
     char file_name[1000];
@@ -679,8 +814,34 @@ void* CntThread(void* information)
                     u64 l_db;
                     pre_pkt_dlv = sage_info.delivered; 
 
+                    if (!logged_startup_stall && !logged_positive_sample && ((timestamp()-start_time) > 5000000))
+                    {
+                        DBGERROR("No positive TCP sample after 5s: info_len=%u bytes_acked=%llu delivered=%u bytes_sent=%llu unacked=%u rtt=%u state=%u ca_state=%u delivery_rate=%llu\n",
+                                 (unsigned int)sage_info_length,
+                                 (unsigned long long)sage_info.bytes_acked,
+                                 (unsigned int)sage_info.delivered,
+                                 (unsigned long long)sage_info.bytes_sent,
+                                 (unsigned int)sage_info.unacked,
+                                 (unsigned int)sage_info.rtt,
+                                 (unsigned int)sage_info.state,
+                                 (unsigned int)sage_info.ca_state,
+                                 (unsigned long long)sage_info.delivery_rate);
+                        logged_startup_stall = true;
+                    }
+
                     if (bytes_acked_>0 || d_db>0)
                     {
+                        if (!logged_positive_sample)
+                        {
+                            DBGERROR("First positive TCP sample: bytes_acked=%d delivered_bytes=%llu bytes_sent=%llu unacked=%u rtt=%u delivery_rate=%llu\n",
+                                     bytes_acked_,
+                                     (unsigned long long)d_db,
+                                     (unsigned long long)sage_info.bytes_sent,
+                                     (unsigned int)sage_info.unacked,
+                                     (unsigned int)sage_info.rtt,
+                                     (unsigned long long)sage_info.delivery_rate);
+                            logged_positive_sample = true;
+                        }
                         dt = timestamp()- dt_pre;
                         dt = (dt>0)?dt:1;
                         dt_pre = timestamp();
@@ -906,8 +1067,8 @@ void* CntThread(void* information)
                         /**
                         * Soheil: Other interesting fields: potential input state candidates
                         * */
-                       char message_extra[1000];
-                       sprintf(message_extra,
+                       char message_extra[4096];
+                       const int message_extra_len = snprintf(message_extra, sizeof(message_extra),
                                "     %.7f %.7f %.7f %.7f   %.7f %.7f    %d %u    %.7f %.7f %.7f   %.7f %.7f %.7f   %.7f %.7f %.7f    %.7f %.7f %.7f    %.7f %.7f %.7f    %.7f %.7f %.7f    %.7f %.7f %.7f   %.7f %.7f %.7f   %.7f %.7f %.7f    %.7f %.7f %.7f    %.7f %.7f %.7f    %.7f %.7f %.7f     %.7f %.7f %.7f    %.7f %.7f %.7f    %.7f %.7f %.7f       %.7f %.7f %.7f    %.7f %.7f %.7f    %.7f %.7f %.7f                     ",
 
                                //2
@@ -953,9 +1114,10 @@ void* CntThread(void* information)
                                lost_l.get_avg(),lost_l.get_min(),lost_l.get_max() 
                                );
                                  
+                        int message_len = 0;
                         if(DS_VERSION>500)
                         {
-                           sprintf(message,"%.7f %.7f %s  %.7f   %.7f %.7f   %.7f %.7f    %.7f %.7f    %.7f %.7f   %.7f %.7f   %.7f %.7f",
+                           message_len = snprintf(message, sizeof(message), "%.7f %.7f %s  %.7f   %.7f %.7f   %.7f %.7f    %.7f %.7f    %.7f %.7f   %.7f %.7f   %.7f %.7f",
                             //0                           1        [2-63] 
                             (double)time_on_trace/1e3, max_tmp, message_extra,
                             //64
@@ -979,7 +1141,7 @@ void* CntThread(void* information)
                         }
                         else
                         {
-                            sprintf(message,"%.7f %.7f   %.7f   %.7f %.7f   %.7f %.7f    %.7f %.7f    %.7f %.7f   %.7f %.7f    %.7f %.7f",
+                            message_len = snprintf(message, sizeof(message), "%.7f %.7f   %.7f   %.7f %.7f   %.7f %.7f    %.7f %.7f    %.7f %.7f   %.7f %.7f    %.7f %.7f",
                             (double)time_on_trace/1e3, 
                             max_tmp,
                             dr_w_mbps-l_w_mbps,
@@ -992,18 +1154,42 @@ void* CntThread(void* information)
                             reward,(cwnd_rate>0.0)?round(log2f(cwnd_rate)*1000)/1000.:log2f(0.0001));
                         }
                             
-                        sprintf(message_summarized,"bw:%.3f   rtt:%.3f   loss:%.3f srate:%f max:%.3f  r:%.3f a:%.7f",
+                        const int message_summary_len = snprintf(message_summarized, sizeof(message_summarized), "bw:%.3f   rtt:%.3f   loss:%.3f srate:%f max:%.3f  r:%.3f a:%.7f",
                             dr_w_mbps,
                             rtt_rate, 
                             l_w_mbps/BW_NORM_FACTOR,
                             (double)sage_info.pacing_rate/125000.0/BW_NORM_FACTOR, /*pacing rate 100x Mbps*/
                             max_tmp,
                             reward,(cwnd_rate>0.0)?round(log2f(cwnd_rate)*1000)/1000.:log2f(0.0001));
+                        if (!logged_first_observation)
+                        {
+                            DBGERROR("Observation payload lengths: extra=%d message=%d summary=%d\n",
+                                     message_extra_len,
+                                     message_len,
+                                     message_summary_len);
+                        }
 
+                        int shared_memory_len = -1;
+                        if (shared_memory != NULL)
+                        {
+                            shared_memory_len = snprintf(shared_memory, shmem_size, "%d %s", msg_id, message);
+                        }
 #ifdef EVALUATION   
-                        char message2[1000];
-                        sprintf(message2,"%d %s",msg_id,message);
-                        memcpy(shared_memory,message2,sizeof(message2));
+                        if (!logged_first_observation)
+                        {
+                            DBGERROR("Shared-memory write length: %d bytes\n", shared_memory_len);
+                        }
+                        if (!logged_first_observation)
+                        {
+                            DBGERROR("First observation written: rid=%d reward=%.6f rtt=%u bytes_acked=%llu delivered=%u delivery_rate=%llu\n",
+                                     msg_id,
+                                     reward,
+                                     (unsigned int)sage_info.rtt,
+                                     (unsigned long long)sage_info.bytes_acked,
+                                     (unsigned int)sage_info.delivered,
+                                     (unsigned long long)sage_info.delivery_rate);
+                            logged_first_observation = true;
+                        }
 #else
                         measurement_file << message<<"\n";
 #endif
@@ -1013,6 +1199,25 @@ void* CntThread(void* information)
                         pre_dr_w_mbps = dr_w_mbps;
                         pre_dr_w_max = dr_w_max;
                         msg_id=(msg_id+1)%1000;
+                    }
+                    else
+                    {
+                        const u64 now_ts = timestamp();
+                        if ( now_ts - last_fallback_emit_ts >= (u64)(report_period * 1000) )
+                        {
+                            const double fallback_action = (cwnd_rate > 0.0) ? round(log2f(cwnd_rate) * 1000) / 1000. : log2f(0.0001);
+                            if ( write_placeholder_observation(msg_id, 0.0, fallback_action) )
+                            {
+                                got_no_zero = 1;
+                                if ( !logged_first_observation )
+                                {
+                                    DBGERROR("Fallback observation emitted before first TCP-positive sample: rid=%d\n", msg_id);
+                                    logged_first_observation = true;
+                                }
+                                msg_id = (msg_id + 1) % 1000;
+                            }
+                            last_fallback_emit_ts = now_ts;
+                        }
                     }
                 }
                 //
@@ -1030,7 +1235,8 @@ void* CntThread(void* information)
                 while(!got_alpha && send_traffic)
                 { 
                    //Get alpha from RL-Module
-                   strcpy(shared_memory_rl2,shared_memory_rl);  //to not destroy the original string
+                   memcpy(shared_memory_rl2, shared_memory_rl, shmem_size);
+                   shared_memory_rl2[shmem_size - 1] = '\0';
                    num=strtok_r(shared_memory_rl2," ",&save_ptr);
 
                    alpha=strtok_r(NULL," ",&save_ptr);

@@ -26,6 +26,11 @@ mm_link_SOURCES = linkshell.cc link_queue.hh link_queue.cc
 mm_link_LDADD = -lrt ../util/libutil.a ../packet/libpacket.a ../graphing/libgraph.a $(XCBPRESENT_LIBS) $(XCB_LIBS) $(PANGOCAIRO_LIBS)
 mm_link_LDFLAGS = -pthread
 
+bin_PROGRAMS += mm-adv-net
+mm_adv_net_SOURCES = advnetshell.cc adaptive_control.hh adaptive_control.cc adaptive_link_queue.hh adaptive_link_queue.cc
+mm_adv_net_LDADD = -lrt ../util/libutil.a ../packet/libpacket.a
+mm_adv_net_LDFLAGS = -pthread
+
 bin_PROGRAMS += mm-meter
 mm_meter_SOURCES = meter.cc meter_queue.hh meter_queue.cc
 mm_meter_LDADD = -lrt ../util/libutil.a ../packet/libpacket.a ../graphing/libgraph.a $(XCBPRESENT_LIBS) $(XCB_LIBS) $(PANGOCAIRO_LIBS)
@@ -62,6 +67,8 @@ install-exec-hook:
 	chmod u+s $(DESTDIR)$(bindir)/mm-intermittent
 	chown root $(DESTDIR)$(bindir)/mm-link
 	chmod u+s $(DESTDIR)$(bindir)/mm-link
+	chown root $(DESTDIR)$(bindir)/mm-adv-net
+	chmod u+s $(DESTDIR)$(bindir)/mm-adv-net
 	chown root $(DESTDIR)$(bindir)/mm-meter
 	chmod u+s $(DESTDIR)$(bindir)/mm-meter
 	chown root $(DESTDIR)$(bindir)/mm-webrecord

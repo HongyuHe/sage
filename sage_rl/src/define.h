@@ -59,7 +59,7 @@ char *shared_memory;
 int shmid_rl;
 key_t key_rl=12345;
 char *shared_memory_rl;
-int shmem_size=2048; //Shared Memory size: 2KBytes
+int shmem_size=8192; //Shared Memory size in bytes
 int key1=0;
 int key2=0;
 //----------------------------------------------------*
@@ -631,4 +631,3 @@ class dq_sage {
             std = sqrt(std);
         }
 };
-

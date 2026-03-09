@@ -1,4 +1,5 @@
 examples/
+attacks/runtime*
 
 # Python cache/build metadata
 __pycache__/
@@ -11,6 +12,7 @@ __pycache__/
 # Local virtualenvs
 .venv/
 venv/
+wandb/
 
 # Sage native build/runtime artifacts
 sage_rl/rl_module/client
@@ -24,6 +26,13 @@ sage_rl/*.svg
 sage_rl/*.dat
 sage_rl/res_tmp
 sage_rl/res_tmp2
+attacks/runtime/
+attacks/output/
+# attacks/train/
+# attacks/test/
+attacks/trace_split_manifest.json
+attacks/adv_traces/
+ccBench/mahimahi/src/frontend/mm-adv-net
 
 # Generic crash/temp files
 *.core

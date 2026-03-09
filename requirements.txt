@@ -120,7 +120,10 @@ tqdm==4.56.0
 trfl==1.1.0
 typing-extensions==3.7.4.3
 urllib3==1.26.3
+wandb==0.18.7
 Werkzeug==1.0.1
 wrapt==1.12.1
 yarl==1.6.3
 zipp==3.4.0
+gymnasium==0.29.1
+stable-baselines3==2.3.2
