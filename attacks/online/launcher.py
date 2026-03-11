@@ -61,6 +61,9 @@ def _resolve_mm_adv_bin(repo_root: str, configured_path: str | None) -> str:
 @dataclass(frozen=True)
 class SageLaunchConfig:
     sage_script: str = "sage_rl/sage.sh"
+    scheme: str = "pure"
+    controller_mode: str = "sage"
+    startup_stagger_ms: int | None = 0
     latency_ms: int = 25
     port: int = 5101
     downlink_trace: str = "wired48"
@@ -118,7 +121,11 @@ class SageLaunchConfig:
         env = {
             "SAGE_MM_ADV_CONTROL_FILE": os.path.abspath(control_file),
             "SAGE_ATTACK_KEYS_FILE": os.path.abspath(keys_file),
+            "SAGE_SCHEME": str(self.scheme),
+            "SAGE_CONTROLLER_MODE": str(self.controller_mode),
         }
+        if self.startup_stagger_ms is not None:
+            env["SAGE_STARTUP_STAGGER_MS"] = str(int(self.startup_stagger_ms))
         env["SAGE_MM_ADV_BIN"] = _resolve_mm_adv_bin(repo_root, self.mm_adv_bin)
 
         optional_values: Mapping[str, float | int | None] = {

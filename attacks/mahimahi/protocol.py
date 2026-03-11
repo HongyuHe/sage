@@ -5,7 +5,7 @@ import struct
 from typing import Final
 
 CONTROL_MAGIC: Final[int] = 0x5341474541445631
-CONTROL_VERSION: Final[int] = 1
+CONTROL_VERSION: Final[int] = 2
 
 HEADER_STRUCT: Final[struct.Struct] = struct.Struct("<QIIQQQ")
 DIRECTION_CONFIG_STRUCT: Final[struct.Struct] = struct.Struct("<dddIIIIdd")
@@ -31,10 +31,10 @@ class DirectionConfig:
     delay_ms: float
     queue_packets: int
     queue_bytes: int
+    episode_step: int = 0
     flags: int = 0
-    reserved0: int = 0
+    effective_after_abs_ms: float = 0.0
     reserved1: float = 0.0
-    reserved2: float = 0.0
 
     def clamp(self) -> "DirectionConfig":
         return DirectionConfig(
@@ -43,10 +43,10 @@ class DirectionConfig:
             delay_ms=max(float(self.delay_ms), 0.0),
             queue_packets=max(int(self.queue_packets), 0),
             queue_bytes=max(int(self.queue_bytes), 0),
+            episode_step=max(int(self.episode_step), 0),
             flags=int(self.flags),
-            reserved0=int(self.reserved0),
+            effective_after_abs_ms=max(float(self.effective_after_abs_ms), 0.0),
             reserved1=float(self.reserved1),
-            reserved2=float(self.reserved2),
         )
 
 
@@ -66,8 +66,8 @@ class DirectionTelemetry:
     last_apply_ms: int = 0
     departure_rate_mbps: float = 0.0
     queue_delay_ms: float = 0.0
-    reserved1: float = 0.0
-    reserved2: float = 0.0
+    applied_step: float = 0.0
+    applied_effective_after_abs_ms: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -93,10 +93,10 @@ def pack_direction_config(config: DirectionConfig) -> bytes:
         float(safe.delay_ms),
         int(safe.queue_packets),
         int(safe.queue_bytes),
+        int(safe.episode_step),
         int(safe.flags),
-        int(safe.reserved0),
+        float(safe.effective_after_abs_ms),
         float(safe.reserved1),
-        float(safe.reserved2),
     )
 
 
@@ -108,10 +108,10 @@ def unpack_direction_config(buf: bytes) -> DirectionConfig:
         delay_ms=float(values[2]),
         queue_packets=int(values[3]),
         queue_bytes=int(values[4]),
-        flags=int(values[5]),
-        reserved0=int(values[6]),
-        reserved1=float(values[7]),
-        reserved2=float(values[8]),
+        episode_step=int(values[5]),
+        flags=int(values[6]),
+        effective_after_abs_ms=float(values[7]),
+        reserved1=float(values[8]),
     )
 
 
@@ -132,8 +132,8 @@ def unpack_direction_telemetry(buf: bytes) -> DirectionTelemetry:
         last_apply_ms=int(values[11]),
         departure_rate_mbps=float(values[12]),
         queue_delay_ms=float(values[13]),
-        reserved1=float(values[14]),
-        reserved2=float(values[15]),
+        applied_step=float(values[14]),
+        applied_effective_after_abs_ms=float(values[15]),
     )
 
 

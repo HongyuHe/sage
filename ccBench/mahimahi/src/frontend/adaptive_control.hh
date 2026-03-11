@@ -9,7 +9,7 @@
 namespace adaptive {
 
 constexpr uint64_t CONTROL_MAGIC = 0x5341474541445631ULL; /* SAGEADV1 */
-constexpr uint32_t CONTROL_VERSION = 1;
+constexpr uint32_t CONTROL_VERSION = 2;
 
 enum class Direction : uint32_t
 {
@@ -25,10 +25,10 @@ struct DirectionConfig
     double delay_ms;
     uint32_t queue_packets;
     uint32_t queue_bytes;
+    uint32_t episode_step;
     uint32_t flags;
-    uint32_t reserved0;
+    double effective_after_abs_ms;
     double reserved1;
-    double reserved2;
 };
 
 struct DirectionTelemetry
@@ -47,8 +47,8 @@ struct DirectionTelemetry
     uint64_t last_apply_ms;
     double departure_rate_mbps;
     double queue_delay_ms;
-    double reserved1;
-    double reserved2;
+    double applied_step;
+    double applied_effective_after_abs_ms;
 };
 
 struct ControlBlock

@@ -27,6 +27,14 @@ def _require_gym() -> tuple[Any, Any]:
 
 gym, spaces = _require_gym()
 
+_APPLIED_CONFIG_TOLERANCE = 1e-3
+
+
+def _monotonic_ms() -> float:
+    if hasattr(time, "clock_gettime_ns") and hasattr(time, "CLOCK_MONOTONIC"):
+        return float(time.clock_gettime_ns(time.CLOCK_MONOTONIC)) / 1_000_000.0
+    return float(time.monotonic_ns()) / 1_000_000.0
+
 
 @dataclass(frozen=True)
 class AttackBounds:
@@ -110,6 +118,7 @@ class OnlineSageAttackEnv(gym.Env):
         self._episode_index = 0
         self._steps_taken = 0
         self._last_action = self._default_action()
+        self._pending_action: np.ndarray | None = None
         self._last_victim_step: SageStep | None = None
         self._has_real_victim_step = False
 
@@ -160,7 +169,13 @@ class OnlineSageAttackEnv(gym.Env):
     def _episode_dir(self) -> str:
         return os.path.join(self.runtime_dir, f"episode-{self._episode_index:05d}")
 
-    def _make_direction_configs(self, action: np.ndarray) -> tuple[DirectionConfig, DirectionConfig]:
+    def _make_direction_configs(
+        self,
+        action: np.ndarray,
+        *,
+        episode_step: int = 0,
+        effective_after_abs_ms: float = 0.0,
+    ) -> tuple[DirectionConfig, DirectionConfig]:
         clipped = np.clip(np.asarray(action, dtype=np.float32), self.action_space.low, self.action_space.high)
         uplink_queue_packets = int(self.launch_config.initial_uplink_queue_packets or self.launch_config.qsize_packets)
         downlink_queue_packets = int(self.launch_config.initial_downlink_queue_packets or self.launch_config.qsize_packets)
@@ -170,6 +185,8 @@ class OnlineSageAttackEnv(gym.Env):
             delay_ms=float(clipped[4]),
             queue_packets=uplink_queue_packets,
             queue_bytes=int(self.launch_config.initial_uplink_queue_bytes or 0),
+            episode_step=max(int(episode_step), 0),
+            effective_after_abs_ms=max(float(effective_after_abs_ms), 0.0),
         )
         downlink = DirectionConfig(
             bandwidth_mbps=float(clipped[1]),
@@ -177,12 +194,17 @@ class OnlineSageAttackEnv(gym.Env):
             delay_ms=float(clipped[5]),
             queue_packets=downlink_queue_packets,
             queue_bytes=int(self.launch_config.initial_downlink_queue_bytes or 0),
+            episode_step=max(int(episode_step), 0),
+            effective_after_abs_ms=max(float(effective_after_abs_ms), 0.0),
         )
         return uplink, downlink
 
-    def _telemetry_features(self) -> np.ndarray:
+    def _control_snapshot(self):
         assert self._control_client is not None
-        snapshot = self._control_client.snapshot()
+        return self._control_client.snapshot()
+
+    def _telemetry_features(self, *, snapshot=None) -> np.ndarray:
+        snapshot = snapshot if snapshot is not None else self._control_snapshot()
         up = snapshot.uplink_telemetry
         down = snapshot.downlink_telemetry
         return np.asarray(
@@ -203,6 +225,24 @@ class OnlineSageAttackEnv(gym.Env):
                 down.departure_rate_mbps,
             ],
             dtype=np.float32,
+        )
+
+    def _applied_step(self, *, snapshot) -> int:
+        up_step = int(round(float(snapshot.uplink_telemetry.applied_step)))
+        down_step = int(round(float(snapshot.downlink_telemetry.applied_step)))
+        return min(up_step, down_step)
+
+    def _snapshot_matches_action(self, *, snapshot, action: np.ndarray) -> bool:
+        requested = np.asarray(action, dtype=np.float32)
+        up = snapshot.uplink_telemetry
+        down = snapshot.downlink_telemetry
+        return (
+            abs(float(up.applied_bandwidth_mbps) - float(requested[0])) <= _APPLIED_CONFIG_TOLERANCE
+            and abs(float(down.applied_bandwidth_mbps) - float(requested[1])) <= _APPLIED_CONFIG_TOLERANCE
+            and abs(float(up.applied_loss_rate) - float(requested[2])) <= _APPLIED_CONFIG_TOLERANCE
+            and abs(float(down.applied_loss_rate) - float(requested[3])) <= _APPLIED_CONFIG_TOLERANCE
+            and abs(float(up.applied_delay_ms) - float(requested[4])) <= _APPLIED_CONFIG_TOLERANCE
+            and abs(float(down.applied_delay_ms) - float(requested[5])) <= _APPLIED_CONFIG_TOLERANCE
         )
 
     def _sage_metrics(self, step: SageStep) -> dict[str, float]:
@@ -250,12 +290,13 @@ class OnlineSageAttackEnv(gym.Env):
             return True
         return abs(float(step.reward)) > 1e-9
 
-    def _wait_for_initial_real_step(self) -> tuple[SageStep, bool]:
+    def _wait_for_initial_real_step(self, *, timeout_s: float) -> tuple[SageStep, bool]:
         if self._sage_reader is None or self._sage_process is None:
             raise RuntimeError("Sage is not initialized")
 
-        deadline = time.monotonic() + self.launch_timeout_s
-        initial_timeout = min(self.launch_timeout_s, 1.0)
+        remaining_timeout_s = max(float(timeout_s), 0.0)
+        initial_timeout = min(max(remaining_timeout_s, 0.05), 1.0)
+        deadline = time.monotonic() + remaining_timeout_s
         step = self._sage_reader.read_latest(require_new=False, timeout_s=initial_timeout)
         if self._is_observable_step(step):
             return step, False
@@ -277,7 +318,7 @@ class OnlineSageAttackEnv(gym.Env):
 
         if self._sage_process.poll() is not None:
             self._raise_launch_error(
-                f"Sage never produced a real observation within {self.launch_timeout_s:.1f}s; "
+                f"Sage never produced a real observation within {remaining_timeout_s:.1f}s; "
                 f"last rid={int(last_step.rid)} remained a placeholder"
             )
 
@@ -300,12 +341,17 @@ class OnlineSageAttackEnv(gym.Env):
         self._cleanup()
 
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):
-        super().reset(seed=seed)
+        try:
+            super().reset(seed=seed)
+        except TypeError:
+            if seed is not None and hasattr(self, "seed"):
+                self.seed(seed)
         self._cleanup()
 
         self._steps_taken = 0
         self._episode_index += 1
         self._last_action = self._default_action()
+        self._pending_action = None
         self._last_victim_step = None
         self._has_real_victim_step = False
         episode_dir = self._episode_dir()
@@ -333,9 +379,13 @@ class OnlineSageAttackEnv(gym.Env):
             keys_file=keys_file,
             runtime_dir=episode_dir,
         )
+        launch_started_at = time.monotonic()
         try:
             self._sage_reader = SageSharedMemoryReader.from_keys_file(keys_file, timeout_s=self.launch_timeout_s)
-            initial_step, placeholder_bootstrap = self._wait_for_initial_real_step()
+            remaining_launch_timeout_s = max(self.launch_timeout_s - (time.monotonic() - launch_started_at), 0.0)
+            initial_step, placeholder_bootstrap = self._wait_for_initial_real_step(
+                timeout_s=remaining_launch_timeout_s
+            )
         except Exception as exc:
             exit_code = self._sage_process.poll()
             prefix = "failed to launch Sage"
@@ -349,7 +399,8 @@ class OnlineSageAttackEnv(gym.Env):
         self._obs_history.clear()
         self._last_victim_step = initial_step
         self._has_real_victim_step = not bool(placeholder_bootstrap)
-        telemetry = self._telemetry_features()
+        snapshot = self._control_snapshot()
+        telemetry = self._telemetry_features(snapshot=snapshot)
         initial_feature = self._build_feature(initial_step, self._last_action, telemetry=telemetry)
         for _ in range(self.obs_history_len):
             self._obs_history.append(np.asarray(initial_feature, dtype=np.float32))
@@ -359,60 +410,131 @@ class OnlineSageAttackEnv(gym.Env):
             "sage/rid": int(initial_step.rid),
             "sage/previous_action": float(initial_step.previous_action),
             "env/bootstrap_placeholder": 1.0 if placeholder_bootstrap else 0.0,
+            "mm/up_applied_step": float(snapshot.uplink_telemetry.applied_step),
+            "mm/down_applied_step": float(snapshot.downlink_telemetry.applied_step),
+            "mm/up_applied_effective_after_abs_ms": float(
+                snapshot.uplink_telemetry.applied_effective_after_abs_ms
+            ),
+            "mm/down_applied_effective_after_abs_ms": float(
+                snapshot.downlink_telemetry.applied_effective_after_abs_ms
+            ),
         }
         if placeholder_bootstrap:
             info["env/error"] = "sage_initial_placeholder_bootstrap"
         info.update(self._sage_metrics(initial_step))
         return self._stacked_observation(), info
 
-    def step(self, action):
+    def apply_action(
+        self,
+        action,
+        *,
+        episode_step: int = 0,
+        effective_after_abs_ms: float = 0.0,
+    ) -> np.ndarray:
         if self._control_client is None or self._sage_reader is None or self._sage_process is None:
             raise RuntimeError("environment is not initialized; call reset() first")
 
         clipped = np.clip(np.asarray(action, dtype=np.float32), self.action_space.low, self.action_space.high)
-        uplink, downlink = self._make_direction_configs(clipped)
+        uplink, downlink = self._make_direction_configs(
+            clipped,
+            episode_step=episode_step,
+            effective_after_abs_ms=effective_after_abs_ms,
+        )
         self._control_client.update(uplink=uplink, downlink=downlink)
+        self._pending_action = clipped.astype(np.float32, copy=True)
+        return clipped
 
-        time.sleep(self.attack_interval_ms / 1000.0)
+    def collect_step(
+        self,
+        *,
+        expected_episode_step: int | None = None,
+        expected_action: np.ndarray | None = None,
+        strict: bool = False,
+        deadline_abs_ms: float | None = None,
+        timeout_s: float | None = None,
+    ):
+        if self._control_client is None or self._sage_reader is None or self._sage_process is None:
+            raise RuntimeError("environment is not initialized; call reset() first")
+
+        pending_action = (
+            np.asarray(self._pending_action, dtype=np.float32)
+            if self._pending_action is not None
+            else np.asarray(self._last_action, dtype=np.float32)
+        )
         terminated = False
         truncated = False
         info: dict[str, Any] = {}
+        previous_step = self._last_victim_step
+        victim_step = None
+        snapshot = None
 
         if self._sage_process.poll() is not None:
             terminated = True
             truncated = True
-            victim_step = None
         else:
-            previous_step = self._last_victim_step
-            try:
-                victim_step = self._sage_reader.read_latest(require_new=True, timeout_s=self.step_timeout_s)
-            except TimeoutError:
-                victim_step = previous_step
-                info["env/error"] = "sage_observation_timeout_reused_last"
-            if victim_step is not None:
-                if not self._is_observable_step(victim_step):
+            deadline = (
+                float(deadline_abs_ms)
+                if deadline_abs_ms is not None
+                else _monotonic_ms() + 1000.0 * float(timeout_s if timeout_s is not None else self.step_timeout_s)
+            )
+            while _monotonic_ms() < deadline and self._sage_process.poll() is None:
+                remaining_s = max((deadline - _monotonic_ms()) / 1000.0, 1e-3)
+                try:
+                    candidate = self._sage_reader.read_latest(
+                        require_new=True,
+                        timeout_s=min(remaining_s, float(timeout_s if timeout_s is not None else self.step_timeout_s)),
+                    )
+                except TimeoutError:
+                    continue
+
+                if not self._is_observable_step(candidate):
+                    if strict:
+                        continue
                     victim_step = previous_step
                     info["env/error"] = "sage_placeholder_observation_reused_last"
-                if victim_step is not None:
-                    self._last_victim_step = victim_step
-                    if self._is_observable_step(victim_step):
-                        self._has_real_victim_step = True
+                    break
+
+                snapshot = self._control_snapshot()
+                if expected_episode_step is not None and self._applied_step(snapshot=snapshot) < int(expected_episode_step):
+                    if expected_action is None or not self._snapshot_matches_action(snapshot=snapshot, action=expected_action):
+                        continue
+
+                victim_step = candidate
+                break
+
+            if victim_step is None and previous_step is not None and not strict:
+                victim_step = previous_step
+                info["env/error"] = "sage_observation_timeout_reused_last"
 
         if victim_step is None:
+            self._pending_action = None
+            if "env/error" not in info:
+                info["env/error"] = (
+                    "sage_process_exited" if self._sage_process.poll() is not None else "sage_observation_timeout"
+                )
             obs = self._stacked_observation()
-            return obs, 0.0, terminated, truncated, {"env/error": "sage_process_exited"}
+            return obs, 0.0, terminated, True if strict else truncated, info
+
+        if snapshot is None:
+            snapshot = self._control_snapshot()
+        self._last_victim_step = victim_step
+        if self._is_observable_step(victim_step):
+            self._has_real_victim_step = True
 
         smooth_penalty = float(
-            np.mean(np.abs(self._normalized_action(clipped) - self._normalized_action(self._last_action)))
+            np.mean(np.abs(self._normalized_action(pending_action) - self._normalized_action(self._last_action)))
         )
         reward = float(-self.reward_scale * victim_step.reward - self.smooth_penalty_scale * smooth_penalty)
 
-        telemetry = self._telemetry_features()
-        self._last_action = clipped.astype(np.float32, copy=True)
+        telemetry = self._telemetry_features(snapshot=snapshot)
+        self._last_action = pending_action.astype(np.float32, copy=True)
+        self._pending_action = None
         self._obs_history.append(self._build_feature(victim_step, self._last_action, telemetry=telemetry))
         self._steps_taken += 1
         if self._steps_taken >= self.max_episode_steps:
             truncated = True
+        uplink = snapshot.uplink
+        downlink = snapshot.downlink
         info.update(
             {
                 "sage/reward": float(victim_step.reward),
@@ -420,12 +542,12 @@ class OnlineSageAttackEnv(gym.Env):
                 "sage/previous_action": float(victim_step.previous_action),
                 "attacker/reward": float(reward),
                 "attacker/smooth_penalty": float(smooth_penalty),
-                "attacker/uplink_bw_mbps": float(clipped[0]),
-                "attacker/downlink_bw_mbps": float(clipped[1]),
-                "attacker/uplink_loss": float(clipped[2]),
-                "attacker/downlink_loss": float(clipped[3]),
-                "attacker/uplink_delay_ms": float(clipped[4]),
-                "attacker/downlink_delay_ms": float(clipped[5]),
+                "attacker/uplink_bw_mbps": float(self._last_action[0]),
+                "attacker/downlink_bw_mbps": float(self._last_action[1]),
+                "attacker/uplink_loss": float(self._last_action[2]),
+                "attacker/downlink_loss": float(self._last_action[3]),
+                "attacker/uplink_delay_ms": float(self._last_action[4]),
+                "attacker/downlink_delay_ms": float(self._last_action[5]),
                 "mm/up_queue_packets": float(uplink.queue_packets),
                 "mm/down_queue_packets": float(downlink.queue_packets),
                 "mm/up_applied_bw_mbps": float(telemetry[0]),
@@ -438,7 +560,20 @@ class OnlineSageAttackEnv(gym.Env):
                 "mm/down_applied_delay_ms": float(telemetry[9]),
                 "mm/down_queue_delay_ms": float(telemetry[12]),
                 "mm/down_departure_rate_mbps": float(telemetry[13]),
+                "mm/up_applied_step": float(snapshot.uplink_telemetry.applied_step),
+                "mm/down_applied_step": float(snapshot.downlink_telemetry.applied_step),
+                "mm/up_applied_effective_after_abs_ms": float(
+                    snapshot.uplink_telemetry.applied_effective_after_abs_ms
+                ),
+                "mm/down_applied_effective_after_abs_ms": float(
+                    snapshot.downlink_telemetry.applied_effective_after_abs_ms
+                ),
             }
         )
         info.update(self._sage_metrics(victim_step))
         return self._stacked_observation(), reward, terminated, truncated, info
+
+    def step(self, action):
+        self.apply_action(action)
+        time.sleep(self.attack_interval_ms / 1000.0)
+        return self.collect_step(strict=False, timeout_s=self.step_timeout_s)

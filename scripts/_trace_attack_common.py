@@ -704,7 +704,11 @@ class TraceConditionedAttackEnv(gym.Env):
         return float(reward), float(external_score)
 
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):
-        super().reset(seed=seed)
+        try:
+            super().reset(seed=seed)
+        except TypeError:
+            if seed is not None and hasattr(self, "seed"):
+                self.seed(seed)
         self.close()
 
         entry = self._select_trace_entry(options)
@@ -1088,6 +1092,18 @@ def _plain_step_record(
         "mm/down_applied_delay_ms": "mm_down_applied_delay_ms",
         "mm/down_queue_delay_ms": "mm_down_queue_delay_ms",
         "mm/down_departure_rate_mbps": "mm_down_departure_rate_mbps",
+        "gap/base_rtt_ms": "gap_base_rtt_ms",
+        "gap/path_cap_mbps": "gap_path_cap_mbps",
+        "gap/score_sage": "gap_score_sage",
+        "gap/score_cubic": "gap_score_cubic",
+        "gap/score_bbr": "gap_score_bbr",
+        "gap/baseline_score": "gap_baseline_score",
+        "gap/value": "gap_value",
+        "gap/reward": "gap_reward",
+        "baseline/cubic_rtt_ms": "baseline_cubic_rtt_ms",
+        "baseline/bbr_rtt_ms": "baseline_bbr_rtt_ms",
+        "baseline/cubic_rate_mbps": "baseline_cubic_rate_mbps",
+        "baseline/bbr_rate_mbps": "baseline_bbr_rate_mbps",
         "episode/progress": "progress",
     }
     for source_key, target_key in key_map.items():
@@ -1098,7 +1114,14 @@ def _plain_step_record(
         if not isinstance(value, (int, float, np.floating, np.integer)):
             continue
         sanitized = str(key).replace("/", "_")
-        if sanitized.startswith("attacker_") or sanitized.startswith("sage_") or sanitized.startswith("mm_") or sanitized.startswith("episode_"):
+        if (
+            sanitized.startswith("attacker_")
+            or sanitized.startswith("sage_")
+            or sanitized.startswith("mm_")
+            or sanitized.startswith("gap_")
+            or sanitized.startswith("baseline_")
+            or sanitized.startswith("episode_")
+        ):
             if sanitized not in record:
                 record[sanitized] = float(value)
     return record

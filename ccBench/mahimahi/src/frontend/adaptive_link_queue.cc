@@ -5,6 +5,7 @@
 #include <cstring>
 #include <limits>
 #include <stdexcept>
+#include <time.h>
 
 #include "adaptive_link_queue.hh"
 #include "timestamp.hh"
@@ -38,6 +39,15 @@ uint64_t clamp_wait_time( const double value_ms )
     const double bounded = min( value_ms,
                                 double( numeric_limits<uint16_t>::max() ) );
     return uint64_t( ceil( bounded ) );
+}
+
+uint64_t monotonic_abs_timestamp_ms( void )
+{
+    timespec ts {};
+    clock_gettime( CLOCK_MONOTONIC, &ts );
+    uint64_t millis = uint64_t( ts.tv_nsec ) / 1000000;
+    millis += uint64_t( ts.tv_sec ) * 1000;
+    return millis;
 }
 
 } /* namespace */
@@ -126,6 +136,7 @@ void AdaptiveLinkQueue::record_departure( const uint64_t now,
 void AdaptiveLinkQueue::refresh_config( const uint64_t now )
 {
     adaptive::DirectionConfig next = control_.read( direction_ );
+    const uint64_t now_abs_ms = monotonic_abs_timestamp_ms();
 
     if ( not isfinite( next.bandwidth_mbps ) or next.bandwidth_mbps < 0.0 ) {
         next.bandwidth_mbps = defaults_.bandwidth_mbps;
@@ -143,12 +154,23 @@ void AdaptiveLinkQueue::refresh_config( const uint64_t now )
     if ( next.queue_bytes == 0 ) {
         next.queue_bytes = defaults_.queue_bytes;
     }
+    if ( not isfinite( next.effective_after_abs_ms ) or next.effective_after_abs_ms < 0.0 ) {
+        next.effective_after_abs_ms = active_config_.effective_after_abs_ms;
+    }
+    if ( next.episode_step < active_config_.episode_step ) {
+        return;
+    }
+    if ( next.episode_step > active_config_.episode_step
+         and uint64_t( ceil( next.effective_after_abs_ms ) ) > now_abs_ms ) {
+        return;
+    }
 
     const bool changed = fabs( next.bandwidth_mbps - active_config_.bandwidth_mbps ) > 1e-9
                          or fabs( next.loss_rate - active_config_.loss_rate ) > 1e-9
                          or fabs( next.delay_ms - active_config_.delay_ms ) > 1e-9
                          or next.queue_packets != active_config_.queue_packets
-                         or next.queue_bytes != active_config_.queue_bytes;
+                         or next.queue_bytes != active_config_.queue_bytes
+                         or next.episode_step != active_config_.episode_step;
     active_config_ = next;
     if ( changed ) {
         last_apply_ms_ = now;
@@ -291,6 +313,8 @@ void AdaptiveLinkQueue::update_telemetry( const uint64_t now )
     if ( bytes_per_ms > 0.0 ) {
         telemetry.queue_delay_ms = double( queue_occupancy_bytes() ) / bytes_per_ms;
     }
+    telemetry.applied_step = double( active_config_.episode_step );
+    telemetry.applied_effective_after_abs_ms = active_config_.effective_after_abs_ms;
 
     control_.update_telemetry( direction_, telemetry );
 }

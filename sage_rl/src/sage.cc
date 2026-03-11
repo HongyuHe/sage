@@ -130,6 +130,34 @@ int getenv_int_or_default( const char * name, const int fallback )
     return atoi( value );
 }
 
+bool controller_uses_rl()
+{
+    return strcmp( getenv_or_default( "SAGE_CONTROLLER_MODE", "sage" ), "kernel_cc" ) != 0;
+}
+
+bool apply_congestion_scheme( const int fd )
+{
+    if ( scheme == NULL || scheme[0] == '\0' ) {
+        return true;
+    }
+    if ( setsockopt( fd, IPPROTO_TCP, TCP_CONGESTION, scheme, strlen( scheme ) ) < 0 ) {
+        DBGMARK(DBGSERVER,5,"Scheme (%s) Failed \n",scheme);
+        DBGERROR("TCP congestion doesn't exist: %s\n",strerror(errno));
+        return false;
+    }
+    return true;
+}
+
+double action_feature_value( const double cwnd_rate, const tcp_sage_info & sage_info )
+{
+    if ( controller_uses_rl() ) {
+        return (cwnd_rate>0.0)?round(log2f(cwnd_rate)*1000)/1000.:log2f(0.0001);
+    }
+
+    const double snd_cwnd = (sage_info.snd_cwnd > 0) ? (double)sage_info.snd_cwnd : 1.0;
+    return round(log2(snd_cwnd) * 1000.0) / 1000.0;
+}
+
 void write_attack_keys_file( const char * path_to_file )
 {
     if ( path_to_file == NULL || path_to_file[0] == '\0' ) {
@@ -308,14 +336,10 @@ void start_server(int flow_num, int client_port)
             close(sock[i]);
             return;
         }
-        if (scheme) 
+        if ( !apply_congestion_scheme( sock[i] ) )
         {
-            if (setsockopt(sock[i], IPPROTO_TCP, TCP_CONGESTION, scheme, strlen(scheme)) < 0) 
-            {
-           		DBGMARK(DBGSERVER,5,"Scheme (%s) Failed \n",scheme);
-                DBGERROR("TCP congestion doesn't exist: %s\n",strerror(errno));
-                return;
-            } 
+            close(sock[i]);
+            return;
         }
 
     }
@@ -410,25 +434,33 @@ void start_server(int flow_num, int client_port)
         DBGERROR("Failed to write bootstrap observation into shared memory (rid=0)\n");
     }
 
-    if (first_time==0)
+    const bool use_rl_controller = controller_uses_rl();
+    if (use_rl_controller)
     {
-    DBGERROR("Starting RL in Evalution Mode(0) ...\n%s",cmd);
-    sprintf(cmd,"/home/`echo $USER`/venvpy36/bin/python %s/tcpactor.py --base_path=%s --mode=0 --mem_r=%d --mem_w=%d --id=%d --flows=%d --bw=%d&",path,path,(int)key,(int)key_rl,actor_id,flows_num,env_bw);
-    }
-    else if (first_time==1)
-    {
-        DBGERROR("Starting RL in Training Mode(1) ...\n%s",cmd);
-        sprintf(cmd,"/home/`echo $USER`/venvpy36/bin/python %s/tcpactor.py --base_path=%s --mode=1 --mem_r=%d --mem_w=%d --id=%d --flows=%d --bw=%d&",path,path,(int)key,(int)key_rl,actor_id,flows_num,env_bw);
-    }
-    else if (first_time==2)
-    {
-        DBGERROR("Starting RL in Evaluation during Training Mode(1) ...\n%s",cmd);
-        sprintf(cmd,"/home/`echo $USER`/venvpy36/bin/python %s/tcpactor.py --base_path=%s --mode=2 --mem_r=%d --mem_w=%d --id=%d --flows=%d --bw=%d&",path,path,(int)key,(int)key_rl,actor_id,flows_num,env_bw);
-    }
+        if (first_time==0)
+        {
+            DBGERROR("Starting RL in Evalution Mode(0) ...\n%s",cmd);
+            sprintf(cmd,"/home/`echo $USER`/venvpy36/bin/python %s/tcpactor.py --base_path=%s --mode=0 --mem_r=%d --mem_w=%d --id=%d --flows=%d --bw=%d&",path,path,(int)key,(int)key_rl,actor_id,flows_num,env_bw);
+        }
+        else if (first_time==1)
+        {
+            DBGERROR("Starting RL in Training Mode(1) ...\n%s",cmd);
+            sprintf(cmd,"/home/`echo $USER`/venvpy36/bin/python %s/tcpactor.py --base_path=%s --mode=1 --mem_r=%d --mem_w=%d --id=%d --flows=%d --bw=%d&",path,path,(int)key,(int)key_rl,actor_id,flows_num,env_bw);
+        }
+        else if (first_time==2)
+        {
+            DBGERROR("Starting RL in Evaluation during Training Mode(1) ...\n%s",cmd);
+            sprintf(cmd,"/home/`echo $USER`/venvpy36/bin/python %s/tcpactor.py --base_path=%s --mode=2 --mem_r=%d --mem_w=%d --id=%d --flows=%d --bw=%d&",path,path,(int)key,(int)key_rl,actor_id,flows_num,env_bw);
+        }
 
-    system(cmd);
-    //Wait to get OK signal (alpha=OK_SIGNAL)
-    DBGERROR("(Actor %d) Waiting for RL Module ...\n",actor_id);
+        system(cmd);
+        //Wait to get OK signal (alpha=OK_SIGNAL)
+        DBGERROR("(Actor %d) Waiting for RL Module ...\n",actor_id);
+    }
+    else
+    {
+        DBGERROR("(Actor %d) Running kernel baseline mode (%s); skipping RL actor launch.\n",actor_id,scheme);
+    }
 #endif
     
     bool got_ready_signal_from_rl=false;
@@ -439,38 +471,47 @@ void start_server(int flow_num, int client_port)
     int signal_check_counter=0;
 
 #ifdef EVALUATION
-    while(!got_ready_signal_from_rl)
+    if (use_rl_controller)
     {
-        std::unique_ptr<char[]> ready_signal_copy(new char[shmem_size]);
-        memcpy(ready_signal_copy.get(), shared_memory_rl, shmem_size);
-        ready_signal_copy[shmem_size - 1] = '\0';
-        //Get alpha from RL-Module
-        signal_check_counter++;
-        num=strtok_r(ready_signal_copy.get()," ",&save_ptr);
-        alpha=strtok_r(NULL," ",&save_ptr);
-        if(num!=NULL && alpha!=NULL)
+        while(!got_ready_signal_from_rl)
         {
-           signal=atoi(alpha);      
-           if(signal==OK_SIGNAL)
-           {
-              got_ready_signal_from_rl=true;
-           }
-           else{
+            std::unique_ptr<char[]> ready_signal_copy(new char[shmem_size]);
+            memcpy(ready_signal_copy.get(), shared_memory_rl, shmem_size);
+            ready_signal_copy[shmem_size - 1] = '\0';
+            //Get alpha from RL-Module
+            signal_check_counter++;
+            num=strtok_r(ready_signal_copy.get()," ",&save_ptr);
+            alpha=strtok_r(NULL," ",&save_ptr);
+            if(num!=NULL && alpha!=NULL)
+            {
+               signal=atoi(alpha);      
+               if(signal==OK_SIGNAL)
+               {
+                  got_ready_signal_from_rl=true;
+               }
+               else{
+                   usleep(10000);
+               }
+            }
+            else{
                usleep(10000);
-           }
+            }
+            if (signal_check_counter>6000)
+            {
+                DBGERROR("After 1 minute, no response (OK_Signal) from the Actor %d is received! We are going down down down ...\n",actor_id);
+                return;
+            }   
         }
-        else{
-           usleep(10000);
+        
+        DBGERROR("(Actor %d) RL Module is Ready. Let's Start ...\n\n",actor_id);
+        const int configured_startup_stagger_ms = getenv_int_or_default("SAGE_STARTUP_STAGGER_MS", -1);
+        if ( configured_startup_stagger_ms >= 0 ) {
+            usleep( (useconds_t)configured_startup_stagger_ms * 1000 );
         }
-        if (signal_check_counter>6000)
-        {
-            DBGERROR("After 1 minute, no response (OK_Signal) from the Actor %d is received! We are going down down down ...\n",actor_id);
-            return;
-        }   
+        else {
+            usleep(actor_id*10000+10000);
+        }
     }
-    
-    DBGERROR("(Actor %d) RL Module is Ready. Let's Start ...\n\n",actor_id);    
-    usleep(actor_id*10000+10000);
     //Now its time to start the server-client app ...
     initial_timestamp();
     system(final_cmd);
@@ -543,45 +584,52 @@ void start_server(int flow_num, int client_port)
 	{
         if (FD_ISSET(sock[flow_index], &rset)) 
         {
-            int value=accept(sock[flow_index],(struct sockaddr *)&client_addr[flow_index],(socklen_t*)&sin_size);
+            const int accepted_index = flow_index;
+            int value=accept(sock[accepted_index],(struct sockaddr *)&client_addr[accepted_index],(socklen_t*)&sin_size);
             if(value<0)
             {
                 perror("accept error\n");
                 DBGERROR("sockopt: %s\n",strerror(errno));
-                DBGERROR("sock::%d, index:%d\n",sock[flow_index],flow_index);
-                close(sock[flow_index]);
+                DBGERROR("sock::%d, index:%d\n",sock[accepted_index],accepted_index);
+                close(sock[accepted_index]);
                 return;
             }
-            sock_for_cnt[flow_index]=value;
-            flows[flow_index].flowinfo.sock=value;
-            flows[flow_index].dst_addr=client_addr[flow_index];
-            if(pthread_create(&data_thread, NULL , DataThread, (void*)&flows[flow_index]) < 0)
+            sock_for_cnt[accepted_index]=value;
+            if ( !apply_congestion_scheme( sock_for_cnt[accepted_index] ) )
+            {
+                close(sock_for_cnt[accepted_index]);
+                close(sock[accepted_index]);
+                return;
+            }
+            flows[accepted_index].flowinfo.sock=value;
+            flows[accepted_index].dst_addr=client_addr[accepted_index];
+            flow_index = accepted_index + 1;
+            if(pthread_create(&data_thread, NULL , DataThread, (void*)&flows[accepted_index]) < 0)
             {
                 DBGERROR("could not create thread\n");
-                close(sock[flow_index]);
+                close(sock[accepted_index]);
                 return;
             }
                       
-                if (flow_index==0)
+                if (accepted_index==0)
                 {
                     
                     if(pthread_create(&cnt_thread, NULL , CntThread, (void*)info) < 0)
                     {
                         DBGERROR("could not create control thread\n");
-                        close(sock[flow_index]);
+                        close(sock[accepted_index]);
                         return;
                     }
                     
                     if(pthread_create(&timer_thread, NULL , TimerThread, (void*)info) < 0)
                     {
                         DBGERROR("could not create timer thread\n");
-                        close(sock[flow_index]);
+                        close(sock[accepted_index]);
                         return;
                     } 
                 }
                 
             DBGERROR("(Actor %d) Server is Connected to the client...\n",actor_id);
-            flow_index++;
         }
     }
     //fclose(testing_);
@@ -643,6 +691,7 @@ void* CntThread(void* information)
     bool slow_start_passed=SLOW_START_INIT_STATE;
     int slow_start_tran_step=0;
     int slow_start_counter=0;
+    const bool use_rl_controller = controller_uses_rl();
     for(int i=0;i<FLOW_NUM;i++)
     {
         if (setsockopt(sock_for_cnt[i], IPPROTO_TCP, TCP_NODELAY, &reuse, sizeof(reuse)) < 0)
@@ -652,35 +701,35 @@ void* CntThread(void* information)
         }
         //Enable DeepCC Style pacing on this socket:
 #ifdef EVALUATION        
-        int enable_deepcc=1;
-        if(PACE_ENABLE==1)
-            //With Pacing
-            enable_deepcc=2;
-        if (setsockopt(sock_for_cnt[i], IPPROTO_TCP, TCP_DEEPCC_ENABLE, &enable_deepcc, sizeof(enable_deepcc)) < 0) 
+        if (use_rl_controller)
         {
-            DBGERROR("CHECK KERNEL VERSION (0514+) ;CANNOT ENABLE DEEPCC %s\n",strerror(errno));
-            return ((void* )0);
-        }
-#endif
-#ifdef EVALUATION
-        int deepcc_pacing_type=PACE_TYPE;
-        if (setsockopt(sock_for_cnt[i], IPPROTO_TCP, TCP_DEEPCC_PACING_TYPE, &deepcc_pacing_type, sizeof(deepcc_pacing_type)) < 0)
-        {
-            DBGERROR("CHECK KERNEL VERSION (006+) ;CANNOT SET PACING TYPE %s\n",strerror(errno));
-            return ((void* )0);
-        }
-        int deepcc_pacing_coef=PACE_COEF;
-        if (setsockopt(sock_for_cnt[i], IPPROTO_TCP, TCP_DEEPCC_PACING_COEF, &deepcc_pacing_coef, sizeof(deepcc_pacing_coef)) < 0)
-        {
-            DBGERROR("CHECK KERNEL VERSION (006+) ;CANNOT SET PACING COEF %s\n",strerror(errno));
-            return ((void* )0);
+            int enable_deepcc=1;
+            if(PACE_ENABLE==1)
+                //With Pacing
+                enable_deepcc=2;
+            if (setsockopt(sock_for_cnt[i], IPPROTO_TCP, TCP_DEEPCC_ENABLE, &enable_deepcc, sizeof(enable_deepcc)) < 0) 
+            {
+                DBGERROR("CHECK KERNEL VERSION (0514+) ;CANNOT ENABLE DEEPCC %s\n",strerror(errno));
+                return ((void* )0);
+            }
+            int deepcc_pacing_type=PACE_TYPE;
+            if (setsockopt(sock_for_cnt[i], IPPROTO_TCP, TCP_DEEPCC_PACING_TYPE, &deepcc_pacing_type, sizeof(deepcc_pacing_type)) < 0)
+            {
+                DBGERROR("CHECK KERNEL VERSION (006+) ;CANNOT SET PACING TYPE %s\n",strerror(errno));
+                return ((void* )0);
+            }
+            int deepcc_pacing_coef=PACE_COEF;
+            if (setsockopt(sock_for_cnt[i], IPPROTO_TCP, TCP_DEEPCC_PACING_COEF, &deepcc_pacing_coef, sizeof(deepcc_pacing_coef)) < 0)
+            {
+                DBGERROR("CHECK KERNEL VERSION (006+) ;CANNOT SET PACING COEF %s\n",strerror(errno));
+                return ((void* )0);
+            }
         }
 #endif
 
     }
     char message[4096];
     char* shared_memory_rl2=  (char*)malloc(shmem_size);
-    char message_summarized[4096];
     char *num;
     char*alpha;
     char*save_ptr;
@@ -696,9 +745,6 @@ void* CntThread(void* information)
     int actor_is_dead_counter=0;
     int tmp_step=0;
     int fairness_phase_cnt=0;
-    bool logged_positive_sample=false;
-    bool logged_first_observation=false;
-    bool logged_startup_stall=false;
 
     //FILE *measurement_file;
     char file_name[1000];
@@ -803,7 +849,7 @@ void* CntThread(void* information)
                     ret1= getsockopt( sock_for_cnt[i], SOL_TCP, TCP_INFO, (void *)&sage_info, &sage_info_length);
                     if(ret1<0)
                     {
-                        DBGMARK(0,0,"setsockopt: for index:%d flow_index:%d TCP_INFO ... %s (ret1:%d)\n",i,flow_index,strerror(errno),ret1);
+                        DBGERROR("getsockopt TCP_INFO failed: index=%d flow_index=%d err=%s ret=%d\n",i,flow_index,strerror(errno),ret1);
                         return((void *)0);
                     }
 
@@ -814,34 +860,8 @@ void* CntThread(void* information)
                     u64 l_db;
                     pre_pkt_dlv = sage_info.delivered; 
 
-                    if (!logged_startup_stall && !logged_positive_sample && ((timestamp()-start_time) > 5000000))
-                    {
-                        DBGERROR("No positive TCP sample after 5s: info_len=%u bytes_acked=%llu delivered=%u bytes_sent=%llu unacked=%u rtt=%u state=%u ca_state=%u delivery_rate=%llu\n",
-                                 (unsigned int)sage_info_length,
-                                 (unsigned long long)sage_info.bytes_acked,
-                                 (unsigned int)sage_info.delivered,
-                                 (unsigned long long)sage_info.bytes_sent,
-                                 (unsigned int)sage_info.unacked,
-                                 (unsigned int)sage_info.rtt,
-                                 (unsigned int)sage_info.state,
-                                 (unsigned int)sage_info.ca_state,
-                                 (unsigned long long)sage_info.delivery_rate);
-                        logged_startup_stall = true;
-                    }
-
                     if (bytes_acked_>0 || d_db>0)
                     {
-                        if (!logged_positive_sample)
-                        {
-                            DBGERROR("First positive TCP sample: bytes_acked=%d delivered_bytes=%llu bytes_sent=%llu unacked=%u rtt=%u delivery_rate=%llu\n",
-                                     bytes_acked_,
-                                     (unsigned long long)d_db,
-                                     (unsigned long long)sage_info.bytes_sent,
-                                     (unsigned int)sage_info.unacked,
-                                     (unsigned int)sage_info.rtt,
-                                     (unsigned long long)sage_info.delivery_rate);
-                            logged_positive_sample = true;
-                        }
                         dt = timestamp()- dt_pre;
                         dt = (dt>0)?dt:1;
                         dt_pre = timestamp();
@@ -854,12 +874,12 @@ void* CntThread(void* information)
                         loss_db.add(l_db);
                         sent_dt.add(dt);
                         dlv_dt.add(dt);  //It is redundant!
-                        u64 dt_sum = sent_dt.sum();
-                        sr_w_mbps = (double)8*sent_db.sum()/dt_sum;
-                        dr_w_mbps = (double)8*dlv_db.sum()/dt_sum;
-                        l_w_mbps  = (double)8*loss_db.sum()/dt_sum;
+                        u64 dt_sum = sent_dt.get_sum();
+                        sr_w_mbps = (double)8*sent_db.get_sum()/dt_sum;
+                        dr_w_mbps = (double)8*dlv_db.get_sum()/dt_sum;
+                        l_w_mbps  = (double)8*loss_db.get_sum()/dt_sum;
                         dr_w.add(dr_w_mbps);
-                        dr_w_max = dr_w.max();
+                        dr_w_max = dr_w.get_max();
                         if (dr_w_max==0.0)
                             dr_w_max = 1;
                         rtt_w.add((double)sage_info.rtt/100000.0);
@@ -915,10 +935,10 @@ void* CntThread(void* information)
                             delta_time_win.add(time_delta);
 
                             real_lost_rate = 0.0;
-                            double total_time_win_loss = delta_time_win.sum();
+                            double total_time_win_loss = delta_time_win.get_sum();
                             if(total_time_win_loss>0.0)
                             {
-                                real_lost_rate = loss_win.sum()/total_time_win_loss; //Mbps
+                                real_lost_rate = loss_win.get_sum()/total_time_win_loss; //Mbps
                             }
 
                             pre_lost_packets = sage_info.lost;
@@ -945,7 +965,7 @@ void* CntThread(void* information)
                             sending_rate = sending_rate/time_delta; // Bps
 
                             sending_rates.add((u64)sending_rate);
-                            max_sending_rate = sending_rates.max();
+                            max_sending_rate = sending_rates.get_max();
                             //rtt_rate = (double)sage_info.min_rtt/sage_info.rtt;
                             rtt_rate = (double)min_rtt_us/sage_info.rtt;
                             //time_delta = sage_info.min_rtt/(1000000*time_delta);
@@ -984,8 +1004,8 @@ void* CntThread(void* information)
 
                         pre_max_rate = max_rate;
 
-                        u64 s_db_tmp =sent_db.sum();
-                        u64 ua_db_tmp = uack_db.avg();
+                        u64 s_db_tmp =sent_db.get_sum();
+                        u64 ua_db_tmp = uack_db.get_avg();
                         double cwnd_unacked_rate = (s_db_tmp>0)?(double)ua_db_tmp/s_db_tmp:(double)ua_db_tmp; //(double)sage_info.unacked/sage_info.snd_cwnd;
 
                         double srate = (double)8*sage_info.bytes_sent/time_tmp;
@@ -1115,6 +1135,7 @@ void* CntThread(void* information)
                                );
                                  
                         int message_len = 0;
+                        const double action_feature = action_feature_value(cwnd_rate, sage_info);
                         if(DS_VERSION>500)
                         {
                            message_len = snprintf(message, sizeof(message), "%.7f %.7f %s  %.7f   %.7f %.7f   %.7f %.7f    %.7f %.7f    %.7f %.7f   %.7f %.7f   %.7f %.7f",
@@ -1137,7 +1158,7 @@ void* CntThread(void* information)
                             //Soheil: If we should change the reward (giving pentalties, etc.), 
                             //we will do it here and send the final reward to python code. 
                             //75    76
-                            reward,(cwnd_rate>0.0)?round(log2f(cwnd_rate)*1000)/1000.:log2f(0.0001));
+                            reward,action_feature);
                         }
                         else
                         {
@@ -1151,46 +1172,14 @@ void* CntThread(void* information)
                             (dr_w_mbps-l_w_mbps)/BW_NORM_FACTOR, cwnd_unacked_rate, //sr_w_mbps/dr_w_max,
                             (pre_dr_w_max>0.0)?(dr_w_max/pre_dr_w_max):dr_w_max,
                             dr_w_max/BW_NORM_FACTOR,                          
-                            reward,(cwnd_rate>0.0)?round(log2f(cwnd_rate)*1000)/1000.:log2f(0.0001));
+                            reward,action_feature);
                         }
                             
-                        const int message_summary_len = snprintf(message_summarized, sizeof(message_summarized), "bw:%.3f   rtt:%.3f   loss:%.3f srate:%f max:%.3f  r:%.3f a:%.7f",
-                            dr_w_mbps,
-                            rtt_rate, 
-                            l_w_mbps/BW_NORM_FACTOR,
-                            (double)sage_info.pacing_rate/125000.0/BW_NORM_FACTOR, /*pacing rate 100x Mbps*/
-                            max_tmp,
-                            reward,(cwnd_rate>0.0)?round(log2f(cwnd_rate)*1000)/1000.:log2f(0.0001));
-                        if (!logged_first_observation)
-                        {
-                            DBGERROR("Observation payload lengths: extra=%d message=%d summary=%d\n",
-                                     message_extra_len,
-                                     message_len,
-                                     message_summary_len);
-                        }
-
-                        int shared_memory_len = -1;
                         if (shared_memory != NULL)
                         {
-                            shared_memory_len = snprintf(shared_memory, shmem_size, "%d %s", msg_id, message);
+                            snprintf(shared_memory, shmem_size, "%d %s", msg_id, message);
                         }
-#ifdef EVALUATION   
-                        if (!logged_first_observation)
-                        {
-                            DBGERROR("Shared-memory write length: %d bytes\n", shared_memory_len);
-                        }
-                        if (!logged_first_observation)
-                        {
-                            DBGERROR("First observation written: rid=%d reward=%.6f rtt=%u bytes_acked=%llu delivered=%u delivery_rate=%llu\n",
-                                     msg_id,
-                                     reward,
-                                     (unsigned int)sage_info.rtt,
-                                     (unsigned long long)sage_info.bytes_acked,
-                                     (unsigned int)sage_info.delivered,
-                                     (unsigned long long)sage_info.delivery_rate);
-                            logged_first_observation = true;
-                        }
-#else
+#ifndef EVALUATION
                         measurement_file << message<<"\n";
 #endif
                         got_no_zero=1;
@@ -1205,15 +1194,10 @@ void* CntThread(void* information)
                         const u64 now_ts = timestamp();
                         if ( now_ts - last_fallback_emit_ts >= (u64)(report_period * 1000) )
                         {
-                            const double fallback_action = (cwnd_rate > 0.0) ? round(log2f(cwnd_rate) * 1000) / 1000. : log2f(0.0001);
+                            const double fallback_action = action_feature_value(cwnd_rate, sage_info);
                             if ( write_placeholder_observation(msg_id, 0.0, fallback_action) )
                             {
                                 got_no_zero = 1;
-                                if ( !logged_first_observation )
-                                {
-                                    DBGERROR("Fallback observation emitted before first TCP-positive sample: rid=%d\n", msg_id);
-                                    logged_first_observation = true;
-                                }
                                 msg_id = (msg_id + 1) % 1000;
                             }
                             last_fallback_emit_ts = now_ts;
@@ -1222,126 +1206,133 @@ void* CntThread(void* information)
                 }
                 //
 #ifdef EVALUATION                
-                got_alpha=false;
-                int error_cnt=0;
-                int error2_cnt=0;
-                double target_cwnd=4;
-                u64 cwnd_tmp=0;
-                u64 cwnd_max_tmp=0;
-                int cnt_tmp = 0;
-                int tmp___=0;
-                int show_log=0;
-                u64 action_get_time_start_ms = timestamp()/1000;
-                while(!got_alpha && send_traffic)
-                { 
-                   //Get alpha from RL-Module
-                   memcpy(shared_memory_rl2, shared_memory_rl, shmem_size);
-                   shared_memory_rl2[shmem_size - 1] = '\0';
-                   num=strtok_r(shared_memory_rl2," ",&save_ptr);
+                if (use_rl_controller)
+                {
+                    got_alpha=false;
+                    int error_cnt=0;
+                    int error2_cnt=0;
+                    double target_cwnd=4;
+                    u64 cwnd_tmp=0;
+                    u64 cwnd_max_tmp=0;
+                    int cnt_tmp = 0;
+                    int tmp___=0;
+                    int show_log=0;
+                    u64 action_get_time_start_ms = timestamp()/1000;
+                    while(!got_alpha && send_traffic)
+                    { 
+                       //Get alpha from RL-Module
+                       memcpy(shared_memory_rl2, shared_memory_rl, shmem_size);
+                       shared_memory_rl2[shmem_size - 1] = '\0';
+                       num=strtok_r(shared_memory_rl2," ",&save_ptr);
 
-                   alpha=strtok_r(NULL," ",&save_ptr);
-                   if(num!=NULL && alpha!=NULL)
-                   {
-                       if (show_log)                            
+                       alpha=strtok_r(NULL," ",&save_ptr);
+                       if(num!=NULL && alpha!=NULL)
                        {
-                           DBGERROR("Time: %f (s), still waiting got previous one ...\n",(double)(raw_timestamp()/1000-start_timestamp)/1000);
-                           show_log=0;
-                       }
-                       pre_id_tmp=atoi(num);
-                       if(pre_id!=pre_id_tmp /*&& target_ratio!=OK_SIGNAL*/)
-                       {
-                          got_alpha=true; 
-                          cnt_tmp=0;
-                          pre_id=pre_id_tmp; 
-                          target_cwnd = atof(alpha);
-                          if(ESTIMATE)
-                          {
-                              double tmp_target_cwnd = ACCURACY*target_cwnd;
-                              u64 alpha_tmp = round(tmp_target_cwnd);
-                              target_cwnd = alpha_tmp/ACCURACY;
-                          }
-                     
-                          if(!TURN_ON_SAFETY)
-                          {
-                                if(ACCUMULATE_CWND)
-                                {
-                                    cwnd_precise = mul(cwnd_precise,target_cwnd);
-                                    if(ROUNT_TYPE==FLOORING)
+                           if (show_log)                            
+                           {
+                               DBGERROR("Time: %f (s), still waiting got previous one ...\n",(double)(raw_timestamp()/1000-start_timestamp)/1000);
+                               show_log=0;
+                           }
+                           pre_id_tmp=atoi(num);
+                           if(pre_id!=pre_id_tmp /*&& target_ratio!=OK_SIGNAL*/)
+                           {
+                              got_alpha=true; 
+                              cnt_tmp=0;
+                              pre_id=pre_id_tmp; 
+                              target_cwnd = atof(alpha);
+                              if(ESTIMATE)
+                              {
+                                  double tmp_target_cwnd = ACCURACY*target_cwnd;
+                                  u64 alpha_tmp = round(tmp_target_cwnd);
+                                  target_cwnd = alpha_tmp/ACCURACY;
+                              }
+                         
+                              if(!TURN_ON_SAFETY)
+                              {
+                                    if(ACCUMULATE_CWND)
                                     {
-                                        cwnd_tmp = floor(cwnd_precise);
-                                    }
-                                    else if (ROUNT_TYPE==CEILING)
-                                    {
-                                        cwnd_tmp = ceil(cwnd_precise);
-                                    }
-                                    else if (ROUNT_TYPE==ROUNDING)
-                                    {
-                                        cwnd_tmp = round(cwnd_precise);
+                                        cwnd_precise = mul(cwnd_precise,target_cwnd);
+                                        if(ROUNT_TYPE==FLOORING)
+                                        {
+                                            cwnd_tmp = floor(cwnd_precise);
+                                        }
+                                        else if (ROUNT_TYPE==CEILING)
+                                        {
+                                            cwnd_tmp = ceil(cwnd_precise);
+                                        }
+                                        else if (ROUNT_TYPE==ROUNDING)
+                                        {
+                                            cwnd_tmp = round(cwnd_precise);
+                                        }
+                                        else
+                                        {
+                                            cwnd_tmp = (u64)(cwnd_precise);
+                                        }
+                                        if(cwnd_tmp>=MAX_32Bit)
+                                            target_ratio = MAX_32Bit;
+                                        else
+                                            target_ratio = cwnd_tmp;
                                     }
                                     else
-                                    {
-                                        cwnd_tmp = (u64)(cwnd_precise);
+                                    { 
+                                        target_ratio = floor(mul((double)sage_info.snd_cwnd,target_cwnd));                                  
                                     }
-                                    if(cwnd_tmp>=MAX_32Bit)
-                                        target_ratio = MAX_32Bit;
-                                    else
-                                        target_ratio = cwnd_tmp;
-                                }
-                                else
-                                { 
-                                    target_ratio = floor(mul((double)sage_info.snd_cwnd,target_cwnd));                                  
-                                }
-                          }
-                          
-                          if(target_ratio<MIN_CWND)
-                          {
-                              target_ratio = MIN_CWND;
-                              cwnd_precise = MIN_CWND;
-                          }
-                    
-                          if(target_ratio>MAX_CWND)
-                          {
-                              target_ratio = MAX_CWND;
-                              cwnd_precise = MAX_CWND;
-                          }
+                              }
+                              
+                              if(target_ratio<MIN_CWND)
+                              {
+                                  target_ratio = MIN_CWND;
+                                  cwnd_precise = MIN_CWND;
+                              }
+                        
+                              if(target_ratio>MAX_CWND)
+                              {
+                                  target_ratio = MAX_CWND;
+                                  cwnd_precise = MAX_CWND;
+                              }
 
-                          //DBGERROR("T:%.3f id: %d Cwnd: %d   %s\n",(double)(raw_timestamp()/1000-start_timestamp)/1000,actor_id,target_ratio,message_summarized);
-                          ret1 = setsockopt(sock_for_cnt[i], IPPROTO_TCP,TCP_CWND, &target_ratio, sizeof(target_ratio));
-                          if(ret1<0)
-                          {
-                              DBGERROR("setsockopt: for index:%d flow_index:%d ... %s (ret1:%d)\n",i,flow_index,strerror(errno),ret1);
-                              return((void *)0);
-                          }
-                          cwnd_rate = target_cwnd; 
-                          error_cnt=0;
+                              //DBGERROR("T:%.3f id: %d Cwnd: %d   %s\n",(double)(raw_timestamp()/1000-start_timestamp)/1000,actor_id,target_ratio,message_summarized);
+                              ret1 = setsockopt(sock_for_cnt[i], IPPROTO_TCP,TCP_CWND, &target_ratio, sizeof(target_ratio));
+                              if(ret1<0)
+                              {
+                                  DBGERROR("setsockopt: for index:%d flow_index:%d ... %s (ret1:%d)\n",i,flow_index,strerror(errno),ret1);
+                                  return((void *)0);
+                              }
+                              cwnd_rate = target_cwnd; 
+                              error_cnt=0;
+                           }
+                           else{
+                               if (error_cnt>600000)
+                               {
+                                   DBGERROR("After 1 Minute, stilll no new value id:%d prev_id:%d, Server is going down down down\n",pre_id_tmp,pre_id);
+                                   send_traffic=false;
+                                   error_cnt=0;
+                               }
+                               error_cnt++;
+                               usleep(10);
+                               if (error_cnt%10000 ==0)
+                                   DBGERROR("---------Actor_id: %d, PreID: %d\n", actor_id, pre_id);
+                           }
+
+                           error2_cnt=0;
                        }
                        else{
-                           if (error_cnt>600000)
-                           {
-                               DBGERROR("After 1 Minute, stilll no new value id:%d prev_id:%d, Server is going down down down\n",pre_id_tmp,pre_id);
-                               send_traffic=false;
-                               error_cnt=0;
-                           }
-                           error_cnt++;
-                           usleep(10);
-                           if (error_cnt%10000 ==0)
-                               DBGERROR("---------Actor_id: %d, PreID: %d\n", actor_id, pre_id);
+                            usleep(10);
+                            if (error2_cnt%1000 == 0)
+                                DBGERROR("NULL-ALPHA => cnt=%d! Actor_id: %d, PreID: %d num:%s alpha:%s\n", error2_cnt, actor_id, pre_id, num, alpha);
+                            error2_cnt += 1;
                        }
-
-                       error2_cnt=0;
-                   }
-                   else{
-                        usleep(10);
-                        if (error2_cnt%1000 == 0)
-                            DBGERROR("NULL-ALPHA => cnt=%d! Actor_id: %d, PreID: %d num:%s alpha:%s\n", error2_cnt, actor_id, pre_id, num, alpha);
-                        error2_cnt += 1;
-                   }
-                   if(!got_alpha && (timestamp()/1000-action_get_time_start_ms)>WAIT_FOR_ACTION_MAX_ms)
-                   {
-                       DBGERROR("............. Time: %f (s), No action from RL agent (id:%d), skipping this round ................\n",(double)(raw_timestamp()/1000-start_timestamp)/1000,pre_id);
-                       //Skip this round!
-                       got_alpha=1;
-                   }
+                       if(!got_alpha && (timestamp()/1000-action_get_time_start_ms)>WAIT_FOR_ACTION_MAX_ms)
+                       {
+                           DBGERROR("............. Time: %f (s), No action from RL agent (id:%d), skipping this round ................\n",(double)(raw_timestamp()/1000-start_timestamp)/1000,pre_id);
+                           //Skip this round!
+                           got_alpha=1;
+                       }
+                    }
+                }
+                else
+                {
+                    cwnd_rate = (sage_info.snd_cwnd > 0) ? (double)sage_info.snd_cwnd : 1.0;
                 }
 #endif
            }
@@ -1427,7 +1418,7 @@ void* DataThread(void* info)
 	len=recv(sock_local,read_message,1024,0);
 	if(len<=0)
 	{
-		DBGMARK(DBGSERVER,1,"recv failed! \n");
+		DBGERROR("DataThread recv failed len=%d err=%s\n", len, strerror(errno));
 		close(sock_local);
 		return 0;
 	}

@@ -159,6 +159,7 @@ def acquire_run_namespace(
     port: int,
     label: str | None = None,
     actor_id_stride: int = 10_000,
+    ports_per_run: int = 1,
     max_slots: int = 4096,
 ) -> RunNamespaceLease:
     runtime_parent_dir = _resolve_path(repo_root, runtime_dir)
@@ -170,7 +171,8 @@ def acquire_run_namespace(
     pid = os.getpid()
     proc_start_ticks = _linux_process_start_ticks(pid)
     preferred_port = max(int(port), 1024)
-    slot_limit = max(1, min(int(max_slots), 65535 - preferred_port + 1))
+    port_block = max(int(ports_per_run), 1)
+    slot_limit = max(1, min(int(max_slots), (65535 - preferred_port + 1) // port_block))
     label_prefix = _sanitize_label(label)
 
     with open(lock_path, "a+", encoding="utf-8") as lock_file:
@@ -201,7 +203,7 @@ def acquire_run_namespace(
                 runtime_parent_dir=runtime_parent_dir,
                 runtime_dir=os.path.join(runtime_parent_dir, run_id),
                 actor_id_base=max(int(actor_id) + int(slot) * int(actor_id_stride), 0),
-                port_base=int(preferred_port) + int(slot),
+                port_base=int(preferred_port) + int(slot) * int(port_block),
                 lease_path=lease_path,
             )
             os.makedirs(namespace.runtime_dir, exist_ok=True)

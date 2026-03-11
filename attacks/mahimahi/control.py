@@ -118,6 +118,10 @@ class MahimahiControlClient:
             delay_ms=float(params.get("uplink_delay_ms", current.uplink.delay_ms)),
             queue_packets=int(params.get("uplink_queue_packets", current.uplink.queue_packets)),
             queue_bytes=int(params.get("uplink_queue_bytes", current.uplink.queue_bytes)),
+            episode_step=int(params.get("episode_step", current.uplink.episode_step)),
+            effective_after_abs_ms=float(
+                params.get("effective_after_abs_ms", current.uplink.effective_after_abs_ms)
+            ),
         )
         downlink = replace(
             current.downlink,
@@ -126,5 +130,9 @@ class MahimahiControlClient:
             delay_ms=float(params.get("downlink_delay_ms", current.downlink.delay_ms)),
             queue_packets=int(params.get("downlink_queue_packets", current.downlink.queue_packets)),
             queue_bytes=int(params.get("downlink_queue_bytes", current.downlink.queue_bytes)),
+            episode_step=int(params.get("episode_step", current.downlink.episode_step)),
+            effective_after_abs_ms=float(
+                params.get("effective_after_abs_ms", current.downlink.effective_after_abs_ms)
+            ),
         )
         return self.update(uplink=uplink, downlink=downlink)

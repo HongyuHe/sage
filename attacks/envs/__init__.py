@@ -1,3 +1,4 @@
-from .online_sage_env import OnlineSageAttackEnv
+from .online_sage_env import AttackBounds, OnlineSageAttackEnv
+from .parallel_gap_env import ParallelGapAttackEnv
 
-__all__ = ["OnlineSageAttackEnv"]
+__all__ = ["AttackBounds", "OnlineSageAttackEnv", "ParallelGapAttackEnv"]

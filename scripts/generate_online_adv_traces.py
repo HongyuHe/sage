@@ -1,9 +1,15 @@
 """
 Example usage:
 python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/online_adv_ppo_20260308_hotnets19.zip \
+  --model-path attacks/models/gap_adv_20260310_hotnets19_30k.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/hotnets19 \
+  --out-dir attacks/adv_traces/hotnets19-30k \
+  --wandb
+
+python scripts/generate_online_adv_traces.py \
+  --model-path attacks/models/gap_adv_20260310_rl-unconstrained_30k.zip \
+  --test-manifest attacks/test/manifest.json \
+  --out-dir attacks/adv_traces/rl-unconstrained-30k \
   --wandb
 
 Run this after `scripts/train_online_attacker.py`.
@@ -20,6 +26,7 @@ from typing import Any
 
 import numpy as np
 
+from attacks.envs import ParallelGapAttackEnv
 from attacks.online import SageLaunchConfig, acquire_run_namespace
 
 
@@ -258,22 +265,41 @@ def _independent_generation(
     test_entries,
     wandb,
 ) -> list[dict[str, Any]]:
+    attack_mode = _attack_mode(config_payload)
+    use_gap_objective = attack_mode == "independent_gap"
     bounds = attack_bounds_from_config(config_payload)
-    env = IndependentAttackEnv(
-        repo_root=repo_root,
-        launch_config=launch_config,
-        bounds=bounds,
-        obs_history_len=int(config_payload.get("obs_history_len", 4)),
-        attack_interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),
-        max_episode_steps=int(config_payload.get("episode_steps", 6000)),
-        launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
-        step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
-        runtime_dir=runtime_dir,
-        reward_rate_weight=float(config_payload.get("reward_rate_weight", 1.0)),
-        reward_rtt_weight=float(config_payload.get("reward_rtt_weight", 0.05)),
-        reward_loss_weight=float(config_payload.get("reward_loss_weight", 2.0)),
-        smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
-    )
+    if use_gap_objective:
+        env = ParallelGapAttackEnv(
+            repo_root=repo_root,
+            launch_config=launch_config,
+            bounds=bounds,
+            obs_history_len=int(config_payload.get("obs_history_len", 4)),
+            attack_interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),
+            max_episode_steps=int(config_payload.get("episode_steps", 6000)),
+            launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
+            step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
+            runtime_dir=runtime_dir,
+            baseline_gap_alpha=float(config_payload.get("baseline_gap_alpha", 2.0)),
+            smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
+            sync_guard_ms=float(config_payload.get("sync_guard_ms", 25.0)),
+            launch_retries=int(config_payload.get("gap_launch_retries", 6)),
+        )
+    else:
+        env = IndependentAttackEnv(
+            repo_root=repo_root,
+            launch_config=launch_config,
+            bounds=bounds,
+            obs_history_len=int(config_payload.get("obs_history_len", 4)),
+            attack_interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),
+            max_episode_steps=int(config_payload.get("episode_steps", 6000)),
+            launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
+            step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
+            runtime_dir=runtime_dir,
+            reward_rate_weight=float(config_payload.get("reward_rate_weight", 1.0)),
+            reward_rtt_weight=float(config_payload.get("reward_rtt_weight", 0.05)),
+            reward_loss_weight=float(config_payload.get("reward_loss_weight", 2.0)),
+            smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
+        )
 
     num_generated_traces = len(test_entries)
     if int(args.num_traces) > 0:
@@ -319,7 +345,7 @@ def _independent_generation(
 
             schedule_payload = {
                 "created_at_utc": utc_now_iso(),
-                "attack_mode": "independent",
+                "attack_mode": attack_mode,
                 "trace_id": trace_id,
                 "trace_name": trace_id,
                 "model_path": resolve_repo_path(repo_root, str(args.model_path)),
@@ -396,90 +422,95 @@ def main() -> None:
         actor_id=int(config_payload.get("actor_id", 900)),
         port=int(config_payload.get("port", 5101)),
         label=str(args.wandb_name or trace_set_name or "generate-online-adv"),
+        ports_per_run=8 if _attack_mode(config_payload) == "independent_gap" else 1,
     )
     resolved_runtime_dir = run_namespace.runtime_dir
 
     wandb = None
     wandb_run = None
-    if bool(args.wandb):
-        wandb = try_import_wandb()
-        if wandb is None:
-            raise RuntimeError("--wandb was set but the wandb package is unavailable")
-        wandb_run = wandb.init(
-            project=str(args.wandb_project),
-            entity=args.wandb_entity,
-            name=args.wandb_name,
-            mode=str(args.wandb_mode),
-            tags=[tag.strip() for tag in str(args.wandb_tags).split(",") if tag.strip()],
-            config={
-                "model_path": model_path,
-                "config_path": config_path,
-                "test_manifest_resolved": manifest_path,
-                "num_test_traces": len(test_entries),
-                "policy_sampling_deterministic": False if _attack_mode(config_payload) == "independent" else bool(args.deterministic),
-                "trace_set_name": trace_set_name,
-                "attack_mode": _attack_mode(config_payload),
-                "runtime_dir_resolved": resolved_runtime_dir,
-                "run_id": run_namespace.run_id,
-            },
-        )
+    try:
+        if bool(args.wandb):
+            wandb = try_import_wandb()
+            if wandb is None:
+                raise RuntimeError("--wandb was set but the wandb package is unavailable")
+            wandb_run = wandb.init(
+                project=str(args.wandb_project),
+                entity=args.wandb_entity,
+                name=args.wandb_name,
+                mode=str(args.wandb_mode),
+                tags=[tag.strip() for tag in str(args.wandb_tags).split(",") if tag.strip()],
+                config={
+                    "model_path": model_path,
+                    "config_path": config_path,
+                    "test_manifest_resolved": manifest_path,
+                    "num_test_traces": len(test_entries),
+                    "policy_sampling_deterministic": (
+                        False if _attack_mode(config_payload) in {"independent", "independent_gap"} else bool(args.deterministic)
+                    ),
+                    "trace_set_name": trace_set_name,
+                    "attack_mode": _attack_mode(config_payload),
+                    "runtime_dir_resolved": resolved_runtime_dir,
+                    "run_id": run_namespace.run_id,
+                },
+            )
 
-    launch_config = _resolved_launch_config(config_payload=config_payload, run_namespace=run_namespace)
+        launch_config = _resolved_launch_config(config_payload=config_payload, run_namespace=run_namespace)
 
-    if _attack_mode(config_payload) == "trace_conditioned":
-        generated_entries = _legacy_trace_conditioned_generation(
-            args=args,
-            repo_root=repo_root,
-            config_path=config_path,
-            config_payload=config_payload,
-            test_entries=test_entries,
-            model=model,
-            launch_config=launch_config,
-            runtime_dir=resolved_runtime_dir,
-            out_dir=out_dir,
-            wandb=wandb,
-        )
-    else:
-        generated_entries = _independent_generation(
-            args=args,
-            repo_root=repo_root,
-            config_path=config_path,
-            config_payload=config_payload,
-            model=model,
-            launch_config=launch_config,
-            runtime_dir=resolved_runtime_dir,
-            out_dir=out_dir,
-            test_entries=test_entries,
-            wandb=wandb,
-        )
+        if _attack_mode(config_payload) == "trace_conditioned":
+            generated_entries = _legacy_trace_conditioned_generation(
+                args=args,
+                repo_root=repo_root,
+                config_path=config_path,
+                config_payload=config_payload,
+                test_entries=test_entries,
+                model=model,
+                launch_config=launch_config,
+                runtime_dir=resolved_runtime_dir,
+                out_dir=out_dir,
+                wandb=wandb,
+            )
+        else:
+            generated_entries = _independent_generation(
+                args=args,
+                repo_root=repo_root,
+                config_path=config_path,
+                config_payload=config_payload,
+                model=model,
+                launch_config=launch_config,
+                runtime_dir=resolved_runtime_dir,
+                out_dir=out_dir,
+                test_entries=test_entries,
+                wandb=wandb,
+            )
 
-    manifest_payload = {
-        "created_at_utc": utc_now_iso(),
-        "repo_root": repo_root,
-        "trace_set_name": trace_set_name,
-        "attack_mode": _attack_mode(config_payload),
-        "model_path": model_path,
-        "training_config_path": config_path,
-        "test_manifest_resolved": manifest_path,
-        "attack_interval_ms": float(config_payload.get("attack_interval_ms", 100.0)),
-        "num_reference_test_traces": len(test_entries),
-        "num_generated_traces": len(generated_entries),
-        "generated_entries": generated_entries,
-    }
-    generated_manifest_path = os.path.join(out_dir, "generated_manifest.json")
-    save_json(generated_manifest_path, manifest_payload)
+        manifest_payload = {
+            "created_at_utc": utc_now_iso(),
+            "repo_root": repo_root,
+            "trace_set_name": trace_set_name,
+            "attack_mode": _attack_mode(config_payload),
+            "model_path": model_path,
+            "training_config_path": config_path,
+            "test_manifest_resolved": manifest_path,
+            "attack_interval_ms": float(config_payload.get("attack_interval_ms", 100.0)),
+            "num_reference_test_traces": len(test_entries),
+            "num_generated_traces": len(generated_entries),
+            "generated_entries": generated_entries,
+        }
+        generated_manifest_path = os.path.join(out_dir, "generated_manifest.json")
+        save_json(generated_manifest_path, manifest_payload)
 
-    if wandb_run is not None:
-        wandb_run.log(
-            {
-                "artifact/generated_manifest_path": generated_manifest_path,
-                "artifact/generated_trace_count": float(len(generated_entries)),
-            }
-        )
-        wandb_run.finish()
-
-    run_namespace.release()
-    print(generated_manifest_path)
+        if wandb_run is not None:
+            wandb_run.log(
+                {
+                    "artifact/generated_manifest_path": generated_manifest_path,
+                    "artifact/generated_trace_count": float(len(generated_entries)),
+                }
+            )
+        print(generated_manifest_path)
+    finally:
+        if wandb_run is not None:
+            wandb_run.finish()
+        run_namespace.release()
 
 
 if __name__ == "__main__":  # pragma: no cover

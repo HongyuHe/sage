@@ -34,6 +34,9 @@ DirectionConfig sanitize_defaults( const DirectionConfig & cfg )
     if ( not isfinite( out.delay_ms ) or out.delay_ms < 0.0 ) {
         out.delay_ms = 0.0;
     }
+    if ( not isfinite( out.effective_after_abs_ms ) or out.effective_after_abs_ms < 0.0 ) {
+        out.effective_after_abs_ms = 0.0;
+    }
     return out;
 }
 

@@ -1,14 +1,7 @@
 """
-Run this after `scripts/prepare_trace_splits.py`.
-
 Example usage:
-python scripts/train_online_attacker.py
-   --train-manifest attacks/train/manifest.json\
-   --total-steps 600000 --attack-interval-ms 100 --out-dir attacks/output/models\
-   --wandb --wandb-project sage-online-train --wandb-name v1
    
 python scripts/train_online_attacker.py \
-  --train-manifest attacks/train/manifest.json \
   --total-steps 300000 \
   --attack-interval-ms 100 \
   --ppo-n-steps 256 \
@@ -18,33 +11,33 @@ python scripts/train_online_attacker.py \
   --wandb --wandb-project sage-online-train --wandb-name v1-fast
 
 python scripts/train_online_attacker.py \
-  --train-manifest attacks/train/manifest.json \
+  --attack-mode independent_gap \
   --smooth-penalty-scale 0.05 \
   --attack-uplink-bw-min-mbps 5 --attack-uplink-bw-max-mbps 150 \
   --attack-downlink-bw-min-mbps 5 --attack-downlink-bw-max-mbps 150 \
-  --attack-uplink-loss-min 0.0 --attack-uplink-loss-max 0.02 \
-  --attack-downlink-loss-min 0.0 --attack-downlink-loss-max 0.02 \
-  --attack-uplink-delay-min-ms 5 --attack-uplink-delay-max-ms 80 \
-  --attack-downlink-delay-min-ms 5 --attack-downlink-delay-max-ms 80 \
+  --attack-uplink-loss-min 0.0 --attack-uplink-loss-max 0 \
+  --attack-downlink-loss-min 0.0 --attack-downlink-loss-max 0 \
+  --attack-uplink-delay-min-ms 0 --attack-uplink-delay-max-ms 80 \
+  --attack-downlink-delay-min-ms 0 --attack-downlink-delay-max-ms 80 \
   --total-steps 300000 \
   --attack-interval-ms 100 \
   --out-dir attacks/output/models \
-  --wandb --wandb-tags scratch --wandb-project sage-online-train --wandb-name hotnets19
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train --wandb-name hotnets19
 
 python scripts/train_online_attacker.py \
-  --train-manifest attacks/train/manifest.json \
+  --attack-mode independent_gap \
   --smooth-penalty-scale 0.00 \
-  --attack-uplink-bw-min-mbps 0 --attack-uplink-bw-max-mbps 2000 \
-  --attack-downlink-bw-min-mbps 0 --attack-downlink-bw-max-mbps 2000 \
-  --attack-uplink-loss-min 0.0 --attack-uplink-loss-max 0.8 \
-  --attack-downlink-loss-min 0.0 --attack-downlink-loss-max 0.8 \
-  --attack-uplink-delay-min-ms 0 --attack-uplink-delay-max-ms 1000 \
-  --attack-downlink-delay-min-ms 0 --attack-downlink-delay-max-ms 1000 \
+  --attack-uplink-bw-min-mbps 0.5 --attack-uplink-bw-max-mbps 2000 \
+  --attack-downlink-bw-min-mbps 0.5 --attack-downlink-bw-max-mbps 2000 \
+  --attack-uplink-loss-min 0.0 --attack-uplink-loss-max 0 \
+  --attack-downlink-loss-min 0.0 --attack-downlink-loss-max 0 \
+  --attack-uplink-delay-min-ms 0 --attack-uplink-delay-max-ms 500 \
+  --attack-downlink-delay-min-ms 0 --attack-downlink-delay-max-ms 500 \
   --effective-bw-cap-mbps 2000 \
-  --total-steps 30000 \
+  --total-steps 300000 \
   --attack-interval-ms 100 \
   --out-dir attacks/output/models \
-  --wandb --wandb-tags scratch --wandb-project sage-online-train --wandb-name rl-unconstrained
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train --wandb-name rl-unconstrained
 
 """
 
@@ -52,15 +45,13 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import replace
-import json
 import os
 import sys
 import time
-from typing import Any
 
 import numpy as np
 
-from attacks.envs.online_sage_env import AttackBounds
+from attacks.envs import AttackBounds, ParallelGapAttackEnv
 from attacks.online import SageLaunchConfig, acquire_run_namespace
 
 
@@ -68,9 +59,6 @@ if __package__ in (None, ""):
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from scripts._trace_attack_common import (
         IndependentAttackEnv,
-        TraceConditionedAttackEnv,
-        load_trace_entries,
-        materialize_trace_splits,
         repo_root_from_script,
         resolve_repo_path,
         save_json,
@@ -79,9 +67,6 @@ if __package__ in (None, ""):
 else:
     from ._trace_attack_common import (
         IndependentAttackEnv,
-        TraceConditionedAttackEnv,
-        load_trace_entries,
-        materialize_trace_splits,
         repo_root_from_script,
         resolve_repo_path,
         save_json,
@@ -101,16 +86,57 @@ def _require_sb3():
         raise RuntimeError("stable-baselines3 is required for online attacker training") from exc
 
 
-def _ensure_manifest(repo_root: str, manifest_path: str) -> str:
-    resolved = resolve_repo_path(repo_root, manifest_path)
-    if os.path.exists(resolved):
-        return resolved
-    train_dir = resolve_repo_path(repo_root, "attacks/train")
-    test_dir = resolve_repo_path(repo_root, "attacks/test")
-    materialize_trace_splits(repo_root=repo_root, train_root=train_dir, test_root=test_dir)
-    if not os.path.exists(resolved):
-        raise FileNotFoundError(f"missing train manifest: {resolved}")
-    return resolved
+def _numeric_summary(values: list[float]) -> dict[str, float]:
+    array = np.asarray(values, dtype=np.float64)
+    if array.size == 0:
+        return {}
+    return {
+        "avg": float(np.mean(array)),
+        "p50": float(np.percentile(array, 50)),
+        "p95": float(np.percentile(array, 95)),
+    }
+
+
+def _aggregate_selected_metrics(
+    records: list[dict[str, float]],
+    metric_map: dict[str, str],
+    *,
+    prefix: str,
+) -> dict[str, float]:
+    payload: dict[str, float] = {}
+    for source_key, target_key in metric_map.items():
+        values = [
+            float(record[source_key])
+            for record in records
+            if isinstance(record.get(source_key), (int, float, np.floating, np.integer))
+        ]
+        stats = _numeric_summary(values)
+        for stat_name, stat_value in stats.items():
+            payload[f"{prefix}/{target_key}-{stat_name}"] = float(stat_value)
+    return payload
+
+
+_WANDB_AGGREGATE_INFO_KEYS: dict[str, str] = {
+    "attacker/reward": "attacker_reward",
+    "sage/reward": "sage_reward",
+    "sage/external_score": "sage_external_score",
+    "sage/current_delivery_rate_mbps": "sage_current_delivery_rate_mbps",
+    "sage/windowed_delivery_rate_mbps": "sage_windowed_rate_mbps",
+    "gap/score_sage": "gap_score_sage",
+    "gap/score_cubic": "gap_score_cubic",
+    "gap/score_bbr": "gap_score_bbr",
+    "gap/baseline_score": "gap_baseline_score",
+    "gap/value": "gap_value",
+    "gap/reward": "gap_reward",
+    "baseline/cubic_rate_mbps": "baseline_cubic_rate_mbps",
+    "baseline/bbr_rate_mbps": "baseline_bbr_rate_mbps",
+    "attacker/uplink_bw_mbps": "attacker_uplink_bw_mbps",
+    "attacker/downlink_bw_mbps": "attacker_downlink_bw_mbps",
+    "mm/up_applied_bw_mbps": "mm_up_applied_bw_mbps",
+    "mm/down_applied_bw_mbps": "mm_down_applied_bw_mbps",
+    "mm/up_departure_rate_mbps": "mm_up_departure_rate_mbps",
+    "mm/down_departure_rate_mbps": "mm_down_departure_rate_mbps",
+}
 
 
 def main() -> None:
@@ -119,14 +145,12 @@ def main() -> None:
     parser.add_argument(
         "--attack-mode",
         type=str,
-        default="independent",
-        choices=["independent", "trace_conditioned"],
+        default="independent_gap",
+        choices=["independent", "independent_gap"],
     )
-    parser.add_argument("--train-manifest", type=str, default="attacks/train/manifest.json")
     parser.add_argument("--total-steps", type=int, default=250_000)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--sample-mode", type=str, default="random", choices=["random", "round_robin"])
     parser.add_argument("--out-dir", type=str, default="attacks/output/models")
     parser.add_argument("--runtime-dir", type=str, default="attacks/runtime")
     parser.add_argument("--obs-history-len", type=int, default=4)
@@ -138,6 +162,9 @@ def main() -> None:
     parser.add_argument("--reward-rate-weight", type=float, default=1.0)
     parser.add_argument("--reward-rtt-weight", type=float, default=0.05)
     parser.add_argument("--reward-loss-weight", type=float, default=2.0)
+    parser.add_argument("--baseline-gap-alpha", type=float, default=2.0)
+    parser.add_argument("--sync-guard-ms", type=float, default=25.0)
+    parser.add_argument("--gap-launch-retries", type=int, default=6)
     parser.add_argument("--bw-scale-min", type=float, default=0.1)
     parser.add_argument("--bw-scale-max", type=float, default=2.0)
     parser.add_argument("--loss-max", type=float, default=0.15)
@@ -195,17 +222,14 @@ def main() -> None:
 
     repo_root = os.path.abspath(os.path.expanduser(args.repo_root))
     PPO, BaseCallback, Monitor, DummyVecEnv = _require_sb3()
-    manifest_path: str | None = None
-    train_entries: list[Any] = []
-    if str(args.attack_mode) == "trace_conditioned":
-        manifest_path = _ensure_manifest(repo_root, str(args.train_manifest))
-        train_entries = load_trace_entries(manifest_path)
+    use_gap_objective = str(args.attack_mode) == "independent_gap"
     run_namespace = acquire_run_namespace(
         repo_root=repo_root,
         runtime_dir=str(args.runtime_dir),
         actor_id=int(args.actor_id),
         port=int(args.port),
         label=str(args.wandb_name or args.log_prefix or "train-online-attacker"),
+        ports_per_run=8 if use_gap_objective else 1,
     )
     resolved_runtime_dir = run_namespace.runtime_dir
     resolved_launch_config = {
@@ -214,268 +238,289 @@ def main() -> None:
         "launch_port_base_resolved": int(run_namespace.port_base),
         "launch_actor_id_base_resolved": int(run_namespace.actor_id_base),
         "runtime_slot": int(run_namespace.slot),
+        "ports_per_run": 8 if use_gap_objective else 1,
     }
 
     wandb = None
     wandb_run = None
-    if bool(args.wandb):
-        wandb = try_import_wandb()
-        if wandb is None:
-            raise RuntimeError("--wandb was set but the wandb package is unavailable")
-        wandb_run = wandb.init(
-            project=str(args.wandb_project),
-            entity=args.wandb_entity,
-            name=args.wandb_name,
-            mode=str(args.wandb_mode),
-            tags=[tag.strip() for tag in str(args.wandb_tags).split(",") if tag.strip()],
-            config={
-                **vars(args),
-                **resolved_launch_config,
-                "train_manifest_resolved": manifest_path,
-                "num_train_traces": len(train_entries),
-            },
+    env = None
+    venv = None
+    model_path = ""
+    try:
+        if bool(args.wandb):
+            wandb = try_import_wandb()
+            if wandb is None:
+                raise RuntimeError("--wandb was set but the wandb package is unavailable")
+            wandb_run = wandb.init(
+                project=str(args.wandb_project),
+                entity=args.wandb_entity,
+                name=args.wandb_name,
+                mode=str(args.wandb_mode),
+                tags=[tag.strip() for tag in str(args.wandb_tags).split(",") if tag.strip()],
+                config={
+                    **vars(args),
+                    **resolved_launch_config,
+                },
+            )
+
+        launch_config = replace(
+            SageLaunchConfig(
+                sage_script="sage_rl/sage.sh",
+                latency_ms=int(args.latency_ms),
+                port=int(args.port),
+                downlink_trace="wired48",
+                uplink_trace="wired48",
+                iteration_id=int(args.iteration_id),
+                qsize_packets=int(args.qsize_packets),
+                env_bw_mbps=int(args.env_bw_mbps),
+                bw2_mbps=int(args.bw2_mbps),
+                trace_period_s=int(args.trace_period_s),
+                first_time_mode=int(args.sage_mode),
+                log_prefix=str(args.log_prefix),
+                duration_seconds=int(args.duration_seconds),
+                actor_id=int(args.actor_id),
+                duration_steps=int(args.duration_steps),
+                num_flows=int(args.num_flows),
+                save_logs=int(args.save_logs),
+                analyze_logs=int(args.analyze_logs),
+                mm_adv_bin=args.mm_adv_bin,
+                initial_uplink_loss=float(args.init_uplink_loss),
+                initial_downlink_loss=float(args.init_downlink_loss),
+                initial_uplink_delay_ms=args.init_uplink_delay_ms,
+                initial_downlink_delay_ms=args.init_downlink_delay_ms,
+                initial_uplink_queue_packets=args.init_uplink_queue_packets,
+                initial_downlink_queue_packets=args.init_downlink_queue_packets,
+            ),
+            port=int(run_namespace.port_base),
+            actor_id=int(run_namespace.actor_id_base),
         )
 
-    launch_config = replace(
-        SageLaunchConfig(
-            sage_script="sage_rl/sage.sh",
-            latency_ms=int(args.latency_ms),
-            port=int(args.port),
-            downlink_trace="wired48",
-            uplink_trace="wired48",
-            iteration_id=int(args.iteration_id),
-            qsize_packets=int(args.qsize_packets),
-            env_bw_mbps=int(args.env_bw_mbps),
-            bw2_mbps=int(args.bw2_mbps),
-            trace_period_s=int(args.trace_period_s),
-            first_time_mode=int(args.sage_mode),
-            log_prefix=str(args.log_prefix),
-            duration_seconds=int(args.duration_seconds),
-            actor_id=int(args.actor_id),
-            duration_steps=int(args.duration_steps),
-            num_flows=int(args.num_flows),
-            save_logs=int(args.save_logs),
-            analyze_logs=int(args.analyze_logs),
-            mm_adv_bin=args.mm_adv_bin,
-            initial_uplink_loss=float(args.init_uplink_loss),
-            initial_downlink_loss=float(args.init_downlink_loss),
-            initial_uplink_delay_ms=args.init_uplink_delay_ms,
-            initial_downlink_delay_ms=args.init_downlink_delay_ms,
-            initial_uplink_queue_packets=args.init_uplink_queue_packets,
-            initial_downlink_queue_packets=args.init_downlink_queue_packets,
-        ),
-        port=int(run_namespace.port_base),
-        actor_id=int(run_namespace.actor_id_base),
-    )
+        #* Expose OnlineSageAttackEnv action bounds from this training entrypoint.
+        attack_uplink_bw_min = (
+            float(args.attack_uplink_bw_min_mbps) if args.attack_uplink_bw_min_mbps is not None else 0.0
+        )
+        attack_uplink_bw_max = (
+            float(args.attack_uplink_bw_max_mbps)
+            if args.attack_uplink_bw_max_mbps is not None
+            else float(args.effective_bw_cap_mbps)
+        )
+        attack_downlink_bw_min = (
+            float(args.attack_downlink_bw_min_mbps) if args.attack_downlink_bw_min_mbps is not None else 0.0
+        )
+        attack_downlink_bw_max = (
+            float(args.attack_downlink_bw_max_mbps)
+            if args.attack_downlink_bw_max_mbps is not None
+            else float(args.effective_bw_cap_mbps)
+        )
+        default_loss_max = 0.0 if use_gap_objective else float(args.loss_max)
+        attack_uplink_loss_min = (
+            float(args.attack_uplink_loss_min) if args.attack_uplink_loss_min is not None else 0.0
+        )
+        attack_uplink_loss_max = (
+            float(args.attack_uplink_loss_max) if args.attack_uplink_loss_max is not None else default_loss_max
+        )
+        attack_downlink_loss_min = (
+            float(args.attack_downlink_loss_min) if args.attack_downlink_loss_min is not None else 0.0
+        )
+        attack_downlink_loss_max = (
+            float(args.attack_downlink_loss_max) if args.attack_downlink_loss_max is not None else default_loss_max
+        )
+        attack_uplink_delay_min = (
+            float(args.attack_uplink_delay_min_ms) if args.attack_uplink_delay_min_ms is not None else 0.0
+        )
+        attack_uplink_delay_max = (
+            float(args.attack_uplink_delay_max_ms)
+            if args.attack_uplink_delay_max_ms is not None
+            else float(args.delay_max_ms)
+        )
+        attack_downlink_delay_min = (
+            float(args.attack_downlink_delay_min_ms) if args.attack_downlink_delay_min_ms is not None else 0.0
+        )
+        attack_downlink_delay_max = (
+            float(args.attack_downlink_delay_max_ms)
+            if args.attack_downlink_delay_max_ms is not None
+            else float(args.delay_max_ms)
+        )
+        if attack_uplink_bw_min > attack_uplink_bw_max:
+            raise ValueError("--attack-uplink-bw-min-mbps must be <= --attack-uplink-bw-max-mbps")
+        if attack_downlink_bw_min > attack_downlink_bw_max:
+            raise ValueError("--attack-downlink-bw-min-mbps must be <= --attack-downlink-bw-max-mbps")
+        if attack_uplink_loss_min > attack_uplink_loss_max:
+            raise ValueError("--attack-uplink-loss-min must be <= --attack-uplink-loss-max")
+        if attack_downlink_loss_min > attack_downlink_loss_max:
+            raise ValueError("--attack-downlink-loss-min must be <= --attack-downlink-loss-max")
+        if attack_uplink_delay_min > attack_uplink_delay_max:
+            raise ValueError("--attack-uplink-delay-min-ms must be <= --attack-uplink-delay-max-ms")
+        if attack_downlink_delay_min > attack_downlink_delay_max:
+            raise ValueError("--attack-downlink-delay-min-ms must be <= --attack-downlink-delay-max-ms")
+        online_attack_bounds = AttackBounds(
+            uplink_bw_mbps=(attack_uplink_bw_min, attack_uplink_bw_max),
+            downlink_bw_mbps=(attack_downlink_bw_min, attack_downlink_bw_max),
+            uplink_loss=(attack_uplink_loss_min, attack_uplink_loss_max),
+            downlink_loss=(attack_downlink_loss_min, attack_downlink_loss_max),
+            uplink_delay_ms=(attack_uplink_delay_min, attack_uplink_delay_max),
+            downlink_delay_ms=(attack_downlink_delay_min, attack_downlink_delay_max),
+        )
 
-    #* Expose OnlineSageAttackEnv action bounds from this training entrypoint.
-    attack_uplink_bw_min = (
-        float(args.attack_uplink_bw_min_mbps) if args.attack_uplink_bw_min_mbps is not None else 0.0
-    )
-    attack_uplink_bw_max = (
-        float(args.attack_uplink_bw_max_mbps)
-        if args.attack_uplink_bw_max_mbps is not None
-        else float(args.effective_bw_cap_mbps)
-    )
-    attack_downlink_bw_min = (
-        float(args.attack_downlink_bw_min_mbps) if args.attack_downlink_bw_min_mbps is not None else 0.0
-    )
-    attack_downlink_bw_max = (
-        float(args.attack_downlink_bw_max_mbps)
-        if args.attack_downlink_bw_max_mbps is not None
-        else float(args.effective_bw_cap_mbps)
-    )
-    attack_uplink_loss_min = float(args.attack_uplink_loss_min) if args.attack_uplink_loss_min is not None else 0.0
-    attack_uplink_loss_max = (
-        float(args.attack_uplink_loss_max) if args.attack_uplink_loss_max is not None else float(args.loss_max)
-    )
-    attack_downlink_loss_min = (
-        float(args.attack_downlink_loss_min) if args.attack_downlink_loss_min is not None else 0.0
-    )
-    attack_downlink_loss_max = (
-        float(args.attack_downlink_loss_max)
-        if args.attack_downlink_loss_max is not None
-        else float(args.loss_max)
-    )
-    attack_uplink_delay_min = (
-        float(args.attack_uplink_delay_min_ms) if args.attack_uplink_delay_min_ms is not None else 0.0
-    )
-    attack_uplink_delay_max = (
-        float(args.attack_uplink_delay_max_ms)
-        if args.attack_uplink_delay_max_ms is not None
-        else float(args.delay_max_ms)
-    )
-    attack_downlink_delay_min = (
-        float(args.attack_downlink_delay_min_ms) if args.attack_downlink_delay_min_ms is not None else 0.0
-    )
-    attack_downlink_delay_max = (
-        float(args.attack_downlink_delay_max_ms)
-        if args.attack_downlink_delay_max_ms is not None
-        else float(args.delay_max_ms)
-    )
-    if attack_uplink_bw_min > attack_uplink_bw_max:
-        raise ValueError("--attack-uplink-bw-min-mbps must be <= --attack-uplink-bw-max-mbps")
-    if attack_downlink_bw_min > attack_downlink_bw_max:
-        raise ValueError("--attack-downlink-bw-min-mbps must be <= --attack-downlink-bw-max-mbps")
-    if attack_uplink_loss_min > attack_uplink_loss_max:
-        raise ValueError("--attack-uplink-loss-min must be <= --attack-uplink-loss-max")
-    if attack_downlink_loss_min > attack_downlink_loss_max:
-        raise ValueError("--attack-downlink-loss-min must be <= --attack-downlink-loss-max")
-    if attack_uplink_delay_min > attack_uplink_delay_max:
-        raise ValueError("--attack-uplink-delay-min-ms must be <= --attack-uplink-delay-max-ms")
-    if attack_downlink_delay_min > attack_downlink_delay_max:
-        raise ValueError("--attack-downlink-delay-min-ms must be <= --attack-downlink-delay-max-ms")
-    online_attack_bounds = AttackBounds(
-        uplink_bw_mbps=(attack_uplink_bw_min, attack_uplink_bw_max),
-        downlink_bw_mbps=(attack_downlink_bw_min, attack_downlink_bw_max),
-        uplink_loss=(attack_uplink_loss_min, attack_uplink_loss_max),
-        downlink_loss=(attack_downlink_loss_min, attack_downlink_loss_max),
-        uplink_delay_ms=(attack_uplink_delay_min, attack_uplink_delay_max),
-        downlink_delay_ms=(attack_downlink_delay_min, attack_downlink_delay_max),
-    )
+        if use_gap_objective:
+            env = ParallelGapAttackEnv(
+                repo_root=repo_root,
+                launch_config=launch_config,
+                bounds=online_attack_bounds,
+                obs_history_len=int(args.obs_history_len),
+                attack_interval_ms=float(args.attack_interval_ms),
+                max_episode_steps=int(args.episode_steps),
+                launch_timeout_s=float(args.launch_timeout_s),
+                step_timeout_s=float(args.step_timeout_s),
+                runtime_dir=resolved_runtime_dir,
+                baseline_gap_alpha=float(args.baseline_gap_alpha),
+                smooth_penalty_scale=float(args.smooth_penalty_scale),
+                sync_guard_ms=float(args.sync_guard_ms),
+                launch_retries=int(args.gap_launch_retries),
+            )
+        else:
+            env = IndependentAttackEnv(
+                repo_root=repo_root,
+                launch_config=launch_config,
+                bounds=online_attack_bounds,
+                obs_history_len=int(args.obs_history_len),
+                attack_interval_ms=float(args.attack_interval_ms),
+                max_episode_steps=int(args.episode_steps),
+                launch_timeout_s=float(args.launch_timeout_s),
+                step_timeout_s=float(args.step_timeout_s),
+                runtime_dir=resolved_runtime_dir,
+                reward_rate_weight=float(args.reward_rate_weight),
+                reward_rtt_weight=float(args.reward_rtt_weight),
+                reward_loss_weight=float(args.reward_loss_weight),
+                smooth_penalty_scale=float(args.smooth_penalty_scale),
+            )
+        venv = DummyVecEnv([lambda: Monitor(env)])
+        if int(args.ppo_n_steps) < 1:
+            raise ValueError("--ppo-n-steps must be >= 1")
+        if int(args.ppo_batch_size) < 1:
+            raise ValueError("--ppo-batch-size must be >= 1")
+        if int(args.ppo_n_epochs) < 1:
+            raise ValueError("--ppo-n-epochs must be >= 1")
+        if int(args.ppo_batch_size) > int(args.ppo_n_steps):
+            raise ValueError("--ppo-batch-size must be <= --ppo-n-steps when using one environment")
 
-    if str(args.attack_mode) == "trace_conditioned":
-        env = TraceConditionedAttackEnv(
-            repo_root=repo_root,
-            trace_entries=train_entries,
-            launch_config=launch_config,
-            online_attack_bounds=online_attack_bounds,
-            obs_history_len=int(args.obs_history_len),
-            attack_interval_ms=float(args.attack_interval_ms),
-            max_episode_steps=int(args.episode_steps),
-            launch_timeout_s=float(args.launch_timeout_s),
-            step_timeout_s=float(args.step_timeout_s),
-            runtime_dir=resolved_runtime_dir,
-            sample_mode=str(args.sample_mode),
+        class WandbInfoCallback(BaseCallback):
+            def __init__(self, *, log_every: int = 100) -> None:
+                super().__init__()
+                self._log_every = max(int(log_every), 1)
+                self._window_records: list[dict[str, float]] = []
+                self._episode_records: list[dict[str, float]] = []
+
+            def _on_step(self) -> bool:
+                if wandb is None:
+                    return True
+                infos = self.locals.get("infos", [])
+                if infos:
+                    info = infos[0] if isinstance(infos, list) else infos
+                    if isinstance(info, dict):
+                        numeric_info = {
+                            str(key): float(value)
+                            for key, value in info.items()
+                            if isinstance(value, (int, float, np.floating, np.integer))
+                        }
+                        self._window_records.append(numeric_info)
+                        self._episode_records.append(numeric_info)
+
+                        if "episode" in info and isinstance(info["episode"], dict):
+                            episode = info["episode"]
+                            episode_payload = {
+                                "train/episode_return": float(episode.get("r", 0.0)),
+                                "train/episode_length": float(episode.get("l", 0.0)),
+                                "train/num_timesteps": float(self.num_timesteps),
+                            }
+                            episode_payload.update(
+                                _aggregate_selected_metrics(
+                                    self._episode_records,
+                                    _WANDB_AGGREGATE_INFO_KEYS,
+                                    prefix="train/episode_stats",
+                                )
+                            )
+                            wandb.log(episode_payload, step=int(self.num_timesteps))
+                            self._episode_records = []
+
+                        if int(self.num_timesteps) % self._log_every != 0:
+                            return True
+
+                        payload = {}
+                        for key, value in info.items():
+                            if isinstance(value, (int, float, np.floating, np.integer)):
+                                payload[str(key)] = float(value)
+                        payload.update(
+                            _aggregate_selected_metrics(
+                                self._window_records,
+                                _WANDB_AGGREGATE_INFO_KEYS,
+                                prefix="train/window",
+                            )
+                        )
+                        payload["train/num_timesteps"] = float(self.num_timesteps)
+                        wandb.log(payload, step=int(self.num_timesteps))
+                        self._window_records = []
+                return True
+
+            def _on_rollout_end(self) -> None:
+                if wandb is None:
+                    return
+                logger_values = getattr(self.model.logger, "name_to_value", {})
+                payload: dict[str, float] = {"train/num_timesteps": float(self.num_timesteps)}
+                for key, value in logger_values.items():
+                    if isinstance(value, (int, float, np.floating, np.integer)):
+                        payload[f"sb3/{key}"] = float(value)
+                wandb.log(payload, step=int(self.num_timesteps))
+
+        hidden_layers = [int(args.policy_width) for _ in range(max(int(args.policy_depth), 1))]
+        model = PPO(
+            "MlpPolicy",
+            venv,
+            learning_rate=float(args.lr),
             seed=int(args.seed),
-            bw_scale_min=float(args.bw_scale_min),
-            bw_scale_max=float(args.bw_scale_max),
-            effective_bw_cap_mbps=float(args.effective_bw_cap_mbps),
-            loss_min=0.0,
-            loss_max=float(args.loss_max),
-            delay_min_ms=0.0,
-            delay_max_ms=float(args.delay_max_ms),
-            reward_rate_weight=float(args.reward_rate_weight),
-            reward_rtt_weight=float(args.reward_rtt_weight),
-            reward_loss_weight=float(args.reward_loss_weight),
-            smooth_penalty_scale=float(args.smooth_penalty_scale),
+            n_steps=int(args.ppo_n_steps),
+            batch_size=int(args.ppo_batch_size),
+            n_epochs=int(args.ppo_n_epochs),
+            policy_kwargs={"net_arch": {"pi": hidden_layers, "vf": hidden_layers}},
+            verbose=1,
         )
-    else:
-        env = IndependentAttackEnv(
-            repo_root=repo_root,
-            launch_config=launch_config,
-            bounds=online_attack_bounds,
-            obs_history_len=int(args.obs_history_len),
-            attack_interval_ms=float(args.attack_interval_ms),
-            max_episode_steps=int(args.episode_steps),
-            launch_timeout_s=float(args.launch_timeout_s),
-            step_timeout_s=float(args.step_timeout_s),
-            runtime_dir=resolved_runtime_dir,
-            reward_rate_weight=float(args.reward_rate_weight),
-            reward_rtt_weight=float(args.reward_rtt_weight),
-            reward_loss_weight=float(args.reward_loss_weight),
-            smooth_penalty_scale=float(args.smooth_penalty_scale),
-        )
-    venv = DummyVecEnv([lambda: Monitor(env)])
-    if int(args.ppo_n_steps) < 1:
-        raise ValueError("--ppo-n-steps must be >= 1")
-    if int(args.ppo_batch_size) < 1:
-        raise ValueError("--ppo-batch-size must be >= 1")
-    if int(args.ppo_n_epochs) < 1:
-        raise ValueError("--ppo-n-epochs must be >= 1")
-    if int(args.ppo_batch_size) > int(args.ppo_n_steps):
-        raise ValueError("--ppo-batch-size must be <= --ppo-n-steps when using one environment")
+        callback = WandbInfoCallback(log_every=int(args.wandb_log_every))
+        model.learn(total_timesteps=int(args.total_steps), callback=callback)
 
-    class WandbInfoCallback(BaseCallback):
-        def __init__(self, *, log_every: int = 100) -> None:
-            super().__init__()
-            self._log_every = max(int(log_every), 1)
+        out_dir = resolve_repo_path(repo_root, str(args.out_dir))
+        os.makedirs(out_dir, exist_ok=True)
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        model_prefix = "gap_adv" if use_gap_objective else "online_adv"
+        model_stem = f"{model_prefix}_{stamp}_{run_namespace.run_id}"
+        model_path = os.path.join(out_dir, f"{model_stem}.zip")
+        model.save(model_path)
 
-        def _on_step(self) -> bool:
-            if wandb is None:
-                return True
-            if int(self.num_timesteps) % self._log_every != 0:
-                return True
-            infos = self.locals.get("infos", [])
-            if infos:
-                info = infos[0] if isinstance(infos, list) else infos
-                if isinstance(info, dict):
-                    payload = {}
-                    for key, value in info.items():
-                        if isinstance(value, (int, float, np.floating, np.integer)):
-                            payload[str(key)] = float(value)
-                    if "episode" in info and isinstance(info["episode"], dict):
-                        episode = info["episode"]
-                        payload["train/episode_return"] = float(episode.get("r", 0.0))
-                        payload["train/episode_length"] = float(episode.get("l", 0.0))
-                    payload["train/num_timesteps"] = float(self.num_timesteps)
-                    wandb.log(payload, step=int(self.num_timesteps))
-            return True
-
-        def _on_rollout_end(self) -> None:
-            if wandb is None:
-                return
-            logger_values = getattr(self.model.logger, "name_to_value", {})
-            payload: dict[str, float] = {"train/num_timesteps": float(self.num_timesteps)}
-            for key, value in logger_values.items():
-                if isinstance(value, (int, float, np.floating, np.integer)):
-                    payload[f"sb3/{key}"] = float(value)
-            wandb.log(payload, step=int(self.num_timesteps))
-
-    hidden_layers = [int(args.policy_width) for _ in range(max(int(args.policy_depth), 1))]
-    model = PPO(
-        "MlpPolicy",
-        venv,
-        learning_rate=float(args.lr),
-        seed=int(args.seed),
-        n_steps=int(args.ppo_n_steps),
-        batch_size=int(args.ppo_batch_size),
-        n_epochs=int(args.ppo_n_epochs),
-        policy_kwargs={"net_arch": {"pi": hidden_layers, "vf": hidden_layers}},
-        verbose=1,
-    )
-    callback = WandbInfoCallback(log_every=int(args.wandb_log_every))
-    model.learn(total_timesteps=int(args.total_steps), callback=callback)
-
-    out_dir = resolve_repo_path(repo_root, str(args.out_dir))
-    os.makedirs(out_dir, exist_ok=True)
-    stamp = time.strftime("%Y%m%d-%H%M%S")
-    model_prefix = "trace_online_adv_ppo" if str(args.attack_mode) == "trace_conditioned" else "online_adv_ppo"
-    model_stem = f"{model_prefix}_{stamp}_{run_namespace.run_id}"
-    model_path = os.path.join(out_dir, f"{model_stem}.zip")
-    model.save(model_path)
-
-    config_payload = {
-        **vars(args),
-        **resolved_launch_config,
-        "repo_root": repo_root,
-        "train_manifest_resolved": manifest_path,
-        "num_train_traces": len(train_entries),
-        "run_namespace": run_namespace.metadata(),
-        "action_space_low": [float(x) for x in env.action_space.low.tolist()],
-        "action_space_high": [float(x) for x in env.action_space.high.tolist()],
-    }
-    config_path = os.path.join(out_dir, f"{model_stem}.config.json")
-    save_json(config_path, config_payload)
-
-    usage_path = None
-    if str(args.attack_mode) == "trace_conditioned":
-        usage_path = os.path.join(out_dir, f"{model_stem}.trace_usage.json")
-        save_json(usage_path, {"trace_usage_counts": env.trace_usage_counts()})
-
-    if wandb_run is not None:
-        payload: dict[str, float | str] = {
-            "artifact/model_path": model_path,
-            "artifact/config_path": config_path,
-            "artifact/num_train_traces": float(len(train_entries)),
+        config_payload = {
+            **vars(args),
+            **resolved_launch_config,
+            "repo_root": repo_root,
+            "run_namespace": run_namespace.metadata(),
+            "action_space_low": [float(x) for x in env.action_space.low.tolist()],
+            "action_space_high": [float(x) for x in env.action_space.high.tolist()],
         }
-        if usage_path is not None:
-            payload["artifact/trace_usage_path"] = usage_path
-        wandb_run.log(payload)
-        wandb_run.finish()
+        config_path = os.path.join(out_dir, f"{model_stem}.config.json")
+        save_json(config_path, config_payload)
 
-    run_namespace.release()
-    print(model_path)
+        if wandb_run is not None:
+            payload: dict[str, float | str] = {
+                "artifact/model_path": model_path,
+                "artifact/config_path": config_path,
+            }
+            wandb_run.log(payload)
+        print(model_path)
+    finally:
+        if venv is not None:
+            venv.close()
+        elif env is not None:
+            env.close()
+        if wandb_run is not None:
+            wandb_run.finish()
+        run_namespace.release()
 
 
 if __name__ == "__main__":  # pragma: no cover

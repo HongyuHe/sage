@@ -17,7 +17,7 @@ bw=$7
 bw2=$8
 trace_period=${9}
 first_time=${10}
-scheme="pure"
+scheme="${SAGE_SCHEME:-pure}"
 prefix=${11}
 t=${12}
 loss="0"
@@ -28,6 +28,34 @@ num_flows=${15}
 save=${16}
 analyze=${17}
 period=10
+controller_mode="${SAGE_CONTROLLER_MODE:-sage}"
+
+sudo_env=(
+    "SAGE_SCHEME=$scheme"
+    "SAGE_CONTROLLER_MODE=$controller_mode"
+)
+for env_name in \
+    SAGE_ATTACK_KEYS_FILE \
+    SAGE_STARTUP_STAGGER_MS \
+    SAGE_MM_ADV_BIN \
+    SAGE_MM_ADV_CONTROL_FILE \
+    SAGE_MM_ADV_UPLINK_BW \
+    SAGE_MM_ADV_DOWNLINK_BW \
+    SAGE_MM_ADV_UPLINK_LOSS \
+    SAGE_MM_ADV_DOWNLINK_LOSS \
+    SAGE_MM_ADV_UPLINK_DELAY_MS \
+    SAGE_MM_ADV_DOWNLINK_DELAY_MS \
+    SAGE_MM_ADV_UPLINK_QUEUE_PACKETS \
+    SAGE_MM_ADV_DOWNLINK_QUEUE_PACKETS \
+    SAGE_MM_ADV_UPLINK_QUEUE_BYTES \
+    SAGE_MM_ADV_DOWNLINK_QUEUE_BYTES
+do
+    env_value="${!env_name}"
+    if [ -n "$env_value" ]
+    then
+        sudo_env+=("$env_name=$env_value")
+    fi
+done
 
 echo "Actor $actor_id: $dl/$up"
 
@@ -43,7 +71,7 @@ echo "base timestamp folder: $basetimestamp_fld"
 rm $basetimestamp_fld
 
 echo "will be done in $t-second/$num_steps-Step ..."
-sudo -u `logname` ./server.sh $port $period $first_time $scheme "$path/rl_module" $actor_id $dl $up $latency $log $t $loss $qsize $num_steps $basetimestamp_fld $bw $bw2 $trace_period $save $num_flows
+sudo -u `logname` env "${sudo_env[@]}" ./server.sh $port $period $first_time $scheme "$path/rl_module" $actor_id $dl $up $latency $log $t $loss $qsize $num_steps $basetimestamp_fld $bw $bw2 $trace_period $save $num_flows
 echo "server.sh is executed ..."
 
 py_pids=`ps aux | grep "id=$actor_id" | awk -v str="--id=$actor_id" '{if($17==str)print $2}'`

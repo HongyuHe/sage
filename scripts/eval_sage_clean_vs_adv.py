@@ -160,12 +160,69 @@ def _resolved_launch_config(
 def _numeric_summary(values: list[float]) -> dict[str, float]:
     array = np.asarray(values, dtype=np.float64)
     if array.size == 0:
-        return {"average": 0.0, "p50": 0.0, "p95": 0.0}
+        return {"avg": 0.0, "p50": 0.0, "p95": 0.0}
     return {
-        "average": float(np.mean(array)),
+        "avg": float(np.mean(array)),
         "p50": float(np.percentile(array, 50)),
         "p95": float(np.percentile(array, 95)),
     }
+
+
+_STEP_AGGREGATE_RECORD_KEYS: dict[str, str] = {
+    "reward": "reward",
+    "sage_reward": "sage_reward",
+    "sage_external_score": "sage_external_score",
+    "sage_current_delivery_rate_mbps": "sage_current_delivery_rate_mbps",
+    "sage_windowed_rate_mbps": "sage_windowed_rate_mbps",
+    "gap_score_sage": "gap_score_sage",
+    "gap_score_cubic": "gap_score_cubic",
+    "gap_score_bbr": "gap_score_bbr",
+    "gap_baseline_score": "gap_baseline_score",
+    "gap_value": "gap_value",
+    "gap_reward": "gap_reward",
+    "baseline_cubic_rate_mbps": "baseline_cubic_rate_mbps",
+    "baseline_bbr_rate_mbps": "baseline_bbr_rate_mbps",
+    "attacker_uplink_bw_mbps": "attacker_uplink_bw_mbps",
+    "attacker_downlink_bw_mbps": "attacker_downlink_bw_mbps",
+    "mm_up_applied_bw_mbps": "mm_up_applied_bw_mbps",
+    "mm_down_applied_bw_mbps": "mm_down_applied_bw_mbps",
+    "mm_up_departure_rate_mbps": "mm_up_departure_rate_mbps",
+    "mm_down_departure_rate_mbps": "mm_down_departure_rate_mbps",
+}
+
+
+def _summary_stat_key(stat_name: str) -> str:
+    return str(stat_name)
+
+
+def _aggregate_step_record_metrics(step_records: list[dict[str, Any]]) -> dict[str, float]:
+    payload: dict[str, float] = {}
+    for source_key, target_key in _STEP_AGGREGATE_RECORD_KEYS.items():
+        values = [
+            float(record[source_key])
+            for record in step_records
+            if isinstance(record.get(source_key), (int, float, np.floating, np.integer))
+        ]
+        if not values:
+            continue
+        stats = _numeric_summary(values)
+        payload[f"{target_key}-avg"] = float(stats["avg"])
+        payload[f"{target_key}-p50"] = float(stats["p50"])
+        payload[f"{target_key}-p95"] = float(stats["p95"])
+    return payload
+
+
+def _augment_result_metrics(result) -> Any:
+    step_aggregates = _aggregate_step_record_metrics(result.step_records)
+    if not step_aggregates:
+        return result
+    return replace(
+        result,
+        metrics={
+            **result.metrics,
+            **step_aggregates,
+        },
+    )
 
 
 def _episode_row(trace_type: str, episode_id: str, result) -> dict[str, float | str]:
@@ -199,7 +256,7 @@ def _summary_rows(per_episode_rows: list[dict[str, float | str]]) -> list[dict[s
                 {
                     "trace_type": trace_type,
                     "metric": metric,
-                    "average": stats["average"],
+                    "avg": stats["avg"],
                     "p50": stats["p50"],
                     "p95": stats["p95"],
                 }
@@ -276,6 +333,7 @@ def _evaluate_trace_set(
                 max_steps=len(action_schedule),
                 episode_id=episode_id,
             )
+            result = _augment_result_metrics(result)
             results.append(result)
             if wandb is not None and wandb_run is not None:
                 global_step = _log_episode_to_wandb(
@@ -479,7 +537,7 @@ def main() -> None:
     _write_csv(
         summary_csv_path,
         summary_rows,
-        fieldnames=["trace_type", "metric", "average", "p50", "p95"],
+        fieldnames=["trace_type", "metric", "avg", "p50", "p95"],
     )
 
     episode_fieldnames = sorted({key for row in per_episode_rows for key in row.keys()})
@@ -487,20 +545,20 @@ def main() -> None:
 
     if clean_run is not None:
         summary_payload = {
-            f"{row['metric']}_{stat}": float(row[stat])
+            f"{row['metric']}-{_summary_stat_key(stat)}": float(row[stat])
             for row in summary_rows
             if str(row["trace_type"]) == "clean"
-            for stat in ["average", "p50", "p95"]
+            for stat in ["avg", "p50", "p95"]
         }
         clean_run.summary.update(summary_payload)
         clean_run.summary["trace_count"] = float(len(clean_results))
         clean_run.finish()
     if adv_run is not None:
         summary_payload = {
-            f"{row['metric']}_{stat}": float(row[stat])
+            f"{row['metric']}-{_summary_stat_key(stat)}": float(row[stat])
             for row in summary_rows
             if str(row["trace_type"]) == trace_set_name
-            for stat in ["average", "p50", "p95"]
+            for stat in ["avg", "p50", "p95"]
         }
         adv_run.summary.update(summary_payload)
         adv_run.summary["trace_count"] = float(len(adv_results))

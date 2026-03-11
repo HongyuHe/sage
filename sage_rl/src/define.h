@@ -453,12 +453,7 @@ int get_info(int sk, struct tcp_c2tcp_info *info)
 };
 
 void handler(int sig) {
-    void *array[10];
-    size_t size;
-    DBGMARK(DBGSERVER,2,"=============================================================== Start\n");
-    size = backtrace(array, 20);
     fprintf(stderr, "We got signal %d:\n", sig);
-    DBGMARK(DBGSERVER,2,"=============================================================== End\n");
     shmdt(shared_memory);
     shmctl(shmid, IPC_RMID, NULL);
     shmdt(shared_memory_rl);
@@ -468,14 +463,12 @@ void handler(int sig) {
 
 template<class T>
 class dq_sage {
-    std::deque<T>* dq;
+    std::deque<T> dq;
     T default_max;
     u32 size;
-    std::deque<T>* dq_min;
-    std::deque<T>* dq_max;
-    //std::deque<double>* dq_avg;
+    std::deque<T> dq_min;
+    std::deque<T> dq_max;
     double average;
-    u32 length;
     public:
         dq_sage(u32 size)
         {
@@ -484,30 +477,28 @@ class dq_sage {
         void init(u32 size,T default_max)
         {
             this->size = size;
-            this->defualt_max = default_max;
-            dq = new std::deque<T>;
-            dq_min = new std::deque<T>;
-            dq_max = new std::deque<T>;
-            //dq_avg = new std::deque<double>;
+            this->default_max = default_max;
+            dq.clear();
+            dq_min.clear();
+            dq_max.clear();
             this->average = 0;
         };
         void init(u32 size)
         {
             this->size = size;
-            dq = new std::deque<T>;
             this->default_max = (T)100;   //100Mbps
-            dq_min = new std::deque<T>;
-            dq_max = new std::deque<T>;
-            //dq_avg = new std::deque<double>;
+            dq.clear();
+            dq_min.clear();
+            dq_max.clear();
             this->average = 0;
         };
         T get_min()
         {
-            return (this->dq_min->size())?this->dq_min->front():1e6;
+            return (this->dq_min.size())?this->dq_min.front():1e6;
         }
         T get_max()
         {
-            return (this->dq_max->size())?this->dq_max->front():0;
+            return (this->dq_max.size())?this->dq_max.front():0;
         }
         double get_avg()
         {
@@ -515,13 +506,13 @@ class dq_sage {
         }
         T get_sum()
         {
-            return (T)(get_avg()*this->dq->size());
+            return (T)(get_avg()*this->dq.size());
         }
         int add(T entry)
         {
             T new_min = get_min();
             T new_max = get_max();
-            u32 len = this->dq->size();
+            u32 len = this->dq.size();
             if(entry<new_min)
             {
                 new_min = entry;
@@ -533,8 +524,8 @@ class dq_sage {
 
             if(len>=this->size)
             {  
-                T to_be_removed = this->dq->back();
-                this->dq->pop_back();
+                T to_be_removed = this->dq.back();
+                this->dq.pop_back();
                 this->average = (this->average*len-(double)to_be_removed+(double)entry)/(len);
 
                 if(to_be_removed==get_min())
@@ -543,8 +534,8 @@ class dq_sage {
                     if(entry<new_min)
                         new_min = entry;
                 }
-                this->dq_min->pop_back();
-                this->dq_min->push_front(new_min);
+                this->dq_min.pop_back();
+                this->dq_min.push_front(new_min);
                
                 if(to_be_removed==get_max())
                 {
@@ -552,32 +543,30 @@ class dq_sage {
                     if(entry>new_max)
                         new_max = entry;
                 }
-                this->dq_max->pop_back(); 
-                this->dq_max->push_front(new_max);
+                this->dq_max.pop_back(); 
+                this->dq_max.push_front(new_max);
                 
-                //this->dq->pop_back();
-                this->dq->push_front(entry);
+                this->dq.push_front(entry);
             }
             else
             {
                 this->average = (len)?(this->average*len+(double)entry)/(len+1):entry;
-                this->dq_min->push_front(new_min);
-                this->dq_max->push_front(new_max);
-                this->dq->push_front(entry);
+                this->dq_min.push_front(new_min);
+                this->dq_max.push_front(new_max);
+                this->dq.push_front(entry);
             }
+            return 0;
         };
         T max()
         {
             T max=0;
-            int occupancy=0;
             typename std::deque<T>::iterator it;
-            for(it=this->dq->begin(); it!=this->dq->end(); it++)
+            for(it=this->dq.begin(); it!=this->dq.end(); it++)
             {
                 if(max<*it)
                 {
                     max=*it;
                 }
-                //occupancy++;
             }
             return max;
         };
@@ -585,7 +574,7 @@ class dq_sage {
         {
             T min=1e6;
             typename std::deque<T>::iterator it;
-            for(it=this->dq->begin(); it!=this->dq->end(); it++)
+            for(it=this->dq.begin(); it!=this->dq.end(); it++)
             {
                 if(min>*it)
                 {
@@ -598,7 +587,7 @@ class dq_sage {
         {
             T sum = 0;
             typename std::deque<T>::iterator it;
-            for(it=this->dq->begin(); it!=this->dq->end(); it++)
+            for(it=this->dq.begin(); it!=this->dq.end(); it++)
             {
                 sum += *it;                                              
             }
@@ -609,7 +598,7 @@ class dq_sage {
             T sum = 0;
             u32 counter=0;
             typename std::deque<T>::iterator it;
-            for(it=this->dq->begin(); it!=this->dq->end(); it++)
+            for(it=this->dq.begin(); it!=this->dq.end(); it++)
             {
                 sum += *it;                                             
                 counter++;
@@ -622,7 +611,7 @@ class dq_sage {
             T var = 0;
             u32 counter=0;
             typename std::deque<T>::iterator it;
-            for(it=this->dq->begin(); it!=this->dq->end(); it++)
+            for(it=this->dq.begin(); it!=this->dq.end(); it++)
             {
                 var += (mean-*it)*(mean-*it);
                 counter++;
