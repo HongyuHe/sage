@@ -2,12 +2,11 @@
 Run this after `scripts/generate_online_adv_traces.py`.
 
 Example usage:
-PYTHON_BIN=.venv/bin/python
-$PYTHON_BIN scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/v1/generated_manifest.json \
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/rl-unconstrained-30k/generated_manifest.json \
   --test-manifest attacks/test/manifest.json \
   --out-dir attacks/output/eval \
-  --wandb --wandb-project sage-online-adv
+  --wandb --wandb-project sage-gap-eval
 """
 
 from __future__ import annotations
@@ -110,11 +109,11 @@ def _trace_set_name(generated_manifest_path: str, generated_manifest: dict[str, 
 def _load_action_schedule(schedule_payload: dict[str, Any]) -> list[np.ndarray]:
     actions: list[np.ndarray] = []
     for step in schedule_payload.get("steps", []):
-        if isinstance(step, dict) and isinstance(step.get("action"), list):
-            actions.append(np.asarray(step["action"], dtype=np.float32))
-            continue
         if isinstance(step, dict) and isinstance(step.get("effective_action"), list):
             actions.append(np.asarray(step["effective_action"], dtype=np.float32))
+            continue
+        if isinstance(step, dict) and isinstance(step.get("action"), list):
+            actions.append(np.asarray(step["action"], dtype=np.float32))
             continue
     return actions
 
@@ -171,12 +170,38 @@ def _numeric_summary(values: list[float]) -> dict[str, float]:
 _STEP_AGGREGATE_RECORD_KEYS: dict[str, str] = {
     "reward": "reward",
     "sage_reward": "sage_reward",
-    "sage_external_score": "sage_external_score",
+    "sage_score": "sage_score",
+    "sage_score_rate_norm": "sage_score_rate_norm",
+    "sage_score_rtt_norm": "sage_score_rtt_norm",
+    "sage_score_loss_norm": "sage_score_loss_norm",
+    "sage_score_rate_contrib": "sage_score_rate_contrib",
+    "sage_score_rtt_contrib": "sage_score_rtt_contrib",
+    "sage_score_loss_penalty": "sage_score_loss_penalty",
     "sage_current_delivery_rate_mbps": "sage_current_delivery_rate_mbps",
     "sage_windowed_rate_mbps": "sage_windowed_rate_mbps",
+    "sage_rtt_ms": "sage_rtt_ms",
+    "sage_loss_mbps": "sage_loss_mbps",
     "gap_score_sage": "gap_score_sage",
     "gap_score_cubic": "gap_score_cubic",
     "gap_score_bbr": "gap_score_bbr",
+    "gap_score_sage_rate_norm": "gap_score_sage_rate_norm",
+    "gap_score_sage_rtt_norm": "gap_score_sage_rtt_norm",
+    "gap_score_sage_loss_norm": "gap_score_sage_loss_norm",
+    "gap_score_sage_rate_contrib": "gap_score_sage_rate_contrib",
+    "gap_score_sage_rtt_contrib": "gap_score_sage_rtt_contrib",
+    "gap_score_sage_loss_penalty": "gap_score_sage_loss_penalty",
+    "gap_score_cubic_rate_norm": "gap_score_cubic_rate_norm",
+    "gap_score_cubic_rtt_norm": "gap_score_cubic_rtt_norm",
+    "gap_score_cubic_loss_norm": "gap_score_cubic_loss_norm",
+    "gap_score_cubic_rate_contrib": "gap_score_cubic_rate_contrib",
+    "gap_score_cubic_rtt_contrib": "gap_score_cubic_rtt_contrib",
+    "gap_score_cubic_loss_penalty": "gap_score_cubic_loss_penalty",
+    "gap_score_bbr_rate_norm": "gap_score_bbr_rate_norm",
+    "gap_score_bbr_rtt_norm": "gap_score_bbr_rtt_norm",
+    "gap_score_bbr_loss_norm": "gap_score_bbr_loss_norm",
+    "gap_score_bbr_rate_contrib": "gap_score_bbr_rate_contrib",
+    "gap_score_bbr_rtt_contrib": "gap_score_bbr_rtt_contrib",
+    "gap_score_bbr_loss_penalty": "gap_score_bbr_loss_penalty",
     "gap_baseline_score": "gap_baseline_score",
     "gap_value": "gap_value",
     "gap_reward": "gap_reward",
@@ -316,9 +341,6 @@ def _evaluate_trace_set(
         launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
         step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
         runtime_dir=runtime_dir,
-        reward_rate_weight=float(config_payload.get("reward_rate_weight", 1.0)),
-        reward_rtt_weight=float(config_payload.get("reward_rtt_weight", 0.05)),
-        reward_loss_weight=float(config_payload.get("reward_loss_weight", 2.0)),
         smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
     )
     results: list[Any] = []

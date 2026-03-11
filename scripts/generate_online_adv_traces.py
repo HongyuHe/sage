@@ -179,9 +179,6 @@ def _legacy_trace_conditioned_generation(
         loss_max=float(config_payload.get("loss_max", 0.15)),
         delay_min_ms=0.0,
         delay_max_ms=float(config_payload.get("delay_max_ms", 150.0)),
-        reward_rate_weight=float(config_payload.get("reward_rate_weight", 1.0)),
-        reward_rtt_weight=float(config_payload.get("reward_rtt_weight", 0.05)),
-        reward_loss_weight=float(config_payload.get("reward_loss_weight", 2.0)),
         smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
     )
 
@@ -295,9 +292,6 @@ def _independent_generation(
             launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
             step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
             runtime_dir=runtime_dir,
-            reward_rate_weight=float(config_payload.get("reward_rate_weight", 1.0)),
-            reward_rtt_weight=float(config_payload.get("reward_rtt_weight", 0.05)),
-            reward_loss_weight=float(config_payload.get("reward_loss_weight", 2.0)),
             smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
         )
 
@@ -328,7 +322,19 @@ def _independent_generation(
             downlink_trace_path = os.path.join(bundle_dir, "downlink.trace")
             write_bandwidth_trace(
                 bandwidth_mbps=[
-                    float(record.get("attacker_uplink_bw_mbps", record.get("uplink_bw_mbps", record["action"][0])))
+                    float(
+                        record.get(
+                            "attacker_uplink_bw_mbps",
+                            record.get(
+                                "uplink_bw_mbps",
+                                (
+                                    record.get("effective_action", record["action"])[0]
+                                    if record.get("effective_action", record["action"])
+                                    else 0.0
+                                ),
+                            ),
+                        )
+                    )
                     for record in result.step_records
                 ],
                 interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),
@@ -336,7 +342,19 @@ def _independent_generation(
             )
             write_bandwidth_trace(
                 bandwidth_mbps=[
-                    float(record.get("attacker_downlink_bw_mbps", record.get("downlink_bw_mbps", record["action"][1])))
+                    float(
+                        record.get(
+                            "attacker_downlink_bw_mbps",
+                            record.get(
+                                "downlink_bw_mbps",
+                                (
+                                    record.get("effective_action", record["action"])[1]
+                                    if len(record.get("effective_action", record["action"])) > 1
+                                    else record.get("effective_action", record["action"])[0]
+                                ),
+                            ),
+                        )
+                    )
                     for record in result.step_records
                 ],
                 interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),

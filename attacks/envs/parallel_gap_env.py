@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 
 from attacks.envs.online_sage_env import AttackBounds, OnlineSageAttackEnv
+from attacks.envs.score_utils import bounded_linear_score_terms_from_info
 from attacks.online import SageLaunchConfig
 
 
@@ -95,35 +96,97 @@ class ParallelGapAttackEnv(gym.Env):
         self._episode_step = 0
         self._episode_anchor_abs_ms = 0.0
         self._base_rtt_ms = max(float(self._base_launch_config.latency_ms) * 2.0, 1.0)
-        self.action_space = spaces.Box(low=self._bounds.low, high=self._bounds.high, dtype=np.float32)
+        self._shared_bandwidth_min_mbps = max(
+            float(self._bounds.uplink_bw_mbps[0]),
+            float(self._bounds.downlink_bw_mbps[0]),
+        )
+        self._shared_bandwidth_max_mbps = min(
+            float(self._bounds.uplink_bw_mbps[1]),
+            float(self._bounds.downlink_bw_mbps[1]),
+        )
+        if self._shared_bandwidth_min_mbps > self._shared_bandwidth_max_mbps:
+            raise ValueError("shared bottleneck bandwidth bounds do not overlap")
+        self._fixed_uplink_delay_ms = float(
+            self._base_launch_config.initial_uplink_delay_ms
+            if self._base_launch_config.initial_uplink_delay_ms is not None
+            else self._base_launch_config.latency_ms
+        )
+        self._fixed_downlink_delay_ms = float(
+            self._base_launch_config.initial_downlink_delay_ms
+            if self._base_launch_config.initial_downlink_delay_ms is not None
+            else self._base_launch_config.latency_ms
+        )
+        self._effective_bounds = AttackBounds(
+            uplink_bw_mbps=(self._shared_bandwidth_min_mbps, self._shared_bandwidth_max_mbps),
+            downlink_bw_mbps=(self._shared_bandwidth_min_mbps, self._shared_bandwidth_max_mbps),
+            uplink_loss=(0.0, 0.0),
+            downlink_loss=(0.0, 0.0),
+            uplink_delay_ms=(self._fixed_uplink_delay_ms, self._fixed_uplink_delay_ms),
+            downlink_delay_ms=(self._fixed_downlink_delay_ms, self._fixed_downlink_delay_ms),
+        )
+        self.action_space = spaces.Box(
+            low=np.asarray([self._shared_bandwidth_min_mbps], dtype=np.float32),
+            high=np.asarray([self._shared_bandwidth_max_mbps], dtype=np.float32),
+            dtype=np.float32,
+        )
         obs_dim = self._obs_history_len * _BASE_OBS_FEATURE_DIM + 3
         obs_high = np.full((obs_dim,), 1e9, dtype=np.float32)
         self.observation_space = spaces.Box(low=-obs_high, high=obs_high, dtype=np.float32)
-        self._last_action = self._default_action()
+        self._last_policy_action = self._default_policy_action()
         self._last_sage_observation: np.ndarray | None = None
         self._previous_gap_features = np.zeros((3,), dtype=np.float32)
         self._bootstrap_pending_roles: set[str] = set()
 
-    def _default_action(self) -> np.ndarray:
-        return np.clip(
-            np.asarray(
-                [
-                    self._base_launch_config.initial_uplink_bw_mbps or float(self._base_launch_config.env_bw_mbps),
-                    self._base_launch_config.initial_downlink_bw_mbps or float(self._base_launch_config.env_bw_mbps),
-                    self._base_launch_config.initial_uplink_loss or 0.0,
-                    self._base_launch_config.initial_downlink_loss or 0.0,
-                    self._base_launch_config.initial_uplink_delay_ms or float(self._base_launch_config.latency_ms),
-                    self._base_launch_config.initial_downlink_delay_ms or float(self._base_launch_config.latency_ms),
-                ],
-                dtype=np.float32,
-            ),
+    def _default_shared_bandwidth_mbps(self) -> float:
+        initial_uplink_bw = float(
+            self._base_launch_config.initial_uplink_bw_mbps
+            if self._base_launch_config.initial_uplink_bw_mbps is not None
+            else self._base_launch_config.env_bw_mbps
+        )
+        initial_downlink_bw = float(
+            self._base_launch_config.initial_downlink_bw_mbps
+            if self._base_launch_config.initial_downlink_bw_mbps is not None
+            else self._base_launch_config.env_bw_mbps
+        )
+        return float(
+            np.clip(
+                min(initial_uplink_bw, initial_downlink_bw),
+                self._shared_bandwidth_min_mbps,
+                self._shared_bandwidth_max_mbps,
+            )
+        )
+
+    def _effective_action_from_policy(self, policy_action: np.ndarray) -> np.ndarray:
+        shared_bandwidth_mbps = float(
+            np.clip(
+                np.asarray(policy_action, dtype=np.float32).reshape(-1)[0],
+                self._shared_bandwidth_min_mbps,
+                self._shared_bandwidth_max_mbps,
+            )
+        )
+        return np.asarray(
+            [
+                shared_bandwidth_mbps,
+                shared_bandwidth_mbps,
+                0.0,
+                0.0,
+                self._fixed_uplink_delay_ms,
+                self._fixed_downlink_delay_ms,
+            ],
+            dtype=np.float32,
+        )
+
+    def _default_policy_action(self) -> np.ndarray:
+        return np.asarray([self._default_shared_bandwidth_mbps()], dtype=np.float32)
+
+    def _normalized_bandwidth_fraction(self, policy_action: np.ndarray) -> np.ndarray:
+        denom = max(self._shared_bandwidth_max_mbps - self._shared_bandwidth_min_mbps, 1e-6)
+        clipped = np.clip(
+            np.asarray(policy_action, dtype=np.float32),
             self.action_space.low,
             self.action_space.high,
         )
-
-    def _normalized_action(self, action: np.ndarray) -> np.ndarray:
-        denom = np.maximum(self.action_space.high - self.action_space.low, 1e-6)
-        return ((np.asarray(action, dtype=np.float32) - self.action_space.low) / denom).astype(np.float32, copy=False)
+        return ((clipped - self.action_space.low) / denom).astype(np.float32, copy=False)
 
     def _reserve_launch_port(self, preferred_port: int, *, taken_ports: set[int], max_tries: int = 256) -> int:
         candidate = max(int(preferred_port), 1024)
@@ -174,11 +237,17 @@ class ParallelGapAttackEnv(gym.Env):
             port=resolved_port,
             actor_id=max(int(self._base_launch_config.actor_id) + generation_offset + int(port_offset), 0),
             iteration_id=int(self._base_launch_config.iteration_id) + generation_offset,
+            initial_uplink_bw_mbps=self._default_shared_bandwidth_mbps(),
+            initial_downlink_bw_mbps=self._default_shared_bandwidth_mbps(),
+            initial_uplink_loss=0.0,
+            initial_downlink_loss=0.0,
+            initial_uplink_delay_ms=self._fixed_uplink_delay_ms,
+            initial_downlink_delay_ms=self._fixed_downlink_delay_ms,
         )
         return OnlineSageAttackEnv(
             repo_root=self.repo_root,
             launch_config=launch_config,
-            bounds=self._bounds,
+            bounds=self._effective_bounds,
             obs_history_len=self._obs_history_len,
             attack_interval_ms=self._attack_interval_ms,
             max_episode_steps=self._max_episode_steps,
@@ -249,16 +318,12 @@ class ParallelGapAttackEnv(gym.Env):
             return True
         return self._applied_config_matches(info, action)
 
-    def _score_from_info(self, info: dict[str, Any], *, path_cap_mbps: float) -> float:
-        current_rtt_ms = max(float(info.get("sage/current_rtt_ms", 0.0)), 1e-6)
-        windowed_rate_mbps = max(float(info.get("sage/windowed_delivery_rate_mbps", 0.0)), 0.0)
-        current_loss_mbps = max(float(info.get("sage/current_loss_mbps", 0.0)), 0.0)
-        rtt_term = min(self._base_rtt_ms / current_rtt_ms, 1.0)
-        rate_term = max(windowed_rate_mbps - self._baseline_gap_alpha * current_loss_mbps, 0.0) / max(
-            float(path_cap_mbps),
-            1e-6,
+    def _score_terms_from_info(self, info: dict[str, Any], *, path_cap_mbps: float) -> dict[str, float]:
+        return bounded_linear_score_terms_from_info(
+            info,
+            base_rtt_ms=self._base_rtt_ms,
+            path_cap_mbps=path_cap_mbps,
         )
-        return float(rtt_term * rate_term * rate_term)
 
     def close(self) -> None:
         for child in self._children.values():
@@ -298,7 +363,7 @@ class ParallelGapAttackEnv(gym.Env):
             self._children = children
             self._episode_step = 0
             self._episode_anchor_abs_ms = _monotonic_ms() + self._sync_guard_ms
-            self._last_action = self._default_action()
+            self._last_policy_action = self._default_policy_action()
             self._previous_gap_features = np.zeros((3,), dtype=np.float32)
             self._last_sage_observation = initial_obs["sage"]
             self._bootstrap_pending_roles = set(placeholder_roles)
@@ -313,6 +378,13 @@ class ParallelGapAttackEnv(gym.Env):
                     "env/bootstrap_placeholder": 1.0 if "sage" in placeholder_roles else 0.0,
                     "env/bootstrap_placeholder_children": float(len(placeholder_roles)),
                     "gap/base_rtt_ms": float(self._base_rtt_ms),
+                    "sage/score": 0.0,
+                    "sage/score_rate_norm": 0.0,
+                    "sage/score_rtt_norm": 0.0,
+                    "sage/score_loss_norm": 0.0,
+                    "sage/score_rate_contrib": 0.0,
+                    "sage/score_rtt_contrib": 0.0,
+                    "sage/score_loss_penalty": 0.0,
                     "gap/score_cubic": 0.0,
                     "gap/score_bbr": 0.0,
                     "gap/score_sage": 0.0,
@@ -333,7 +405,8 @@ class ParallelGapAttackEnv(gym.Env):
         if not self._children:
             raise RuntimeError("environment is not initialized; call reset() first")
 
-        clipped = np.clip(np.asarray(action, dtype=np.float32), self.action_space.low, self.action_space.high)
+        policy_action = np.clip(np.asarray(action, dtype=np.float32), self.action_space.low, self.action_space.high)
+        effective_action = self._effective_action_from_policy(policy_action)
         bootstrap_mode = bool(self._bootstrap_pending_roles)
         expected_step = self._episode_step + 1
         scheduled_effective_after_abs_ms = self._episode_anchor_abs_ms + self._episode_step * self._attack_interval_ms
@@ -346,7 +419,7 @@ class ParallelGapAttackEnv(gym.Env):
         try:
             for child in self._children.values():
                 child.apply_action(
-                    clipped,
+                    effective_action,
                     episode_step=expected_step,
                     effective_after_abs_ms=effective_after_abs_ms,
                 )
@@ -359,7 +432,7 @@ class ParallelGapAttackEnv(gym.Env):
             for role, child in self._children.items():
                 observation, _, terminated, truncated, info = child.collect_step(
                     expected_episode_step=expected_step,
-                    expected_action=clipped,
+                    expected_action=effective_action,
                     strict=not bootstrap_mode,
                     deadline_abs_ms=collect_deadline_abs_ms,
                     timeout_s=max((collect_deadline_abs_ms - _monotonic_ms()) / 1000.0, 1e-3),
@@ -372,7 +445,7 @@ class ParallelGapAttackEnv(gym.Env):
                         self._bootstrap_pending_roles.discard(str(role))
                 elif not self._sync_matches(
                     dict(info),
-                    action=clipped,
+                    action=effective_action,
                     expected_step=expected_step,
                     effective_after_abs_ms=effective_after_abs_ms,
                 ):
@@ -416,7 +489,7 @@ class ParallelGapAttackEnv(gym.Env):
 
         if self._bootstrap_pending_roles:
             self._episode_step = expected_step
-            self._last_action = clipped.astype(np.float32, copy=True)
+            self._last_policy_action = policy_action.astype(np.float32, copy=True)
             info = dict(sage_info)
             info.update(
                 {
@@ -431,19 +504,27 @@ class ParallelGapAttackEnv(gym.Env):
             )
             return self._augment_observation(sage_obs), 0.0, terminated, truncated, info
 
-        path_cap_mbps = max(min(float(clipped[0]), float(clipped[1])), 1e-6)
-        score_sage = self._score_from_info(sage_info, path_cap_mbps=path_cap_mbps)
-        score_cubic = self._score_from_info(results["cubic"][4], path_cap_mbps=path_cap_mbps)
-        score_bbr = self._score_from_info(results["bbr"][4], path_cap_mbps=path_cap_mbps)
+        path_cap_mbps = max(min(float(effective_action[0]), float(effective_action[1])), 1e-6)
+        sage_score_terms = self._score_terms_from_info(sage_info, path_cap_mbps=path_cap_mbps)
+        cubic_score_terms = self._score_terms_from_info(results["cubic"][4], path_cap_mbps=path_cap_mbps)
+        bbr_score_terms = self._score_terms_from_info(results["bbr"][4], path_cap_mbps=path_cap_mbps)
+        score_sage = float(sage_score_terms["score"])
+        score_cubic = float(cubic_score_terms["score"])
+        score_bbr = float(bbr_score_terms["score"])
         baseline_score = max(score_cubic, score_bbr)
-        smooth_penalty = float(
-            np.mean(np.abs(self._normalized_action(clipped) - self._normalized_action(self._last_action)))
-        )
-        reward = float(baseline_score - score_sage - self._smooth_penalty_scale * smooth_penalty)
         gap_value = float(baseline_score - score_sage)
+        smooth_penalty = float(
+            np.mean(
+                np.abs(
+                    self._normalized_bandwidth_fraction(policy_action)
+                    - self._normalized_bandwidth_fraction(self._last_policy_action)
+                )
+            )
+        )
+        reward = float(gap_value * baseline_score - self._smooth_penalty_scale * smooth_penalty)
 
         self._episode_step = expected_step
-        self._last_action = clipped.astype(np.float32, copy=True)
+        self._last_policy_action = policy_action.astype(np.float32, copy=True)
         self._previous_gap_features = np.asarray([score_cubic, score_bbr, gap_value], dtype=np.float32)
 
         info = dict(sage_info)
@@ -451,11 +532,37 @@ class ParallelGapAttackEnv(gym.Env):
             {
                 "attacker/reward": float(reward),
                 "attacker/smooth_penalty": float(smooth_penalty),
+                "attacker/shared_bw_mbps": float(policy_action.reshape(-1)[0]),
+                "sage/score": float(score_sage),
+                "sage/score_rate_norm": float(sage_score_terms["rate_norm"]),
+                "sage/score_rtt_norm": float(sage_score_terms["rtt_norm"]),
+                "sage/score_loss_norm": float(sage_score_terms["loss_norm"]),
+                "sage/score_rate_contrib": float(sage_score_terms["rate_contrib"]),
+                "sage/score_rtt_contrib": float(sage_score_terms["rtt_contrib"]),
+                "sage/score_loss_penalty": float(sage_score_terms["loss_penalty"]),
                 "gap/base_rtt_ms": float(self._base_rtt_ms),
                 "gap/path_cap_mbps": float(path_cap_mbps),
                 "gap/score_sage": float(score_sage),
                 "gap/score_cubic": float(score_cubic),
                 "gap/score_bbr": float(score_bbr),
+                "gap/score_sage_rate_norm": float(sage_score_terms["rate_norm"]),
+                "gap/score_sage_rtt_norm": float(sage_score_terms["rtt_norm"]),
+                "gap/score_sage_loss_norm": float(sage_score_terms["loss_norm"]),
+                "gap/score_sage_rate_contrib": float(sage_score_terms["rate_contrib"]),
+                "gap/score_sage_rtt_contrib": float(sage_score_terms["rtt_contrib"]),
+                "gap/score_sage_loss_penalty": float(sage_score_terms["loss_penalty"]),
+                "gap/score_cubic_rate_norm": float(cubic_score_terms["rate_norm"]),
+                "gap/score_cubic_rtt_norm": float(cubic_score_terms["rtt_norm"]),
+                "gap/score_cubic_loss_norm": float(cubic_score_terms["loss_norm"]),
+                "gap/score_cubic_rate_contrib": float(cubic_score_terms["rate_contrib"]),
+                "gap/score_cubic_rtt_contrib": float(cubic_score_terms["rtt_contrib"]),
+                "gap/score_cubic_loss_penalty": float(cubic_score_terms["loss_penalty"]),
+                "gap/score_bbr_rate_norm": float(bbr_score_terms["rate_norm"]),
+                "gap/score_bbr_rtt_norm": float(bbr_score_terms["rtt_norm"]),
+                "gap/score_bbr_loss_norm": float(bbr_score_terms["loss_norm"]),
+                "gap/score_bbr_rate_contrib": float(bbr_score_terms["rate_contrib"]),
+                "gap/score_bbr_rtt_contrib": float(bbr_score_terms["rtt_contrib"]),
+                "gap/score_bbr_loss_penalty": float(bbr_score_terms["loss_penalty"]),
                 "gap/baseline_score": float(baseline_score),
                 "gap/value": float(gap_value),
                 "gap/reward": float(reward),

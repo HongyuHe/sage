@@ -34,11 +34,11 @@ METRIC_SPECS: tuple[dict[str, str], ...] = (
         "label": "Mean Sage Reward",
     },
     {
-        "name": "external_score_mean",
-        "clean": "clean_external_score_mean",
-        "adv": "adv_external_score_mean",
-        "delta": "delta_external_score_mean",
-        "label": "Mean External Score",
+        "name": "score_mean",
+        "clean": "clean_score_mean",
+        "adv": "adv_score_mean",
+        "delta": "delta_score_mean",
+        "label": "Mean Score",
     },
     {
         "name": "rate_mean_mbps",
@@ -74,7 +74,7 @@ NEW_METRIC_SPECS: tuple[dict[str, Any], ...] = (
     {"columns": ("episode_total_reward",), "label": "Episode Reward"},
     {"columns": ("reward_mean",), "label": "Mean Step Reward"},
     {"columns": ("sage_reward_mean", "victim_reward_mean"), "label": "Mean Sage Reward"},
-    {"columns": ("sage_external_score_mean", "victim_external_score_mean"), "label": "Mean External Score"},
+    {"columns": ("sage_score_mean", "victim_score_mean"), "label": "Mean Score"},
     {"columns": ("sage_windowed_rate_mbps_mean", "victim_windowed_rate_mbps_mean"), "label": "Mean Delivery Rate (Mbps)"},
     {"columns": ("sage_rtt_ms_mean", "victim_rtt_ms_mean"), "label": "Mean RTT (ms)"},
     {"columns": ("sage_loss_mbps_mean", "victim_loss_mbps_mean"), "label": "Mean Loss (Mbps)"},
@@ -196,7 +196,7 @@ def _save_delta_plots(rows_frame: pd.DataFrame, out_dir: str) -> list[str]:
     if "trace_type" in rows_frame.columns:
         return output_paths
     delta_specs = (
-        ("delta_external_score_mean", "Per-Trace Delta External Score"),
+        ("delta_score_mean", "Per-Trace Delta Score"),
         ("delta_reward", "Per-Trace Delta Episode Reward"),
         ("delta_rate_mean_mbps", "Per-Trace Delta Delivery Rate (Mbps)"),
         ("delta_rtt_mean_ms", "Per-Trace Delta RTT (ms)"),
@@ -238,7 +238,7 @@ def _save_scatter_plots(rows_frame: pd.DataFrame, out_dir: str) -> list[str]:
         return output_paths
     scatter_specs = (
         ("clean_reward", "adv_reward", "Episode Reward"),
-        ("clean_external_score_mean", "adv_external_score_mean", "Mean External Score"),
+        ("clean_score_mean", "adv_score_mean", "Mean Score"),
         ("clean_rate_mean_mbps", "adv_rate_mean_mbps", "Mean Delivery Rate (Mbps)"),
         ("clean_rtt_mean_ms", "adv_rtt_mean_ms", "Mean RTT (ms)"),
     )

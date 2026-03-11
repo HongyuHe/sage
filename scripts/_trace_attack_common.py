@@ -15,6 +15,7 @@ from typing import Any, Callable, Iterable, Sequence
 import numpy as np
 
 from attacks.envs.online_sage_env import AttackBounds, OnlineSageAttackEnv
+from attacks.envs.score_utils import bounded_linear_score_terms_from_info
 from attacks.online import SageLaunchConfig
 
 
@@ -61,6 +62,27 @@ def resolve_repo_path(repo_root: str, path: str) -> str:
     if os.path.isabs(expanded):
         return expanded
     return os.path.abspath(os.path.join(repo_root, expanded))
+
+
+def _default_base_rtt_ms_from_launch_config(launch_config: SageLaunchConfig) -> float:
+    uplink_delay_ms = (
+        launch_config.initial_uplink_delay_ms
+        if launch_config.initial_uplink_delay_ms is not None
+        else launch_config.latency_ms
+    )
+    downlink_delay_ms = (
+        launch_config.initial_downlink_delay_ms
+        if launch_config.initial_downlink_delay_ms is not None
+        else launch_config.latency_ms
+    )
+    return max(float(uplink_delay_ms) + float(downlink_delay_ms), 1.0)
+
+
+def _updated_base_rtt_ms(base_rtt_ms: float, info: dict[str, Any]) -> float:
+    current_rtt_ms = float(info.get("sage/current_rtt_ms", 0.0))
+    if current_rtt_ms > 0.0:
+        return max(min(float(base_rtt_ms), current_rtt_ms), 1.0)
+    return max(float(base_rtt_ms), 1.0)
 
 
 def utc_now_iso() -> str:
@@ -394,6 +416,18 @@ def build_clean_action_schedule(
 
 
 def attack_bounds_from_config(config_payload: dict[str, Any]) -> AttackBounds:
+    effective_low = config_payload.get("effective_action_low")
+    effective_high = config_payload.get("effective_action_high")
+    if isinstance(effective_low, list) and isinstance(effective_high, list) and len(effective_low) == 6 and len(effective_high) == 6:
+        return AttackBounds(
+            uplink_bw_mbps=(float(effective_low[0]), float(effective_high[0])),
+            downlink_bw_mbps=(float(effective_low[1]), float(effective_high[1])),
+            uplink_loss=(float(effective_low[2]), float(effective_high[2])),
+            downlink_loss=(float(effective_low[3]), float(effective_high[3])),
+            uplink_delay_ms=(float(effective_low[4]), float(effective_high[4])),
+            downlink_delay_ms=(float(effective_low[5]), float(effective_high[5])),
+        )
+
     low = config_payload.get("action_space_low")
     high = config_payload.get("action_space_high")
     if isinstance(low, list) and isinstance(high, list) and len(low) == 6 and len(high) == 6:
@@ -406,33 +440,64 @@ def attack_bounds_from_config(config_payload: dict[str, Any]) -> AttackBounds:
             downlink_delay_ms=(float(low[5]), float(high[5])),
         )
 
+    def _float_value(value: Any, default: float) -> float:
+        if value is None:
+            return float(default)
+        return float(value)
+
     effective_bw_cap_mbps = float(config_payload.get("effective_bw_cap_mbps", 2000.0))
     loss_max = float(config_payload.get("loss_max", 0.15))
     delay_max_ms = float(config_payload.get("delay_max_ms", 150.0))
+    shared_bw_min = config_payload.get("attack_shared_bw_min_mbps")
+    shared_bw_max = config_payload.get("attack_shared_bw_max_mbps")
+    uplink_bw_min = _float_value(
+        config_payload.get("attack_uplink_bw_min_mbps", shared_bw_min),
+        0.0 if shared_bw_min is None else float(shared_bw_min),
+    )
+    uplink_bw_max = _float_value(
+        config_payload.get("attack_uplink_bw_max_mbps", shared_bw_max),
+        effective_bw_cap_mbps if shared_bw_max is None else float(shared_bw_max),
+    )
+    downlink_bw_min = _float_value(
+        config_payload.get("attack_downlink_bw_min_mbps", shared_bw_min),
+        0.0 if shared_bw_min is None else float(shared_bw_min),
+    )
+    downlink_bw_max = _float_value(
+        config_payload.get("attack_downlink_bw_max_mbps", shared_bw_max),
+        effective_bw_cap_mbps if shared_bw_max is None else float(shared_bw_max),
+    )
+    uplink_delay_max = max(
+        delay_max_ms,
+        _float_value(config_payload.get("init_uplink_delay_ms"), 0.0),
+    )
+    downlink_delay_max = max(
+        delay_max_ms,
+        _float_value(config_payload.get("init_downlink_delay_ms"), 0.0),
+    )
     return AttackBounds(
         uplink_bw_mbps=(
-            float(config_payload.get("attack_uplink_bw_min_mbps", 0.0)),
-            float(config_payload.get("attack_uplink_bw_max_mbps", effective_bw_cap_mbps)),
+            uplink_bw_min,
+            uplink_bw_max,
         ),
         downlink_bw_mbps=(
-            float(config_payload.get("attack_downlink_bw_min_mbps", 0.0)),
-            float(config_payload.get("attack_downlink_bw_max_mbps", effective_bw_cap_mbps)),
+            downlink_bw_min,
+            downlink_bw_max,
         ),
         uplink_loss=(
-            float(config_payload.get("attack_uplink_loss_min", 0.0)),
-            float(config_payload.get("attack_uplink_loss_max", loss_max)),
+            _float_value(config_payload.get("attack_uplink_loss_min"), 0.0),
+            _float_value(config_payload.get("attack_uplink_loss_max"), loss_max),
         ),
         downlink_loss=(
-            float(config_payload.get("attack_downlink_loss_min", 0.0)),
-            float(config_payload.get("attack_downlink_loss_max", loss_max)),
+            _float_value(config_payload.get("attack_downlink_loss_min"), 0.0),
+            _float_value(config_payload.get("attack_downlink_loss_max"), loss_max),
         ),
         uplink_delay_ms=(
-            float(config_payload.get("attack_uplink_delay_min_ms", 0.0)),
-            float(config_payload.get("attack_uplink_delay_max_ms", delay_max_ms)),
+            _float_value(config_payload.get("attack_uplink_delay_min_ms"), 0.0),
+            _float_value(config_payload.get("attack_uplink_delay_max_ms"), uplink_delay_max),
         ),
         downlink_delay_ms=(
-            float(config_payload.get("attack_downlink_delay_min_ms", 0.0)),
-            float(config_payload.get("attack_downlink_delay_max_ms", delay_max_ms)),
+            _float_value(config_payload.get("attack_downlink_delay_min_ms"), 0.0),
+            _float_value(config_payload.get("attack_downlink_delay_max_ms"), downlink_delay_max),
         ),
     )
 
@@ -474,9 +539,6 @@ class TraceConditionedAttackEnv(gym.Env):
         loss_max: float = 0.15,
         delay_min_ms: float = 0.0,
         delay_max_ms: float = 150.0,
-        reward_rate_weight: float = 1.0,
-        reward_rtt_weight: float = 0.05,
-        reward_loss_weight: float = 2.0,
         smooth_penalty_scale: float = 0.0,
     ) -> None:
         super().__init__()
@@ -502,9 +564,6 @@ class TraceConditionedAttackEnv(gym.Env):
         self.loss_max = float(loss_max)
         self.delay_min_ms = float(delay_min_ms)
         self.delay_max_ms = float(delay_max_ms)
-        self.reward_rate_weight = float(reward_rate_weight)
-        self.reward_rtt_weight = float(reward_rtt_weight)
-        self.reward_loss_weight = float(reward_loss_weight)
         self.smooth_penalty_scale = float(smooth_penalty_scale)
         self._rng = random.Random(self.seed)
         self._trace_cursor = 0
@@ -516,6 +575,7 @@ class TraceConditionedAttackEnv(gym.Env):
         self._episode_step = 0
         self._launch_index = 0
         self._last_residual_action = neutral_residual_action()
+        self._base_rtt_ms = _default_base_rtt_ms_from_launch_config(self.launch_config)
 
         obs_dim = self.obs_history_len * BASE_OBS_FEATURE_DIM + CONTEXT_DIM
         obs_high = np.full((obs_dim,), 1e9, dtype=np.float32)
@@ -692,16 +752,31 @@ class TraceConditionedAttackEnv(gym.Env):
             dtype=np.float32,
         )
 
-    def _reward_from_info(self, info: dict[str, Any], residual_action: np.ndarray) -> tuple[float, float]:
-        rate = float(info.get("sage/windowed_delivery_rate_mbps", 0.0))
-        rtt = float(info.get("sage/current_rtt_ms", 0.0))
-        loss = float(info.get("sage/current_loss_mbps", 0.0))
-        external_score = self.reward_rate_weight * rate - self.reward_rtt_weight * rtt - self.reward_loss_weight * loss
+    def _reward_from_info(
+        self,
+        info: dict[str, Any],
+        residual_action: np.ndarray,
+        effective_action: np.ndarray,
+    ) -> tuple[float, float, dict[str, float]]:
+        self._base_rtt_ms = _updated_base_rtt_ms(self._base_rtt_ms, info)
+        path_cap_mbps = max(min(float(effective_action[0]), float(effective_action[1])), 1e-6)
+        score_terms = bounded_linear_score_terms_from_info(
+            info,
+            base_rtt_ms=self._base_rtt_ms,
+            path_cap_mbps=path_cap_mbps,
+        )
+        score = float(score_terms["score"])
         smooth_penalty = float(np.mean(np.abs(residual_action - self._last_residual_action)))
-        reward = -external_score - self.smooth_penalty_scale * smooth_penalty
-        info["sage/external_score"] = float(external_score)
+        reward = -score - self.smooth_penalty_scale * smooth_penalty
+        info["sage/score"] = float(score)
+        info["sage/score_rate_norm"] = float(score_terms["rate_norm"])
+        info["sage/score_rtt_norm"] = float(score_terms["rtt_norm"])
+        info["sage/score_loss_norm"] = float(score_terms["loss_norm"])
+        info["sage/score_rate_contrib"] = float(score_terms["rate_contrib"])
+        info["sage/score_rtt_contrib"] = float(score_terms["rtt_contrib"])
+        info["sage/score_loss_penalty"] = float(score_terms["loss_penalty"])
         info["attacker/smooth_penalty"] = float(smooth_penalty)
-        return float(reward), float(external_score)
+        return float(reward), float(score), score_terms
 
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):
         try:
@@ -741,6 +816,7 @@ class TraceConditionedAttackEnv(gym.Env):
 
         assert observation is not None
         assert info is not None
+        self._base_rtt_ms = _updated_base_rtt_ms(_default_base_rtt_ms_from_launch_config(self.launch_config), info)
         info = dict(info)
         active_launch_config = self._active_env.launch_config
         info.update(
@@ -764,7 +840,7 @@ class TraceConditionedAttackEnv(gym.Env):
         effective_action = self._compose_effective_action(residual_action)
         observation, _, terminated, truncated, info = self._active_env.step(effective_action)
         info = dict(info)
-        reward, external_score = self._reward_from_info(info, residual_action)
+        reward, score, _ = self._reward_from_info(info, residual_action, effective_action)
 
         period = max(self._active_schedule.num_steps, 1)
         idx = int(self._episode_step) % period
@@ -783,7 +859,7 @@ class TraceConditionedAttackEnv(gym.Env):
                 "attacker/effective_uplink_bw_mbps": float(effective_action[0]),
                 "attacker/effective_downlink_bw_mbps": float(effective_action[1]),
                 "attacker/reward": float(reward),
-                "sage/external_score": float(external_score),
+                "sage/score": float(score),
             }
         )
         self._last_residual_action = residual_action.astype(np.float32, copy=True)
@@ -807,9 +883,6 @@ class IndependentAttackEnv(gym.Env):
         launch_timeout_s: float = 90.0,
         step_timeout_s: float = 10.0,
         runtime_dir: str = "attacks/runtime",
-        reward_rate_weight: float = 1.0,
-        reward_rtt_weight: float = 0.05,
-        reward_loss_weight: float = 2.0,
         smooth_penalty_scale: float = 0.0,
     ) -> None:
         super().__init__()
@@ -821,14 +894,12 @@ class IndependentAttackEnv(gym.Env):
         self._launch_timeout_s = float(launch_timeout_s)
         self._step_timeout_s = float(step_timeout_s)
         self._runtime_dir = runtime_dir
-        self.reward_rate_weight = float(reward_rate_weight)
-        self.reward_rtt_weight = float(reward_rtt_weight)
-        self.reward_loss_weight = float(reward_loss_weight)
         self.smooth_penalty_scale = float(smooth_penalty_scale)
         self.max_episode_steps = max(1, int(max_episode_steps))
         self._episode_step = 0
         self._last_action: np.ndarray | None = None
         self._launch_index = 0
+        self._base_rtt_ms = _default_base_rtt_ms_from_launch_config(self._base_launch_config)
 
         self._inner_env = self._make_inner_env(launch_index=self._launch_index)
         self._launch_index += 1
@@ -904,10 +975,14 @@ class IndependentAttackEnv(gym.Env):
         return ((action - self.action_space.low) / denom).astype(np.float32, copy=False)
 
     def _reward_from_info(self, info: dict[str, Any], action: np.ndarray) -> tuple[float, float, float]:
-        rate = float(info.get("sage/windowed_delivery_rate_mbps", 0.0))
-        rtt = float(info.get("sage/current_rtt_ms", 0.0))
-        loss = float(info.get("sage/current_loss_mbps", 0.0))
-        external_score = self.reward_rate_weight * rate - self.reward_rtt_weight * rtt - self.reward_loss_weight * loss
+        self._base_rtt_ms = _updated_base_rtt_ms(self._base_rtt_ms, info)
+        path_cap_mbps = max(min(float(action[0]), float(action[1])), 1e-6)
+        score_terms = bounded_linear_score_terms_from_info(
+            info,
+            base_rtt_ms=self._base_rtt_ms,
+            path_cap_mbps=path_cap_mbps,
+        )
+        score = float(score_terms["score"])
         previous_action = self._last_action if self._last_action is not None else np.asarray(action, dtype=np.float32)
         smooth_penalty = float(
             np.mean(
@@ -917,8 +992,15 @@ class IndependentAttackEnv(gym.Env):
                 )
             )
         )
-        reward = -external_score - self.smooth_penalty_scale * smooth_penalty
-        return float(reward), float(external_score), float(smooth_penalty)
+        info["sage/score"] = float(score)
+        info["sage/score_rate_norm"] = float(score_terms["rate_norm"])
+        info["sage/score_rtt_norm"] = float(score_terms["rtt_norm"])
+        info["sage/score_loss_norm"] = float(score_terms["loss_norm"])
+        info["sage/score_rate_contrib"] = float(score_terms["rate_contrib"])
+        info["sage/score_rtt_contrib"] = float(score_terms["rtt_contrib"])
+        info["sage/score_loss_penalty"] = float(score_terms["loss_penalty"])
+        reward = -score - self.smooth_penalty_scale * smooth_penalty
+        return float(reward), float(score), float(smooth_penalty)
 
     def close(self) -> None:
         self._inner_env.close()
@@ -947,20 +1029,21 @@ class IndependentAttackEnv(gym.Env):
 
         self._episode_step = 0
         self._last_action = np.asarray(self._inner_env._default_action(), dtype=np.float32)
+        self._base_rtt_ms = _updated_base_rtt_ms(_default_base_rtt_ms_from_launch_config(self._base_launch_config), info)
         info = dict(info)
         info["episode/progress"] = 0.0
         info["trace/launch_port"] = float(self._inner_env.launch_config.port)
         info["trace/launch_actor_id"] = float(self._inner_env.launch_config.actor_id)
+        _ = self._reward_from_info(info, self._last_action)
         return self._augment_observation(observation), info
 
     def step(self, action):
         clipped = np.clip(np.asarray(action, dtype=np.float32), self.action_space.low, self.action_space.high)
         observation, _, terminated, truncated, info = self._inner_env.step(clipped)
-        reward, external_score, smooth_penalty = self._reward_from_info(dict(info), clipped)
+        info = dict(info)
+        reward, score, smooth_penalty = self._reward_from_info(info, clipped)
         self._episode_step += 1
         self._last_action = clipped.astype(np.float32, copy=True)
-        info = dict(info)
-        info["sage/external_score"] = float(external_score)
         info["attacker/reward"] = float(reward)
         info["attacker/smooth_penalty"] = float(smooth_penalty)
         info["episode/progress"] = float(self._progress_feature()[0])
@@ -1025,7 +1108,7 @@ def run_policy_episode(
                 "base_uplink_bw_mbps": float(info.get("trace/base_uplink_bw_mbps", 0.0)),
                 "base_downlink_bw_mbps": float(info.get("trace/base_downlink_bw_mbps", 0.0)),
                 "sage_reward": float(info.get("sage/reward", 0.0)),
-                "sage_external_score": float(info.get("sage/external_score", 0.0)),
+                "sage_score": float(info.get("sage/score", 0.0)),
                 "sage_rtt_ms": float(info.get("sage/current_rtt_ms", 0.0)),
                 "sage_windowed_rate_mbps": float(info.get("sage/windowed_delivery_rate_mbps", 0.0)),
                 "sage_loss_mbps": float(info.get("sage/current_loss_mbps", 0.0)),
@@ -1064,7 +1147,18 @@ def _plain_step_record(
         "action": [float(x) for x in np.asarray(action, dtype=np.float32).tolist()],
         "reward": float(reward),
     }
+    effective_action = [
+        info.get("attacker/uplink_bw_mbps"),
+        info.get("attacker/downlink_bw_mbps"),
+        info.get("attacker/uplink_loss"),
+        info.get("attacker/downlink_loss"),
+        info.get("attacker/uplink_delay_ms"),
+        info.get("attacker/downlink_delay_ms"),
+    ]
+    if all(isinstance(value, (int, float, np.floating, np.integer)) for value in effective_action):
+        record["effective_action"] = [float(value) for value in effective_action]
     key_map = {
+        "attacker/shared_bw_mbps": "attacker_shared_bw_mbps",
         "attacker/uplink_bw_mbps": "attacker_uplink_bw_mbps",
         "attacker/downlink_bw_mbps": "attacker_downlink_bw_mbps",
         "attacker/uplink_loss": "attacker_uplink_loss",
@@ -1074,7 +1168,13 @@ def _plain_step_record(
         "attacker/reward": "reward",
         "attacker/smooth_penalty": "attacker_smooth_penalty",
         "sage/reward": "sage_reward",
-        "sage/external_score": "sage_external_score",
+        "sage/score": "sage_score",
+        "sage/score_rate_norm": "sage_score_rate_norm",
+        "sage/score_rtt_norm": "sage_score_rtt_norm",
+        "sage/score_loss_norm": "sage_score_loss_norm",
+        "sage/score_rate_contrib": "sage_score_rate_contrib",
+        "sage/score_rtt_contrib": "sage_score_rtt_contrib",
+        "sage/score_loss_penalty": "sage_score_loss_penalty",
         "sage/current_rtt_ms": "sage_rtt_ms",
         "sage/current_rttvar_ms": "sage_rttvar_ms",
         "sage/current_delivery_rate_mbps": "sage_current_delivery_rate_mbps",
@@ -1082,6 +1182,24 @@ def _plain_step_record(
         "sage/max_windowed_delivery_rate_mbps": "sage_max_windowed_rate_mbps",
         "sage/current_loss_mbps": "sage_loss_mbps",
         "sage/current_min_rtt_ratio": "sage_min_rtt_ratio",
+        "gap/score_sage_rate_norm": "gap_score_sage_rate_norm",
+        "gap/score_sage_rtt_norm": "gap_score_sage_rtt_norm",
+        "gap/score_sage_loss_norm": "gap_score_sage_loss_norm",
+        "gap/score_sage_rate_contrib": "gap_score_sage_rate_contrib",
+        "gap/score_sage_rtt_contrib": "gap_score_sage_rtt_contrib",
+        "gap/score_sage_loss_penalty": "gap_score_sage_loss_penalty",
+        "gap/score_cubic_rate_norm": "gap_score_cubic_rate_norm",
+        "gap/score_cubic_rtt_norm": "gap_score_cubic_rtt_norm",
+        "gap/score_cubic_loss_norm": "gap_score_cubic_loss_norm",
+        "gap/score_cubic_rate_contrib": "gap_score_cubic_rate_contrib",
+        "gap/score_cubic_rtt_contrib": "gap_score_cubic_rtt_contrib",
+        "gap/score_cubic_loss_penalty": "gap_score_cubic_loss_penalty",
+        "gap/score_bbr_rate_norm": "gap_score_bbr_rate_norm",
+        "gap/score_bbr_rtt_norm": "gap_score_bbr_rtt_norm",
+        "gap/score_bbr_loss_norm": "gap_score_bbr_loss_norm",
+        "gap/score_bbr_rate_contrib": "gap_score_bbr_rate_contrib",
+        "gap/score_bbr_rtt_contrib": "gap_score_bbr_rtt_contrib",
+        "gap/score_bbr_loss_penalty": "gap_score_bbr_loss_penalty",
         "mm/up_applied_bw_mbps": "mm_up_applied_bw_mbps",
         "mm/up_applied_loss_rate": "mm_up_applied_loss_rate",
         "mm/up_applied_delay_ms": "mm_up_applied_delay_ms",

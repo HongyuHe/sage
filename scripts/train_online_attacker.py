@@ -10,34 +10,24 @@ python scripts/train_online_attacker.py \
   --out-dir attacks/output/models \
   --wandb --wandb-project sage-online-train --wandb-name v1-fast
 
-python scripts/train_online_attacker.py \
+time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
   --smooth-penalty-scale 0.05 \
-  --attack-uplink-bw-min-mbps 5 --attack-uplink-bw-max-mbps 150 \
-  --attack-downlink-bw-min-mbps 5 --attack-downlink-bw-max-mbps 150 \
-  --attack-uplink-loss-min 0.0 --attack-uplink-loss-max 0 \
-  --attack-downlink-loss-min 0.0 --attack-downlink-loss-max 0 \
-  --attack-uplink-delay-min-ms 0 --attack-uplink-delay-max-ms 80 \
-  --attack-downlink-delay-min-ms 0 --attack-downlink-delay-max-ms 80 \
-  --total-steps 300000 \
+  --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
+  --total-steps 30000 \
   --attack-interval-ms 100 \
   --out-dir attacks/output/models \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train --wandb-name hotnets19
+  --wandb --wandb-tags 30k --wandb-project sage-gap-train-v2 --wandb-name rl-constrained
 
-python scripts/train_online_attacker.py \
+time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
   --smooth-penalty-scale 0.00 \
-  --attack-uplink-bw-min-mbps 0.5 --attack-uplink-bw-max-mbps 2000 \
-  --attack-downlink-bw-min-mbps 0.5 --attack-downlink-bw-max-mbps 2000 \
-  --attack-uplink-loss-min 0.0 --attack-uplink-loss-max 0 \
-  --attack-downlink-loss-min 0.0 --attack-downlink-loss-max 0 \
-  --attack-uplink-delay-min-ms 0 --attack-uplink-delay-max-ms 500 \
-  --attack-downlink-delay-min-ms 0 --attack-downlink-delay-max-ms 500 \
+  --attack-shared-bw-min-mbps 0.5 --attack-shared-bw-max-mbps 2000 \
   --effective-bw-cap-mbps 2000 \
-  --total-steps 300000 \
+  --total-steps 30000 \
   --attack-interval-ms 100 \
   --out-dir attacks/output/models \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train --wandb-name rl-unconstrained
+  --wandb --wandb-tags 30k --wandb-project sage-gap-train-v2 --wandb-name rl-unconstrained
 
 """
 
@@ -118,13 +108,40 @@ def _aggregate_selected_metrics(
 
 _WANDB_AGGREGATE_INFO_KEYS: dict[str, str] = {
     "attacker/reward": "attacker_reward",
+    "attacker/shared_bw_mbps": "attacker_shared_bw_mbps",
     "sage/reward": "sage_reward",
-    "sage/external_score": "sage_external_score",
+    "sage/score": "sage_score",
+    "sage/score_rate_norm": "sage_score_rate_norm",
+    "sage/score_rtt_norm": "sage_score_rtt_norm",
+    "sage/score_loss_norm": "sage_score_loss_norm",
+    "sage/score_rate_contrib": "sage_score_rate_contrib",
+    "sage/score_rtt_contrib": "sage_score_rtt_contrib",
+    "sage/score_loss_penalty": "sage_score_loss_penalty",
     "sage/current_delivery_rate_mbps": "sage_current_delivery_rate_mbps",
     "sage/windowed_delivery_rate_mbps": "sage_windowed_rate_mbps",
+    "sage/current_rtt_ms": "sage_rtt_ms",
+    "sage/current_loss_mbps": "sage_loss_mbps",
     "gap/score_sage": "gap_score_sage",
     "gap/score_cubic": "gap_score_cubic",
     "gap/score_bbr": "gap_score_bbr",
+    "gap/score_sage_rate_norm": "gap_score_sage_rate_norm",
+    "gap/score_sage_rtt_norm": "gap_score_sage_rtt_norm",
+    "gap/score_sage_loss_norm": "gap_score_sage_loss_norm",
+    "gap/score_sage_rate_contrib": "gap_score_sage_rate_contrib",
+    "gap/score_sage_rtt_contrib": "gap_score_sage_rtt_contrib",
+    "gap/score_sage_loss_penalty": "gap_score_sage_loss_penalty",
+    "gap/score_cubic_rate_norm": "gap_score_cubic_rate_norm",
+    "gap/score_cubic_rtt_norm": "gap_score_cubic_rtt_norm",
+    "gap/score_cubic_loss_norm": "gap_score_cubic_loss_norm",
+    "gap/score_cubic_rate_contrib": "gap_score_cubic_rate_contrib",
+    "gap/score_cubic_rtt_contrib": "gap_score_cubic_rtt_contrib",
+    "gap/score_cubic_loss_penalty": "gap_score_cubic_loss_penalty",
+    "gap/score_bbr_rate_norm": "gap_score_bbr_rate_norm",
+    "gap/score_bbr_rtt_norm": "gap_score_bbr_rtt_norm",
+    "gap/score_bbr_loss_norm": "gap_score_bbr_loss_norm",
+    "gap/score_bbr_rate_contrib": "gap_score_bbr_rate_contrib",
+    "gap/score_bbr_rtt_contrib": "gap_score_bbr_rtt_contrib",
+    "gap/score_bbr_loss_penalty": "gap_score_bbr_loss_penalty",
     "gap/baseline_score": "gap_baseline_score",
     "gap/value": "gap_value",
     "gap/reward": "gap_reward",
@@ -136,6 +153,10 @@ _WANDB_AGGREGATE_INFO_KEYS: dict[str, str] = {
     "mm/down_applied_bw_mbps": "mm_down_applied_bw_mbps",
     "mm/up_departure_rate_mbps": "mm_up_departure_rate_mbps",
     "mm/down_departure_rate_mbps": "mm_down_departure_rate_mbps",
+}
+
+_WANDB_STEP_INFO_KEYS: dict[str, str] = {
+    "attacker/shared_bw_mbps": "attacker_shared_bw_mbps",
 }
 
 
@@ -159,9 +180,6 @@ def main() -> None:
     parser.add_argument("--launch-timeout-s", type=float, default=90.0)
     parser.add_argument("--step-timeout-s", type=float, default=10.0)
     parser.add_argument("--smooth-penalty-scale", type=float, default=0.0)
-    parser.add_argument("--reward-rate-weight", type=float, default=1.0)
-    parser.add_argument("--reward-rtt-weight", type=float, default=0.05)
-    parser.add_argument("--reward-loss-weight", type=float, default=2.0)
     parser.add_argument("--baseline-gap-alpha", type=float, default=2.0)
     parser.add_argument("--sync-guard-ms", type=float, default=25.0)
     parser.add_argument("--gap-launch-retries", type=int, default=6)
@@ -170,6 +188,8 @@ def main() -> None:
     parser.add_argument("--loss-max", type=float, default=0.15)
     parser.add_argument("--delay-max-ms", type=float, default=150.0)
     parser.add_argument("--effective-bw-cap-mbps", type=float, default=2000.0)
+    parser.add_argument("--attack-shared-bw-min-mbps", type=float, default=None)
+    parser.add_argument("--attack-shared-bw-max-mbps", type=float, default=None)
     parser.add_argument("--attack-uplink-bw-min-mbps", type=float, default=None)
     parser.add_argument("--attack-uplink-bw-max-mbps", type=float, default=None)
     parser.add_argument("--attack-downlink-bw-min-mbps", type=float, default=None)
@@ -184,9 +204,9 @@ def main() -> None:
     parser.add_argument("--attack-downlink-delay-max-ms", type=float, default=None)
     parser.add_argument("--policy-width", type=int, default=128)
     parser.add_argument("--policy-depth", type=int, default=2)
-    parser.add_argument("--ppo-n-steps", type=int, default=2048)
-    parser.add_argument("--ppo-batch-size", type=int, default=64)
-    parser.add_argument("--ppo-n-epochs", type=int, default=10)
+    parser.add_argument("--ppo-n-steps", type=int, default=1024)
+    parser.add_argument("--ppo-batch-size", type=int, default=256)
+    parser.add_argument("--ppo-n-epochs", type=int, default=4)
 
     parser.add_argument("--latency-ms", type=int, default=25)
     parser.add_argument("--port", type=int, default=5101)
@@ -341,6 +361,15 @@ def main() -> None:
             if args.attack_downlink_delay_max_ms is not None
             else float(args.delay_max_ms)
         )
+        if (args.attack_shared_bw_min_mbps is None) != (args.attack_shared_bw_max_mbps is None):
+            raise ValueError(
+                "--attack-shared-bw-min-mbps and --attack-shared-bw-max-mbps must be set together"
+            )
+        if args.attack_shared_bw_min_mbps is not None and args.attack_shared_bw_max_mbps is not None:
+            attack_uplink_bw_min = float(args.attack_shared_bw_min_mbps)
+            attack_uplink_bw_max = float(args.attack_shared_bw_max_mbps)
+            attack_downlink_bw_min = float(args.attack_shared_bw_min_mbps)
+            attack_downlink_bw_max = float(args.attack_shared_bw_max_mbps)
         if attack_uplink_bw_min > attack_uplink_bw_max:
             raise ValueError("--attack-uplink-bw-min-mbps must be <= --attack-uplink-bw-max-mbps")
         if attack_downlink_bw_min > attack_downlink_bw_max:
@@ -353,14 +382,58 @@ def main() -> None:
             raise ValueError("--attack-uplink-delay-min-ms must be <= --attack-uplink-delay-max-ms")
         if attack_downlink_delay_min > attack_downlink_delay_max:
             raise ValueError("--attack-downlink-delay-min-ms must be <= --attack-downlink-delay-max-ms")
-        online_attack_bounds = AttackBounds(
-            uplink_bw_mbps=(attack_uplink_bw_min, attack_uplink_bw_max),
-            downlink_bw_mbps=(attack_downlink_bw_min, attack_downlink_bw_max),
-            uplink_loss=(attack_uplink_loss_min, attack_uplink_loss_max),
-            downlink_loss=(attack_downlink_loss_min, attack_downlink_loss_max),
-            uplink_delay_ms=(attack_uplink_delay_min, attack_uplink_delay_max),
-            downlink_delay_ms=(attack_downlink_delay_min, attack_downlink_delay_max),
-        )
+        if use_gap_objective:
+            if float(args.init_uplink_loss) != 0.0 or float(args.init_downlink_loss) != 0.0:
+                raise ValueError("--init-uplink-loss and --init-downlink-loss must be 0 with --attack-mode independent_gap")
+            if any(
+                value is not None and float(value) != 0.0
+                for value in (
+                    args.attack_uplink_loss_min,
+                    args.attack_uplink_loss_max,
+                    args.attack_downlink_loss_min,
+                    args.attack_downlink_loss_max,
+                )
+            ):
+                raise ValueError("loss is fixed to 0 with --attack-mode independent_gap")
+            if any(
+                value is not None
+                for value in (
+                    args.attack_uplink_delay_min_ms,
+                    args.attack_uplink_delay_max_ms,
+                    args.attack_downlink_delay_min_ms,
+                    args.attack_downlink_delay_max_ms,
+                )
+            ):
+                raise ValueError(
+                    "delay is fixed in --attack-mode independent_gap; use --init-uplink-delay-ms/--init-downlink-delay-ms instead"
+                )
+            shared_bw_min = max(attack_uplink_bw_min, attack_downlink_bw_min)
+            shared_bw_max = min(attack_uplink_bw_max, attack_downlink_bw_max)
+            if shared_bw_min > shared_bw_max:
+                raise ValueError("gap-mode uplink/downlink bandwidth bounds must overlap")
+            fixed_uplink_delay = (
+                float(args.init_uplink_delay_ms) if args.init_uplink_delay_ms is not None else float(args.latency_ms)
+            )
+            fixed_downlink_delay = (
+                float(args.init_downlink_delay_ms) if args.init_downlink_delay_ms is not None else float(args.latency_ms)
+            )
+            online_attack_bounds = AttackBounds(
+                uplink_bw_mbps=(shared_bw_min, shared_bw_max),
+                downlink_bw_mbps=(shared_bw_min, shared_bw_max),
+                uplink_loss=(0.0, 0.0),
+                downlink_loss=(0.0, 0.0),
+                uplink_delay_ms=(fixed_uplink_delay, fixed_uplink_delay),
+                downlink_delay_ms=(fixed_downlink_delay, fixed_downlink_delay),
+            )
+        else:
+            online_attack_bounds = AttackBounds(
+                uplink_bw_mbps=(attack_uplink_bw_min, attack_uplink_bw_max),
+                downlink_bw_mbps=(attack_downlink_bw_min, attack_downlink_bw_max),
+                uplink_loss=(attack_uplink_loss_min, attack_uplink_loss_max),
+                downlink_loss=(attack_downlink_loss_min, attack_downlink_loss_max),
+                uplink_delay_ms=(attack_uplink_delay_min, attack_uplink_delay_max),
+                downlink_delay_ms=(attack_downlink_delay_min, attack_downlink_delay_max),
+            )
 
         if use_gap_objective:
             env = ParallelGapAttackEnv(
@@ -389,9 +462,6 @@ def main() -> None:
                 launch_timeout_s=float(args.launch_timeout_s),
                 step_timeout_s=float(args.step_timeout_s),
                 runtime_dir=resolved_runtime_dir,
-                reward_rate_weight=float(args.reward_rate_weight),
-                reward_rtt_weight=float(args.reward_rtt_weight),
-                reward_loss_weight=float(args.reward_loss_weight),
                 smooth_penalty_scale=float(args.smooth_penalty_scale),
             )
         venv = DummyVecEnv([lambda: Monitor(env)])
@@ -423,6 +493,14 @@ def main() -> None:
                             for key, value in info.items()
                             if isinstance(value, (int, float, np.floating, np.integer))
                         }
+                        step_payload = {
+                            f"train/step/{target_key}": float(numeric_info[source_key])
+                            for source_key, target_key in _WANDB_STEP_INFO_KEYS.items()
+                            if source_key in numeric_info
+                        }
+                        if step_payload:
+                            step_payload["train/num_timesteps"] = float(self.num_timesteps)
+                            wandb.log(step_payload, step=int(self.num_timesteps))
                         self._window_records.append(numeric_info)
                         self._episode_records.append(numeric_info)
 
@@ -502,6 +580,8 @@ def main() -> None:
             "run_namespace": run_namespace.metadata(),
             "action_space_low": [float(x) for x in env.action_space.low.tolist()],
             "action_space_high": [float(x) for x in env.action_space.high.tolist()],
+            "effective_action_low": [float(x) for x in online_attack_bounds.low.tolist()],
+            "effective_action_high": [float(x) for x in online_attack_bounds.high.tolist()],
         }
         config_path = os.path.join(out_dir, f"{model_stem}.config.json")
         save_json(config_path, config_payload)
