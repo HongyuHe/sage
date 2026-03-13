@@ -341,6 +341,18 @@ def _evaluate_trace_set(
         launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
         step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
         runtime_dir=runtime_dir,
+        shared_bandwidth_action=(
+            config_payload.get("attack_shared_bw_min_mbps") is not None
+            and config_payload.get("attack_shared_bw_max_mbps") is not None
+        ),
+        shared_loss_action=(
+            config_payload.get("attack_shared_loss_min") is not None
+            and config_payload.get("attack_shared_loss_max") is not None
+        ),
+        shared_delay_action=(
+            config_payload.get("attack_shared_delay_min_ms") is not None
+            and config_payload.get("attack_shared_delay_max_ms") is not None
+        ),
         smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
     )
     results: list[Any] = []

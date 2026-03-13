@@ -29,6 +29,7 @@ def _require_gym() -> tuple[Any, Any]:
 gym, spaces = _require_gym()
 
 _BASE_OBS_FEATURE_DIM = 69 + 1 + 14 + 6
+_GAP_OBS_FEATURE_DIM = 16
 _SYNC_TOLERANCE_MS = 5.0
 _CONFIG_TOLERANCE = 1e-3
 _RETRYABLE_LAUNCH_MARKERS = (
@@ -106,6 +107,12 @@ class ParallelGapAttackEnv(gym.Env):
         )
         if self._shared_bandwidth_min_mbps > self._shared_bandwidth_max_mbps:
             raise ValueError("shared bottleneck bandwidth bounds do not overlap")
+        self._log_shared_bandwidth_min = float(np.log(max(self._shared_bandwidth_min_mbps, 1e-6)))
+        self._log_shared_bandwidth_max = float(np.log(max(self._shared_bandwidth_max_mbps, 1e-6)))
+        self._log_shared_bandwidth_span = max(
+            self._log_shared_bandwidth_max - self._log_shared_bandwidth_min,
+            1e-6,
+        )
         self._fixed_uplink_delay_ms = float(
             self._base_launch_config.initial_uplink_delay_ms
             if self._base_launch_config.initial_uplink_delay_ms is not None
@@ -125,16 +132,16 @@ class ParallelGapAttackEnv(gym.Env):
             downlink_delay_ms=(self._fixed_downlink_delay_ms, self._fixed_downlink_delay_ms),
         )
         self.action_space = spaces.Box(
-            low=np.asarray([self._shared_bandwidth_min_mbps], dtype=np.float32),
-            high=np.asarray([self._shared_bandwidth_max_mbps], dtype=np.float32),
+            low=np.asarray([0.0], dtype=np.float32),
+            high=np.asarray([1.0], dtype=np.float32),
             dtype=np.float32,
         )
-        obs_dim = self._obs_history_len * _BASE_OBS_FEATURE_DIM + 3
+        obs_dim = self._obs_history_len * _BASE_OBS_FEATURE_DIM + _GAP_OBS_FEATURE_DIM
         obs_high = np.full((obs_dim,), 1e9, dtype=np.float32)
         self.observation_space = spaces.Box(low=-obs_high, high=obs_high, dtype=np.float32)
         self._last_policy_action = self._default_policy_action()
         self._last_sage_observation: np.ndarray | None = None
-        self._previous_gap_features = np.zeros((3,), dtype=np.float32)
+        self._previous_gap_features = np.zeros((_GAP_OBS_FEATURE_DIM,), dtype=np.float32)
         self._bootstrap_pending_roles: set[str] = set()
 
     def _default_shared_bandwidth_mbps(self) -> float:
@@ -156,14 +163,19 @@ class ParallelGapAttackEnv(gym.Env):
             )
         )
 
-    def _effective_action_from_policy(self, policy_action: np.ndarray) -> np.ndarray:
-        shared_bandwidth_mbps = float(
-            np.clip(
-                np.asarray(policy_action, dtype=np.float32).reshape(-1)[0],
-                self._shared_bandwidth_min_mbps,
-                self._shared_bandwidth_max_mbps,
-            )
+    def _shared_bandwidth_from_policy_action(self, policy_action: np.ndarray) -> float:
+        fraction = float(np.clip(np.asarray(policy_action, dtype=np.float32).reshape(-1)[0], 0.0, 1.0))
+        return float(np.exp(self._log_shared_bandwidth_min + fraction * self._log_shared_bandwidth_span))
+
+    def _policy_action_from_bandwidth(self, shared_bandwidth_mbps: float) -> np.ndarray:
+        clipped_bandwidth = float(
+            np.clip(shared_bandwidth_mbps, self._shared_bandwidth_min_mbps, self._shared_bandwidth_max_mbps)
         )
+        fraction = (np.log(max(clipped_bandwidth, 1e-6)) - self._log_shared_bandwidth_min) / self._log_shared_bandwidth_span
+        return np.asarray([float(np.clip(fraction, 0.0, 1.0))], dtype=np.float32)
+
+    def _effective_action_from_policy(self, policy_action: np.ndarray) -> np.ndarray:
+        shared_bandwidth_mbps = self._shared_bandwidth_from_policy_action(policy_action)
         return np.asarray(
             [
                 shared_bandwidth_mbps,
@@ -177,16 +189,14 @@ class ParallelGapAttackEnv(gym.Env):
         )
 
     def _default_policy_action(self) -> np.ndarray:
-        return np.asarray([self._default_shared_bandwidth_mbps()], dtype=np.float32)
+        return self._policy_action_from_bandwidth(self._default_shared_bandwidth_mbps())
 
     def _normalized_bandwidth_fraction(self, policy_action: np.ndarray) -> np.ndarray:
-        denom = max(self._shared_bandwidth_max_mbps - self._shared_bandwidth_min_mbps, 1e-6)
-        clipped = np.clip(
+        return np.clip(
             np.asarray(policy_action, dtype=np.float32),
             self.action_space.low,
             self.action_space.high,
-        )
-        return ((clipped - self.action_space.low) / denom).astype(np.float32, copy=False)
+        ).astype(np.float32, copy=False)
 
     def _reserve_launch_port(self, preferred_port: int, *, taken_ports: set[int], max_tries: int = 256) -> int:
         candidate = max(int(preferred_port), 1024)
@@ -214,6 +224,49 @@ class ParallelGapAttackEnv(gym.Env):
             [np.asarray(observation, dtype=np.float32), self._previous_gap_features],
             axis=0,
         ).astype(np.float32, copy=False)
+
+    def _gap_feature_vector(
+        self,
+        *,
+        sage_score_terms: dict[str, float],
+        cubic_score_terms: dict[str, float],
+        bbr_score_terms: dict[str, float],
+        baseline_score: float,
+        gap_value: float,
+        policy_action: np.ndarray,
+    ) -> np.ndarray:
+        return np.asarray(
+            [
+                float(sage_score_terms["score"]),
+                float(cubic_score_terms["score"]),
+                float(bbr_score_terms["score"]),
+                float(baseline_score),
+                float(gap_value),
+                float(sage_score_terms["rate_norm"]),
+                float(sage_score_terms["rtt_norm"]),
+                float(sage_score_terms["loss_norm"]),
+                float(cubic_score_terms["rate_norm"]),
+                float(cubic_score_terms["rtt_norm"]),
+                float(cubic_score_terms["loss_norm"]),
+                float(bbr_score_terms["rate_norm"]),
+                float(bbr_score_terms["rtt_norm"]),
+                float(bbr_score_terms["loss_norm"]),
+                float(self._normalized_bandwidth_fraction(policy_action)[0]),
+                float(self._shared_bandwidth_from_policy_action(policy_action)),
+            ],
+            dtype=np.float32,
+        )
+
+    def _smoothed_baseline_score(self, *, score_cubic: float, score_bbr: float) -> tuple[float, float, float]:
+        scores = np.asarray([float(score_cubic), float(score_bbr)], dtype=np.float64)
+        if abs(self._baseline_gap_alpha) <= 1e-9:
+            weights = np.asarray([0.5, 0.5], dtype=np.float64)
+        else:
+            logits = self._baseline_gap_alpha * (scores - float(np.max(scores)))
+            weights = np.exp(np.clip(logits, -60.0, 0.0))
+            weights /= max(float(np.sum(weights)), 1e-12)
+        baseline_score = float(np.dot(weights, scores))
+        return baseline_score, float(weights[0]), float(weights[1])
 
     def _child_runtime_dir(self, role: str) -> str:
         return os.path.join(str(self._runtime_dir), role)
@@ -364,7 +417,7 @@ class ParallelGapAttackEnv(gym.Env):
             self._episode_step = 0
             self._episode_anchor_abs_ms = _monotonic_ms() + self._sync_guard_ms
             self._last_policy_action = self._default_policy_action()
-            self._previous_gap_features = np.zeros((3,), dtype=np.float32)
+            self._previous_gap_features = np.zeros((_GAP_OBS_FEATURE_DIM,), dtype=np.float32)
             self._last_sage_observation = initial_obs["sage"]
             self._bootstrap_pending_roles = set(placeholder_roles)
             positive_rtts = [
@@ -407,6 +460,7 @@ class ParallelGapAttackEnv(gym.Env):
 
         policy_action = np.clip(np.asarray(action, dtype=np.float32), self.action_space.low, self.action_space.high)
         effective_action = self._effective_action_from_policy(policy_action)
+        shared_bandwidth_mbps = float(effective_action[0])
         bootstrap_mode = bool(self._bootstrap_pending_roles)
         expected_step = self._episode_step + 1
         scheduled_effective_after_abs_ms = self._episode_anchor_abs_ms + self._episode_step * self._attack_interval_ms
@@ -459,8 +513,12 @@ class ParallelGapAttackEnv(gym.Env):
                 else np.zeros((self._obs_history_len * _BASE_OBS_FEATURE_DIM,), dtype=np.float32)
             )
             return self._augment_observation(fallback_obs), 0.0, False, True, {
+                "attacker/reward": 0.0,
+                "attacker/smooth_penalty": 0.0,
                 "env/error": str(exc),
                 "gap/base_rtt_ms": float(self._base_rtt_ms),
+                "gap/reward": 0.0,
+                "gap/value": 0.0,
             }
 
         sage_obs, _, sage_terminated, sage_truncated, sage_info = results["sage"]
@@ -482,6 +540,8 @@ class ParallelGapAttackEnv(gym.Env):
                 info[f"sync/{role}_down_after_abs_ms"] = float(
                     child_info.get("mm/down_applied_effective_after_abs_ms", -1.0)
                 )
+            info["attacker/reward"] = 0.0
+            info["attacker/smooth_penalty"] = 0.0
             info["gap/reward"] = 0.0
             info["gap/value"] = 0.0
             info["gap/base_rtt_ms"] = float(self._base_rtt_ms)
@@ -494,6 +554,14 @@ class ParallelGapAttackEnv(gym.Env):
             info.update(
                 {
                     "attacker/reward": 0.0,
+                    "attacker/shared_bw_mbps": float(shared_bandwidth_mbps),
+                    "attacker/shared_bw_fraction": float(policy_action.reshape(-1)[0]),
+                    "attacker/uplink_bw_mbps": float(effective_action[0]),
+                    "attacker/downlink_bw_mbps": float(effective_action[1]),
+                    "attacker/uplink_loss": float(effective_action[2]),
+                    "attacker/downlink_loss": float(effective_action[3]),
+                    "attacker/uplink_delay_ms": float(effective_action[4]),
+                    "attacker/downlink_delay_ms": float(effective_action[5]),
                     "gap/base_rtt_ms": float(self._base_rtt_ms),
                     "gap/reward": 0.0,
                     "gap/value": 0.0,
@@ -511,7 +579,10 @@ class ParallelGapAttackEnv(gym.Env):
         score_sage = float(sage_score_terms["score"])
         score_cubic = float(cubic_score_terms["score"])
         score_bbr = float(bbr_score_terms["score"])
-        baseline_score = max(score_cubic, score_bbr)
+        baseline_score, baseline_weight_cubic, baseline_weight_bbr = self._smoothed_baseline_score(
+            score_cubic=score_cubic,
+            score_bbr=score_bbr,
+        )
         gap_value = float(baseline_score - score_sage)
         smooth_penalty = float(
             np.mean(
@@ -525,14 +596,28 @@ class ParallelGapAttackEnv(gym.Env):
 
         self._episode_step = expected_step
         self._last_policy_action = policy_action.astype(np.float32, copy=True)
-        self._previous_gap_features = np.asarray([score_cubic, score_bbr, gap_value], dtype=np.float32)
+        self._previous_gap_features = self._gap_feature_vector(
+            sage_score_terms=sage_score_terms,
+            cubic_score_terms=cubic_score_terms,
+            bbr_score_terms=bbr_score_terms,
+            baseline_score=baseline_score,
+            gap_value=gap_value,
+            policy_action=policy_action,
+        )
 
         info = dict(sage_info)
         info.update(
             {
                 "attacker/reward": float(reward),
                 "attacker/smooth_penalty": float(smooth_penalty),
-                "attacker/shared_bw_mbps": float(policy_action.reshape(-1)[0]),
+                "attacker/shared_bw_mbps": float(shared_bandwidth_mbps),
+                "attacker/shared_bw_fraction": float(policy_action.reshape(-1)[0]),
+                "attacker/uplink_bw_mbps": float(effective_action[0]),
+                "attacker/downlink_bw_mbps": float(effective_action[1]),
+                "attacker/uplink_loss": float(effective_action[2]),
+                "attacker/downlink_loss": float(effective_action[3]),
+                "attacker/uplink_delay_ms": float(effective_action[4]),
+                "attacker/downlink_delay_ms": float(effective_action[5]),
                 "sage/score": float(score_sage),
                 "sage/score_rate_norm": float(sage_score_terms["rate_norm"]),
                 "sage/score_rtt_norm": float(sage_score_terms["rtt_norm"]),
@@ -564,6 +649,8 @@ class ParallelGapAttackEnv(gym.Env):
                 "gap/score_bbr_rtt_contrib": float(bbr_score_terms["rtt_contrib"]),
                 "gap/score_bbr_loss_penalty": float(bbr_score_terms["loss_penalty"]),
                 "gap/baseline_score": float(baseline_score),
+                "gap/baseline_weight_cubic": float(baseline_weight_cubic),
+                "gap/baseline_weight_bbr": float(baseline_weight_bbr),
                 "gap/value": float(gap_value),
                 "gap/reward": float(reward),
                 "baseline/cubic_rtt_ms": float(results["cubic"][4].get("sage/current_rtt_ms", 0.0)),

@@ -18,11 +18,16 @@ def bounded_linear_score_terms(
     current_loss_mbps: float,
     path_cap_mbps: float,
 ) -> dict[str, float]:
-    current_rtt_ms = max(float(current_rtt_ms), 1e-6)
-    windowed_rate_mbps = max(float(windowed_rate_mbps), 0.0)
-    current_loss_mbps = max(float(current_loss_mbps), 0.0)
-    base_rtt_ms = max(float(base_rtt_ms), 1e-6)
-    path_cap_mbps = max(float(path_cap_mbps), 1e-6)
+    current_rtt_ms = float(np.nan_to_num(current_rtt_ms, nan=0.0, posinf=0.0, neginf=0.0))
+    windowed_rate_mbps = float(np.nan_to_num(windowed_rate_mbps, nan=0.0, posinf=0.0, neginf=0.0))
+    current_loss_mbps = float(np.nan_to_num(current_loss_mbps, nan=0.0, posinf=0.0, neginf=0.0))
+    base_rtt_ms = float(np.nan_to_num(base_rtt_ms, nan=0.0, posinf=0.0, neginf=0.0))
+    path_cap_mbps = float(np.nan_to_num(path_cap_mbps, nan=0.0, posinf=0.0, neginf=0.0))
+    current_rtt_ms = max(current_rtt_ms, 1e-6)
+    windowed_rate_mbps = max(windowed_rate_mbps, 0.0)
+    current_loss_mbps = max(current_loss_mbps, 0.0)
+    base_rtt_ms = max(base_rtt_ms, 1e-6)
+    path_cap_mbps = max(path_cap_mbps, 1e-6)
     rate_norm = float(np.clip(windowed_rate_mbps / path_cap_mbps, 0.0, 1.0))
     rtt_norm = float(np.clip(base_rtt_ms / current_rtt_ms, 0.0, 1.0))
     loss_norm = float(np.clip(current_loss_mbps / path_cap_mbps, 0.0, 1.0))

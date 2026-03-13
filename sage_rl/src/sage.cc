@@ -473,6 +473,9 @@ void start_server(int flow_num, int client_port)
 #ifdef EVALUATION
     if (use_rl_controller)
     {
+        const int configured_ready_signal_timeout_ms = getenv_int_or_default("SAGE_READY_SIGNAL_TIMEOUT_MS", 180000);
+        const int ready_signal_timeout_ms = configured_ready_signal_timeout_ms > 0 ? configured_ready_signal_timeout_ms : 180000;
+        const long long max_wait_iterations = ((long long)ready_signal_timeout_ms * 1000LL + 9999LL) / 10000LL;
         while(!got_ready_signal_from_rl)
         {
             std::unique_ptr<char[]> ready_signal_copy(new char[shmem_size]);
@@ -496,9 +499,9 @@ void start_server(int flow_num, int client_port)
             else{
                usleep(10000);
             }
-            if (signal_check_counter>6000)
+            if (signal_check_counter > max_wait_iterations)
             {
-                DBGERROR("After 1 minute, no response (OK_Signal) from the Actor %d is received! We are going down down down ...\n",actor_id);
+                DBGERROR("After %.1f seconds, no response (OK_Signal) from the Actor %d is received! We are going down down down ...\n",ready_signal_timeout_ms / 1000.0,actor_id);
                 return;
             }   
         }

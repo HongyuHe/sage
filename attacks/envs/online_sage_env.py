@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import os
 import time
 from typing import Any
@@ -95,7 +95,16 @@ class OnlineSageAttackEnv(gym.Env):
         super().__init__()
 
         self.repo_root = os.path.abspath(repo_root)
-        self.launch_config = launch_config
+        minimum_ready_signal_timeout_ms = max(int(float(launch_timeout_s) * 1000.0) + 30_000, 1)
+        configured_ready_signal_timeout_ms = (
+            int(launch_config.ready_signal_timeout_ms)
+            if launch_config.ready_signal_timeout_ms is not None
+            else 0
+        )
+        self.launch_config = replace(
+            launch_config,
+            ready_signal_timeout_ms=max(configured_ready_signal_timeout_ms, minimum_ready_signal_timeout_ms),
+        )
         self.bounds = bounds or AttackBounds()
         self.obs_history_len = int(obs_history_len)
         self.attack_interval_ms = float(attack_interval_ms)
@@ -207,25 +216,30 @@ class OnlineSageAttackEnv(gym.Env):
         snapshot = snapshot if snapshot is not None else self._control_snapshot()
         up = snapshot.uplink_telemetry
         down = snapshot.downlink_telemetry
-        return np.asarray(
-            [
-                up.applied_bandwidth_mbps,
-                up.applied_loss_rate,
-                up.applied_delay_ms,
-                float(up.queue_occupancy_packets),
-                float(up.queue_occupancy_bytes),
-                up.queue_delay_ms,
-                up.departure_rate_mbps,
-                down.applied_bandwidth_mbps,
-                down.applied_loss_rate,
-                down.applied_delay_ms,
-                float(down.queue_occupancy_packets),
-                float(down.queue_occupancy_bytes),
-                down.queue_delay_ms,
-                down.departure_rate_mbps,
-            ],
-            dtype=np.float32,
-        )
+        return np.nan_to_num(
+            np.asarray(
+                [
+                    up.applied_bandwidth_mbps,
+                    up.applied_loss_rate,
+                    up.applied_delay_ms,
+                    float(up.queue_occupancy_packets),
+                    float(up.queue_occupancy_bytes),
+                    up.queue_delay_ms,
+                    up.departure_rate_mbps,
+                    down.applied_bandwidth_mbps,
+                    down.applied_loss_rate,
+                    down.applied_delay_ms,
+                    float(down.queue_occupancy_packets),
+                    float(down.queue_occupancy_bytes),
+                    down.queue_delay_ms,
+                    down.departure_rate_mbps,
+                ],
+                dtype=np.float32,
+            ),
+            nan=0.0,
+            posinf=0.0,
+            neginf=0.0,
+        ).astype(np.float32, copy=False)
 
     def _applied_step(self, *, snapshot) -> int:
         up_step = int(round(float(snapshot.uplink_telemetry.applied_step)))
@@ -270,7 +284,7 @@ class OnlineSageAttackEnv(gym.Env):
 
     def _build_feature(self, step: SageStep, action: np.ndarray, *, telemetry: np.ndarray | None = None) -> np.ndarray:
         telemetry_features = telemetry if telemetry is not None else self._telemetry_features()
-        return np.concatenate(
+        feature = np.concatenate(
             [
                 np.asarray(step.observation, dtype=np.float32),
                 np.asarray([step.reward], dtype=np.float32),
@@ -279,6 +293,7 @@ class OnlineSageAttackEnv(gym.Env):
             ],
             axis=0,
         ).astype(np.float32, copy=False)
+        return np.nan_to_num(feature, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32, copy=False)
 
     def _stacked_observation(self) -> np.ndarray:
         return np.concatenate(list(self._obs_history), axis=0).astype(np.float32, copy=False)
@@ -409,6 +424,7 @@ class OnlineSageAttackEnv(gym.Env):
             "sage/reward": float(initial_step.reward),
             "sage/rid": int(initial_step.rid),
             "sage/previous_action": float(initial_step.previous_action),
+            "env/nonfinite_sage_values": float(initial_step.nonfinite_count),
             "env/bootstrap_placeholder": 1.0 if placeholder_bootstrap else 0.0,
             "mm/up_applied_step": float(snapshot.uplink_telemetry.applied_step),
             "mm/down_applied_step": float(snapshot.downlink_telemetry.applied_step),
@@ -540,6 +556,7 @@ class OnlineSageAttackEnv(gym.Env):
                 "sage/reward": float(victim_step.reward),
                 "sage/rid": int(victim_step.rid),
                 "sage/previous_action": float(victim_step.previous_action),
+                "env/nonfinite_sage_values": float(victim_step.nonfinite_count),
                 "attacker/reward": float(reward),
                 "attacker/smooth_penalty": float(smooth_penalty),
                 "attacker/uplink_bw_mbps": float(self._last_action[0]),

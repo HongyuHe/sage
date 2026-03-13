@@ -14,20 +14,32 @@ time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
   --smooth-penalty-scale 0.05 \
   --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
-  --total-steps 30000 \
+  --total-steps 300000 \
   --attack-interval-ms 100 \
   --out-dir attacks/output/models \
-  --wandb --wandb-tags 30k --wandb-project sage-gap-train-v2 --wandb-name rl-constrained
+  --ppo-ent-coef 0.005 \
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v2 --wandb-name rl-constrained
 
 time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
   --smooth-penalty-scale 0.00 \
   --attack-shared-bw-min-mbps 0.5 --attack-shared-bw-max-mbps 2000 \
   --effective-bw-cap-mbps 2000 \
-  --total-steps 30000 \
+  --total-steps 300000 \
   --attack-interval-ms 100 \
   --out-dir attacks/output/models \
-  --wandb --wandb-tags 30k --wandb-project sage-gap-train-v2 --wandb-name rl-unconstrained
+  --ppo-ent-coef 0.005 \
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v2 --wandb-name rl-unconstrained
+
+time python scripts/train_online_attacker.py \
+  --attack-mode independent \
+  --attack-interval-ms 30 \
+  --attack-shared-bw-min-mbps 6 --attack-shared-bw-max-mbps 24 \
+  --attack-shared-loss-min 0.0 --attack-shared-loss-max 0.0 \
+  --attack-shared-delay-min-ms 25 --attack-shared-delay-max-ms 25 \
+  --total-steps 300000 \
+  --out-dir attacks/output/models \
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v2 --wandb-name hotnets19
 
 """
 
@@ -69,9 +81,9 @@ def _require_sb3():
         from stable_baselines3 import PPO  # type: ignore
         from stable_baselines3.common.callbacks import BaseCallback  # type: ignore
         from stable_baselines3.common.monitor import Monitor  # type: ignore
-        from stable_baselines3.common.vec_env import DummyVecEnv  # type: ignore
+        from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize  # type: ignore
 
-        return PPO, BaseCallback, Monitor, DummyVecEnv
+        return PPO, BaseCallback, Monitor, DummyVecEnv, VecNormalize
     except Exception as exc:  # pragma: no cover
         raise RuntimeError("stable-baselines3 is required for online attacker training") from exc
 
@@ -109,6 +121,7 @@ def _aggregate_selected_metrics(
 _WANDB_AGGREGATE_INFO_KEYS: dict[str, str] = {
     "attacker/reward": "attacker_reward",
     "attacker/shared_bw_mbps": "attacker_shared_bw_mbps",
+    "attacker/shared_bw_fraction": "attacker_shared_bw_fraction",
     "sage/reward": "sage_reward",
     "sage/score": "sage_score",
     "sage/score_rate_norm": "sage_score_rate_norm",
@@ -143,6 +156,8 @@ _WANDB_AGGREGATE_INFO_KEYS: dict[str, str] = {
     "gap/score_bbr_rtt_contrib": "gap_score_bbr_rtt_contrib",
     "gap/score_bbr_loss_penalty": "gap_score_bbr_loss_penalty",
     "gap/baseline_score": "gap_baseline_score",
+    "gap/baseline_weight_cubic": "gap_baseline_weight_cubic",
+    "gap/baseline_weight_bbr": "gap_baseline_weight_bbr",
     "gap/value": "gap_value",
     "gap/reward": "gap_reward",
     "baseline/cubic_rate_mbps": "baseline_cubic_rate_mbps",
@@ -173,13 +188,15 @@ def main() -> None:
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--out-dir", type=str, default="attacks/output/models")
+    parser.add_argument("--checkpoint-dir", type=str, default="attacks/output/checkpoints")
+    parser.add_argument("--checkpoint-every", type=int, default=10_000)
     parser.add_argument("--runtime-dir", type=str, default="attacks/runtime")
     parser.add_argument("--obs-history-len", type=int, default=4)
     parser.add_argument("--attack-interval-ms", type=float, default=100.0)
     parser.add_argument("--episode-steps", type=int, default=6000)
     parser.add_argument("--launch-timeout-s", type=float, default=90.0)
     parser.add_argument("--step-timeout-s", type=float, default=10.0)
-    parser.add_argument("--smooth-penalty-scale", type=float, default=0.0)
+    parser.add_argument("--smooth-penalty-scale", type=float, default=None)
     parser.add_argument("--baseline-gap-alpha", type=float, default=2.0)
     parser.add_argument("--sync-guard-ms", type=float, default=25.0)
     parser.add_argument("--gap-launch-retries", type=int, default=6)
@@ -198,15 +215,20 @@ def main() -> None:
     parser.add_argument("--attack-uplink-loss-max", type=float, default=None)
     parser.add_argument("--attack-downlink-loss-min", type=float, default=None)
     parser.add_argument("--attack-downlink-loss-max", type=float, default=None)
+    parser.add_argument("--attack-shared-loss-min", type=float, default=None)
+    parser.add_argument("--attack-shared-loss-max", type=float, default=None)
     parser.add_argument("--attack-uplink-delay-min-ms", type=float, default=None)
     parser.add_argument("--attack-uplink-delay-max-ms", type=float, default=None)
     parser.add_argument("--attack-downlink-delay-min-ms", type=float, default=None)
     parser.add_argument("--attack-downlink-delay-max-ms", type=float, default=None)
+    parser.add_argument("--attack-shared-delay-min-ms", type=float, default=None)
+    parser.add_argument("--attack-shared-delay-max-ms", type=float, default=None)
     parser.add_argument("--policy-width", type=int, default=128)
     parser.add_argument("--policy-depth", type=int, default=2)
     parser.add_argument("--ppo-n-steps", type=int, default=1024)
     parser.add_argument("--ppo-batch-size", type=int, default=256)
     parser.add_argument("--ppo-n-epochs", type=int, default=4)
+    parser.add_argument("--ppo-ent-coef", type=float, default=0.0)
 
     parser.add_argument("--latency-ms", type=int, default=25)
     parser.add_argument("--port", type=int, default=5101)
@@ -241,8 +263,16 @@ def main() -> None:
     args = parser.parse_args()
 
     repo_root = os.path.abspath(os.path.expanduser(args.repo_root))
-    PPO, BaseCallback, Monitor, DummyVecEnv = _require_sb3()
+    PPO, BaseCallback, Monitor, DummyVecEnv, VecNormalize = _require_sb3()
     use_gap_objective = str(args.attack_mode) == "independent_gap"
+    shared_bandwidth_action_requested = (
+        args.attack_shared_bw_min_mbps is not None and args.attack_shared_bw_max_mbps is not None
+    )
+    resolved_smooth_penalty_scale = (
+        float(args.smooth_penalty_scale)
+        if args.smooth_penalty_scale is not None
+        else (0.0 if use_gap_objective else 0.01)
+    )
     run_namespace = acquire_run_namespace(
         repo_root=repo_root,
         runtime_dir=str(args.runtime_dir),
@@ -265,7 +295,21 @@ def main() -> None:
     wandb_run = None
     env = None
     venv = None
+    model = None
     model_path = ""
+    vecnormalize_path = None
+    checkpoint_dir = resolve_repo_path(repo_root, str(args.checkpoint_dir))
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    out_dir = resolve_repo_path(repo_root, str(args.out_dir))
+    os.makedirs(out_dir, exist_ok=True)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    try:
+        model_prefix = "gap_adv" if use_gap_objective else "online_adv"
+        model_stem = f"{model_prefix}_{stamp}_{run_namespace.run_id}"
+        checkpoint_config_path = os.path.join(checkpoint_dir, f"{model_stem}.config.json")
+    except Exception:
+        model_stem = ""
+        checkpoint_config_path = ""
     try:
         if bool(args.wandb):
             wandb = try_import_wandb()
@@ -280,6 +324,13 @@ def main() -> None:
                 config={
                     **vars(args),
                     **resolved_launch_config,
+                    "smooth_penalty_scale": float(resolved_smooth_penalty_scale),
+                    "policy_action_transform": (
+                        "log_unit_interval_shared_bandwidth"
+                        if (use_gap_objective or shared_bandwidth_action_requested)
+                        else "identity"
+                    ),
+                    "vecnormalize_enabled": bool(use_gap_objective or shared_bandwidth_action_requested),
                 },
             )
 
@@ -370,6 +421,22 @@ def main() -> None:
             attack_uplink_bw_max = float(args.attack_shared_bw_max_mbps)
             attack_downlink_bw_min = float(args.attack_shared_bw_min_mbps)
             attack_downlink_bw_max = float(args.attack_shared_bw_max_mbps)
+        if (args.attack_shared_loss_min is None) != (args.attack_shared_loss_max is None):
+            raise ValueError("--attack-shared-loss-min and --attack-shared-loss-max must be set together")
+        if args.attack_shared_loss_min is not None and args.attack_shared_loss_max is not None:
+            attack_uplink_loss_min = float(args.attack_shared_loss_min)
+            attack_uplink_loss_max = float(args.attack_shared_loss_max)
+            attack_downlink_loss_min = float(args.attack_shared_loss_min)
+            attack_downlink_loss_max = float(args.attack_shared_loss_max)
+        if (args.attack_shared_delay_min_ms is None) != (args.attack_shared_delay_max_ms is None):
+            raise ValueError(
+                "--attack-shared-delay-min-ms and --attack-shared-delay-max-ms must be set together"
+            )
+        if args.attack_shared_delay_min_ms is not None and args.attack_shared_delay_max_ms is not None:
+            attack_uplink_delay_min = float(args.attack_shared_delay_min_ms)
+            attack_uplink_delay_max = float(args.attack_shared_delay_max_ms)
+            attack_downlink_delay_min = float(args.attack_shared_delay_min_ms)
+            attack_downlink_delay_max = float(args.attack_shared_delay_max_ms)
         if attack_uplink_bw_min > attack_uplink_bw_max:
             raise ValueError("--attack-uplink-bw-min-mbps must be <= --attack-uplink-bw-max-mbps")
         if attack_downlink_bw_min > attack_downlink_bw_max:
@@ -392,6 +459,8 @@ def main() -> None:
                     args.attack_uplink_loss_max,
                     args.attack_downlink_loss_min,
                     args.attack_downlink_loss_max,
+                    args.attack_shared_loss_min,
+                    args.attack_shared_loss_max,
                 )
             ):
                 raise ValueError("loss is fixed to 0 with --attack-mode independent_gap")
@@ -402,6 +471,8 @@ def main() -> None:
                     args.attack_uplink_delay_max_ms,
                     args.attack_downlink_delay_min_ms,
                     args.attack_downlink_delay_max_ms,
+                    args.attack_shared_delay_min_ms,
+                    args.attack_shared_delay_max_ms,
                 )
             ):
                 raise ValueError(
@@ -434,6 +505,14 @@ def main() -> None:
                 uplink_delay_ms=(attack_uplink_delay_min, attack_uplink_delay_max),
                 downlink_delay_ms=(attack_downlink_delay_min, attack_downlink_delay_max),
             )
+        shared_bandwidth_action = (
+            args.attack_shared_bw_min_mbps is not None and args.attack_shared_bw_max_mbps is not None
+        )
+        shared_loss_action = args.attack_shared_loss_min is not None and args.attack_shared_loss_max is not None
+        shared_delay_action = (
+            args.attack_shared_delay_min_ms is not None and args.attack_shared_delay_max_ms is not None
+        )
+        use_vecnormalize = bool(use_gap_objective or shared_bandwidth_action)
 
         if use_gap_objective:
             env = ParallelGapAttackEnv(
@@ -447,7 +526,7 @@ def main() -> None:
                 step_timeout_s=float(args.step_timeout_s),
                 runtime_dir=resolved_runtime_dir,
                 baseline_gap_alpha=float(args.baseline_gap_alpha),
-                smooth_penalty_scale=float(args.smooth_penalty_scale),
+                smooth_penalty_scale=float(resolved_smooth_penalty_scale),
                 sync_guard_ms=float(args.sync_guard_ms),
                 launch_retries=int(args.gap_launch_retries),
             )
@@ -462,9 +541,16 @@ def main() -> None:
                 launch_timeout_s=float(args.launch_timeout_s),
                 step_timeout_s=float(args.step_timeout_s),
                 runtime_dir=resolved_runtime_dir,
-                smooth_penalty_scale=float(args.smooth_penalty_scale),
+                shared_bandwidth_action=shared_bandwidth_action,
+                shared_loss_action=shared_loss_action,
+                shared_delay_action=shared_delay_action,
+                smooth_penalty_scale=float(resolved_smooth_penalty_scale),
             )
-        venv = DummyVecEnv([lambda: Monitor(env)])
+        base_venv = DummyVecEnv([lambda: Monitor(env)])
+        if use_vecnormalize:
+            venv = VecNormalize(base_venv, norm_obs=True, norm_reward=True, clip_obs=10.0)
+        else:
+            venv = base_venv
         if int(args.ppo_n_steps) < 1:
             raise ValueError("--ppo-n-steps must be >= 1")
         if int(args.ppo_batch_size) < 1:
@@ -474,12 +560,37 @@ def main() -> None:
         if int(args.ppo_batch_size) > int(args.ppo_n_steps):
             raise ValueError("--ppo-batch-size must be <= --ppo-n-steps when using one environment")
 
+        def _checkpoint_path(step: int, *, suffix: str | None = None) -> str:
+            stem = f"{model_stem}-step{int(step):09d}"
+            if suffix:
+                stem = f"{stem}-{suffix}"
+            return os.path.join(checkpoint_dir, f"{stem}.zip")
+
+        def _checkpoint_vecnormalize_path(step: int, *, suffix: str | None = None) -> str:
+            stem = f"{model_stem}-step{int(step):09d}"
+            if suffix:
+                stem = f"{stem}-{suffix}"
+            return os.path.join(checkpoint_dir, f"{stem}.vecnormalize.pkl")
+
         class WandbInfoCallback(BaseCallback):
-            def __init__(self, *, log_every: int = 100) -> None:
+            def __init__(self, *, log_every: int = 100, checkpoint_every: int = 10_000) -> None:
                 super().__init__()
                 self._log_every = max(int(log_every), 1)
+                self._checkpoint_every = max(int(checkpoint_every), 0)
+                self._last_checkpoint_step = 0
                 self._window_records: list[dict[str, float]] = []
                 self._episode_records: list[dict[str, float]] = []
+
+            def _save_checkpoint(self, *, suffix: str | None = None) -> None:
+                if self.model is None or not model_stem:
+                    return
+                step = int(self.num_timesteps)
+                if step <= 0:
+                    return
+                self.model.save(_checkpoint_path(step, suffix=suffix))
+                if use_vecnormalize and isinstance(venv, VecNormalize):
+                    venv.save(_checkpoint_vecnormalize_path(step, suffix=suffix))
+                self._last_checkpoint_step = step
 
             def _on_step(self) -> bool:
                 if wandb is None:
@@ -541,6 +652,8 @@ def main() -> None:
                 return True
 
             def _on_rollout_end(self) -> None:
+                if self._checkpoint_every > 0 and int(self.num_timesteps) - int(self._last_checkpoint_step) >= self._checkpoint_every:
+                    self._save_checkpoint()
                 if wandb is None:
                     return
                 logger_values = getattr(self.model.logger, "name_to_value", {})
@@ -559,30 +672,52 @@ def main() -> None:
             n_steps=int(args.ppo_n_steps),
             batch_size=int(args.ppo_batch_size),
             n_epochs=int(args.ppo_n_epochs),
+            ent_coef=float(args.ppo_ent_coef),
             policy_kwargs={"net_arch": {"pi": hidden_layers, "vf": hidden_layers}},
             verbose=1,
         )
-        callback = WandbInfoCallback(log_every=int(args.wandb_log_every))
-        model.learn(total_timesteps=int(args.total_steps), callback=callback)
-
-        out_dir = resolve_repo_path(repo_root, str(args.out_dir))
-        os.makedirs(out_dir, exist_ok=True)
-        stamp = time.strftime("%Y%m%d-%H%M%S")
-        model_prefix = "gap_adv" if use_gap_objective else "online_adv"
-        model_stem = f"{model_prefix}_{stamp}_{run_namespace.run_id}"
-        model_path = os.path.join(out_dir, f"{model_stem}.zip")
-        model.save(model_path)
-
         config_payload = {
             **vars(args),
             **resolved_launch_config,
             "repo_root": repo_root,
+            "smooth_penalty_scale": float(resolved_smooth_penalty_scale),
             "run_namespace": run_namespace.metadata(),
+            "policy_action_transform": (
+                "log_unit_interval_shared_bandwidth" if (use_gap_objective or shared_bandwidth_action) else "identity"
+            ),
+            "vecnormalize_enabled": bool(use_vecnormalize),
+            "checkpoint_dir": os.path.relpath(checkpoint_dir, repo_root)
+            if os.path.commonpath([repo_root, checkpoint_dir]) == repo_root
+            else checkpoint_dir,
+            "checkpoint_every": int(args.checkpoint_every),
             "action_space_low": [float(x) for x in env.action_space.low.tolist()],
             "action_space_high": [float(x) for x in env.action_space.high.tolist()],
             "effective_action_low": [float(x) for x in online_attack_bounds.low.tolist()],
             "effective_action_high": [float(x) for x in online_attack_bounds.high.tolist()],
         }
+        if checkpoint_config_path:
+            save_json(checkpoint_config_path, config_payload)
+        callback = WandbInfoCallback(
+            log_every=int(args.wandb_log_every),
+            checkpoint_every=int(args.checkpoint_every),
+        )
+        try:
+            model.learn(total_timesteps=int(args.total_steps), callback=callback)
+        except BaseException:
+            if model_stem:
+                callback._save_checkpoint(suffix="interrupted")
+            raise
+
+        model_path = os.path.join(out_dir, f"{model_stem}.zip")
+        model.save(model_path)
+        if use_vecnormalize and isinstance(venv, VecNormalize):
+            vecnormalize_path = os.path.join(out_dir, f"{model_stem}.vecnormalize.pkl")
+            venv.save(vecnormalize_path)
+        config_payload["vecnormalize_path"] = (
+            os.path.relpath(vecnormalize_path, repo_root)
+            if vecnormalize_path is not None and os.path.commonpath([repo_root, vecnormalize_path]) == repo_root
+            else vecnormalize_path
+        )
         config_path = os.path.join(out_dir, f"{model_stem}.config.json")
         save_json(config_path, config_payload)
 
@@ -591,6 +726,8 @@ def main() -> None:
                 "artifact/model_path": model_path,
                 "artifact/config_path": config_path,
             }
+            if vecnormalize_path is not None:
+                payload["artifact/vecnormalize_path"] = vecnormalize_path
             wandb_run.log(payload)
         print(model_path)
     finally:

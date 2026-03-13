@@ -24,6 +24,7 @@ class SageStep:
     observation: np.ndarray
     reward: float
     previous_action: float
+    nonfinite_count: int = 0
 
 
 def is_placeholder_step(step: SageStep, *, atol: float = 1e-9) -> bool:
@@ -96,6 +97,14 @@ class SageSharedMemoryReader:
         except Exception:
             pass
 
+    def _sanitize_numeric_array(self, values: np.ndarray) -> tuple[np.ndarray, int]:
+        array = np.asarray(values, dtype=np.float32)
+        finite_mask = np.isfinite(array)
+        if bool(np.all(finite_mask)):
+            return array.astype(np.float32, copy=False), 0
+        sanitized = np.nan_to_num(array, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32, copy=False)
+        return sanitized, int(array.size - int(np.count_nonzero(finite_mask)))
+
     def _parse_payload(self, payload: bytes) -> SageStep | None:
         raw_text = payload.decode("utf-8", errors="ignore")
         end_idx = raw_text.find("\0")
@@ -110,11 +119,18 @@ class SageSharedMemoryReader:
             return None
 
         rid = int(values[0])
-        raw = values[1 : 1 + self.input_dim].astype(np.float32, copy=False)
-        obs = raw[self.obs_cols].astype(np.float32, copy=False)
-        reward = float(raw[-2])
+        raw, nonfinite_count = self._sanitize_numeric_array(values[1 : 1 + self.input_dim])
+        obs, obs_nonfinite_count = self._sanitize_numeric_array(raw[self.obs_cols])
+        reward = float(raw[-2]) if raw.shape[0] >= 2 else 0.0
         previous_action = float(raw[76]) if raw.shape[0] > 76 else 0.0
-        return SageStep(rid=rid, raw=raw, observation=obs, reward=reward, previous_action=previous_action)
+        return SageStep(
+            rid=rid,
+            raw=raw,
+            observation=obs,
+            reward=reward,
+            previous_action=previous_action,
+            nonfinite_count=int(nonfinite_count + obs_nonfinite_count),
+        )
 
     def read_latest(self, *, require_new: bool = True, timeout_s: float = 5.0) -> SageStep:
         deadline = time.monotonic() + float(timeout_s)

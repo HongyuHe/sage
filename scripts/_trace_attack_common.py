@@ -15,7 +15,7 @@ from typing import Any, Callable, Iterable, Sequence
 import numpy as np
 
 from attacks.envs.online_sage_env import AttackBounds, OnlineSageAttackEnv
-from attacks.envs.score_utils import bounded_linear_score_terms_from_info
+from attacks.envs.score_utils import SCORE_RTT_WEIGHT, bounded_linear_score_terms_from_info
 from attacks.online import SageLaunchConfig
 
 
@@ -39,6 +39,7 @@ PANTHEON_TRACE_DIR = "ccBench/pantheon-modified/src/experiments/traces"
 PACKET_SIZE_BYTES = 1500
 BASE_OBS_FEATURE_DIM = 69 + 1 + 14 + 6
 CONTEXT_DIM = 5
+INDEPENDENT_REWARD_BETA = 1.0
 
 
 def _is_retryable_sage_launch_error(exc: RuntimeError) -> bool:
@@ -450,6 +451,10 @@ def attack_bounds_from_config(config_payload: dict[str, Any]) -> AttackBounds:
     delay_max_ms = float(config_payload.get("delay_max_ms", 150.0))
     shared_bw_min = config_payload.get("attack_shared_bw_min_mbps")
     shared_bw_max = config_payload.get("attack_shared_bw_max_mbps")
+    shared_loss_min = config_payload.get("attack_shared_loss_min")
+    shared_loss_max = config_payload.get("attack_shared_loss_max")
+    shared_delay_min = config_payload.get("attack_shared_delay_min_ms")
+    shared_delay_max = config_payload.get("attack_shared_delay_max_ms")
     uplink_bw_min = _float_value(
         config_payload.get("attack_uplink_bw_min_mbps", shared_bw_min),
         0.0 if shared_bw_min is None else float(shared_bw_min),
@@ -484,20 +489,44 @@ def attack_bounds_from_config(config_payload: dict[str, Any]) -> AttackBounds:
             downlink_bw_max,
         ),
         uplink_loss=(
-            _float_value(config_payload.get("attack_uplink_loss_min"), 0.0),
-            _float_value(config_payload.get("attack_uplink_loss_max"), loss_max),
+            _float_value(
+                config_payload.get("attack_uplink_loss_min", shared_loss_min),
+                0.0 if shared_loss_min is None else float(shared_loss_min),
+            ),
+            _float_value(
+                config_payload.get("attack_uplink_loss_max", shared_loss_max),
+                loss_max if shared_loss_max is None else float(shared_loss_max),
+            ),
         ),
         downlink_loss=(
-            _float_value(config_payload.get("attack_downlink_loss_min"), 0.0),
-            _float_value(config_payload.get("attack_downlink_loss_max"), loss_max),
+            _float_value(
+                config_payload.get("attack_downlink_loss_min", shared_loss_min),
+                0.0 if shared_loss_min is None else float(shared_loss_min),
+            ),
+            _float_value(
+                config_payload.get("attack_downlink_loss_max", shared_loss_max),
+                loss_max if shared_loss_max is None else float(shared_loss_max),
+            ),
         ),
         uplink_delay_ms=(
-            _float_value(config_payload.get("attack_uplink_delay_min_ms"), 0.0),
-            _float_value(config_payload.get("attack_uplink_delay_max_ms"), uplink_delay_max),
+            _float_value(
+                config_payload.get("attack_uplink_delay_min_ms", shared_delay_min),
+                0.0 if shared_delay_min is None else float(shared_delay_min),
+            ),
+            _float_value(
+                config_payload.get("attack_uplink_delay_max_ms", shared_delay_max),
+                uplink_delay_max if shared_delay_max is None else float(shared_delay_max),
+            ),
         ),
         downlink_delay_ms=(
-            _float_value(config_payload.get("attack_downlink_delay_min_ms"), 0.0),
-            _float_value(config_payload.get("attack_downlink_delay_max_ms"), downlink_delay_max),
+            _float_value(
+                config_payload.get("attack_downlink_delay_min_ms", shared_delay_min),
+                0.0 if shared_delay_min is None else float(shared_delay_min),
+            ),
+            _float_value(
+                config_payload.get("attack_downlink_delay_max_ms", shared_delay_max),
+                downlink_delay_max if shared_delay_max is None else float(shared_delay_max),
+            ),
         ),
     )
 
@@ -883,6 +912,9 @@ class IndependentAttackEnv(gym.Env):
         launch_timeout_s: float = 90.0,
         step_timeout_s: float = 10.0,
         runtime_dir: str = "attacks/runtime",
+        shared_bandwidth_action: bool = False,
+        shared_loss_action: bool = False,
+        shared_delay_action: bool = False,
         smooth_penalty_scale: float = 0.0,
     ) -> None:
         super().__init__()
@@ -894,6 +926,10 @@ class IndependentAttackEnv(gym.Env):
         self._launch_timeout_s = float(launch_timeout_s)
         self._step_timeout_s = float(step_timeout_s)
         self._runtime_dir = runtime_dir
+        self._shared_bandwidth_action = bool(shared_bandwidth_action)
+        self._shared_loss_action = bool(shared_loss_action)
+        self._shared_delay_action = bool(shared_delay_action)
+        self._log_shared_bandwidth_action = bool(self._shared_bandwidth_action)
         self.smooth_penalty_scale = float(smooth_penalty_scale)
         self.max_episode_steps = max(1, int(max_episode_steps))
         self._episode_step = 0
@@ -903,7 +939,27 @@ class IndependentAttackEnv(gym.Env):
 
         self._inner_env = self._make_inner_env(launch_index=self._launch_index)
         self._launch_index += 1
-        self.action_space = self._inner_env.action_space
+        if self._log_shared_bandwidth_action:
+            inner_low = np.asarray(self._inner_env.action_space.low, dtype=np.float32).reshape(-1)
+            inner_high = np.asarray(self._inner_env.action_space.high, dtype=np.float32).reshape(-1)
+            shared_low, shared_high = self._shared_bounds(
+                inner_low[0], inner_high[0], inner_low[1], inner_high[1], "bandwidth"
+            )
+            self._shared_bandwidth_min_mbps = float(shared_low)
+            self._shared_bandwidth_max_mbps = float(shared_high)
+            self._log_shared_bandwidth_min = float(np.log(max(self._shared_bandwidth_min_mbps, 1e-6)))
+            self._log_shared_bandwidth_max = float(np.log(max(self._shared_bandwidth_max_mbps, 1e-6)))
+            self._log_shared_bandwidth_span = max(
+                self._log_shared_bandwidth_max - self._log_shared_bandwidth_min,
+                1e-6,
+            )
+        else:
+            self._shared_bandwidth_min_mbps = 0.0
+            self._shared_bandwidth_max_mbps = 0.0
+            self._log_shared_bandwidth_min = 0.0
+            self._log_shared_bandwidth_max = 0.0
+            self._log_shared_bandwidth_span = 1.0
+        self.action_space = self._build_action_space()
         inner_obs_shape = self._inner_env.observation_space.shape
         if len(inner_obs_shape) != 1:
             raise ValueError("IndependentAttackEnv only supports flat observations")
@@ -957,6 +1013,140 @@ class IndependentAttackEnv(gym.Env):
             runtime_dir=self._runtime_dir,
         )
 
+    def _shared_bounds(self, low_a: float, high_a: float, low_b: float, high_b: float, label: str) -> tuple[float, float]:
+        shared_low = max(float(low_a), float(low_b))
+        shared_high = min(float(high_a), float(high_b))
+        if shared_low > shared_high:
+            raise ValueError(f"{label} shared bounds do not overlap")
+        return float(shared_low), float(shared_high)
+
+    def _build_action_space(self):
+        inner_low = np.asarray(self._inner_env.action_space.low, dtype=np.float32).reshape(-1)
+        inner_high = np.asarray(self._inner_env.action_space.high, dtype=np.float32).reshape(-1)
+        low_parts: list[float] = []
+        high_parts: list[float] = []
+        if self._shared_bandwidth_action:
+            if self._log_shared_bandwidth_action:
+                low_parts.append(0.0)
+                high_parts.append(1.0)
+            else:
+                shared_low, shared_high = self._shared_bounds(
+                    inner_low[0], inner_high[0], inner_low[1], inner_high[1], "bandwidth"
+                )
+                low_parts.append(shared_low)
+                high_parts.append(shared_high)
+        else:
+            low_parts.extend([float(inner_low[0]), float(inner_low[1])])
+            high_parts.extend([float(inner_high[0]), float(inner_high[1])])
+        if self._shared_loss_action:
+            shared_low, shared_high = self._shared_bounds(
+                inner_low[2], inner_high[2], inner_low[3], inner_high[3], "loss"
+            )
+            low_parts.append(shared_low)
+            high_parts.append(shared_high)
+        else:
+            low_parts.extend([float(inner_low[2]), float(inner_low[3])])
+            high_parts.extend([float(inner_high[2]), float(inner_high[3])])
+        if self._shared_delay_action:
+            shared_low, shared_high = self._shared_bounds(
+                inner_low[4], inner_high[4], inner_low[5], inner_high[5], "delay"
+            )
+            low_parts.append(shared_low)
+            high_parts.append(shared_high)
+        else:
+            low_parts.extend([float(inner_low[4]), float(inner_low[5])])
+            high_parts.extend([float(inner_high[4]), float(inner_high[5])])
+        return spaces.Box(
+            low=np.asarray(low_parts, dtype=np.float32),
+            high=np.asarray(high_parts, dtype=np.float32),
+            dtype=np.float32,
+        )
+
+    def _shared_bandwidth_fraction_to_mbps(self, fraction: float) -> float:
+        clipped_fraction = float(np.clip(fraction, 0.0, 1.0))
+        return float(np.exp(self._log_shared_bandwidth_min + clipped_fraction * self._log_shared_bandwidth_span))
+
+    def _shared_bandwidth_mbps_to_fraction(self, bandwidth_mbps: float) -> float:
+        clipped_bandwidth = float(
+            np.clip(bandwidth_mbps, self._shared_bandwidth_min_mbps, self._shared_bandwidth_max_mbps)
+        )
+        return float(
+            np.clip(
+                (np.log(max(clipped_bandwidth, 1e-6)) - self._log_shared_bandwidth_min) / self._log_shared_bandwidth_span,
+                0.0,
+                1.0,
+            )
+        )
+
+    def _project_outer_action(self, effective_action: np.ndarray) -> np.ndarray:
+        effective = np.asarray(effective_action, dtype=np.float32).reshape(-1)
+        if effective.shape[0] != 6:
+            raise ValueError(f"expected 6-D effective action, got shape {effective.shape}")
+        values: list[float] = []
+        if self._shared_bandwidth_action:
+            shared_bandwidth_mbps = float(min(effective[0], effective[1]))
+            if self._log_shared_bandwidth_action:
+                values.append(self._shared_bandwidth_mbps_to_fraction(shared_bandwidth_mbps))
+            else:
+                values.append(shared_bandwidth_mbps)
+        else:
+            values.extend([float(effective[0]), float(effective[1])])
+        if self._shared_loss_action:
+            values.append(float(min(effective[2], effective[3])))
+        else:
+            values.extend([float(effective[2]), float(effective[3])])
+        if self._shared_delay_action:
+            values.append(float(min(effective[4], effective[5])))
+        else:
+            values.extend([float(effective[4]), float(effective[5])])
+        projected = np.asarray(values, dtype=np.float32)
+        return np.clip(projected, self.action_space.low, self.action_space.high)
+
+    def _expand_effective_action(self, action: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        raw = np.asarray(action, dtype=np.float32).reshape(-1)
+        inner_low = np.asarray(self._inner_env.action_space.low, dtype=np.float32).reshape(-1)
+        inner_high = np.asarray(self._inner_env.action_space.high, dtype=np.float32).reshape(-1)
+        if raw.shape[0] == inner_low.shape[0]:
+            effective = np.clip(raw, inner_low, inner_high)
+            return effective.astype(np.float32, copy=False), self._project_outer_action(effective)
+        if raw.shape[0] != self.action_space.low.shape[0]:
+            raise ValueError(
+                f"expected action with {self.action_space.low.shape[0]} or {inner_low.shape[0]} dims, got {raw.shape[0]}"
+            )
+        clipped = np.clip(raw, self.action_space.low, self.action_space.high)
+        index = 0
+        if self._shared_bandwidth_action:
+            if self._log_shared_bandwidth_action:
+                shared_bandwidth_mbps = self._shared_bandwidth_fraction_to_mbps(float(clipped[index]))
+            else:
+                shared_bandwidth_mbps = float(clipped[index])
+            uplink_bw = float(shared_bandwidth_mbps)
+            downlink_bw = float(shared_bandwidth_mbps)
+            index += 1
+        else:
+            uplink_bw = float(clipped[index])
+            downlink_bw = float(clipped[index + 1])
+            index += 2
+        if self._shared_loss_action:
+            uplink_loss = float(clipped[index])
+            downlink_loss = float(clipped[index])
+            index += 1
+        else:
+            uplink_loss = float(clipped[index])
+            downlink_loss = float(clipped[index + 1])
+            index += 2
+        if self._shared_delay_action:
+            uplink_delay = float(clipped[index])
+            downlink_delay = float(clipped[index])
+        else:
+            uplink_delay = float(clipped[index])
+            downlink_delay = float(clipped[index + 1])
+        effective = np.asarray(
+            [uplink_bw, downlink_bw, uplink_loss, downlink_loss, uplink_delay, downlink_delay],
+            dtype=np.float32,
+        )
+        return effective, clipped.astype(np.float32, copy=False)
+
     def _is_retryable_launch_error(self, exc: RuntimeError) -> bool:
         return _is_retryable_sage_launch_error(exc)
 
@@ -972,17 +1162,21 @@ class IndependentAttackEnv(gym.Env):
 
     def _normalized_action(self, action: np.ndarray) -> np.ndarray:
         denom = np.maximum(self.action_space.high - self.action_space.low, 1e-6)
-        return ((action - self.action_space.low) / denom).astype(np.float32, copy=False)
+        clipped = np.clip(np.asarray(action, dtype=np.float32), self.action_space.low, self.action_space.high)
+        return ((clipped - self.action_space.low) / denom).astype(np.float32, copy=False)
 
-    def _reward_from_info(self, info: dict[str, Any], action: np.ndarray) -> tuple[float, float, float]:
+    def _reward_from_info(self, info: dict[str, Any], action: np.ndarray, effective_action: np.ndarray) -> tuple[float, float, float]:
         self._base_rtt_ms = _updated_base_rtt_ms(self._base_rtt_ms, info)
-        path_cap_mbps = max(min(float(action[0]), float(action[1])), 1e-6)
+        path_cap_mbps = max(min(float(effective_action[0]), float(effective_action[1])), 1e-6)
         score_terms = bounded_linear_score_terms_from_info(
             info,
             base_rtt_ms=self._base_rtt_ms,
             path_cap_mbps=path_cap_mbps,
         )
         score = float(score_terms["score"])
+        utilization = float(score_terms["rate_norm"])
+        rtt_norm = float(score_terms["rtt_norm"])
+        loss_norm = float(score_terms["loss_norm"])
         previous_action = self._last_action if self._last_action is not None else np.asarray(action, dtype=np.float32)
         smooth_penalty = float(
             np.mean(
@@ -999,7 +1193,12 @@ class IndependentAttackEnv(gym.Env):
         info["sage/score_rate_contrib"] = float(score_terms["rate_contrib"])
         info["sage/score_rtt_contrib"] = float(score_terms["rtt_contrib"])
         info["sage/score_loss_penalty"] = float(score_terms["loss_penalty"])
-        reward = -score - self.smooth_penalty_scale * smooth_penalty
+        reward = (
+            (1.0 - utilization)
+            + SCORE_RTT_WEIGHT * (1.0 - rtt_norm)
+            - INDEPENDENT_REWARD_BETA * loss_norm
+            - self.smooth_penalty_scale * smooth_penalty
+        )
         return float(reward), float(score), float(smooth_penalty)
 
     def close(self) -> None:
@@ -1028,24 +1227,36 @@ class IndependentAttackEnv(gym.Env):
             raise RuntimeError("IndependentAttackEnv reset failed without launch diagnostics")
 
         self._episode_step = 0
-        self._last_action = np.asarray(self._inner_env._default_action(), dtype=np.float32)
+        self._last_action = self._project_outer_action(np.asarray(self._inner_env._default_action(), dtype=np.float32))
         self._base_rtt_ms = _updated_base_rtt_ms(_default_base_rtt_ms_from_launch_config(self._base_launch_config), info)
         info = dict(info)
         info["episode/progress"] = 0.0
         info["trace/launch_port"] = float(self._inner_env.launch_config.port)
         info["trace/launch_actor_id"] = float(self._inner_env.launch_config.actor_id)
-        _ = self._reward_from_info(info, self._last_action)
+        default_effective_action, default_outer_action = self._expand_effective_action(self._last_action)
+        self._last_action = default_outer_action
+        _ = self._reward_from_info(info, default_outer_action, default_effective_action)
         return self._augment_observation(observation), info
 
     def step(self, action):
-        clipped = np.clip(np.asarray(action, dtype=np.float32), self.action_space.low, self.action_space.high)
-        observation, _, terminated, truncated, info = self._inner_env.step(clipped)
+        effective_action, clipped = self._expand_effective_action(np.asarray(action, dtype=np.float32))
+        observation, _, terminated, truncated, info = self._inner_env.step(effective_action)
         info = dict(info)
-        reward, score, smooth_penalty = self._reward_from_info(info, clipped)
+        reward, score, smooth_penalty = self._reward_from_info(info, clipped, effective_action)
         self._episode_step += 1
         self._last_action = clipped.astype(np.float32, copy=True)
         info["attacker/reward"] = float(reward)
         info["attacker/smooth_penalty"] = float(smooth_penalty)
+        if self._shared_bandwidth_action:
+            info["attacker/shared_bw_mbps"] = float(effective_action[0])
+            if self._log_shared_bandwidth_action:
+                info["attacker/shared_bw_fraction"] = float(clipped[0])
+        if self._shared_loss_action:
+            info["attacker/shared_loss"] = float(clipped[1 if self._shared_bandwidth_action else 2])
+        if self._shared_delay_action:
+            delay_index = 1 if self._shared_bandwidth_action else 2
+            delay_index += 1 if self._shared_loss_action else 2
+            info["attacker/shared_delay_ms"] = float(clipped[delay_index])
         info["episode/progress"] = float(self._progress_feature()[0])
         return self._augment_observation(observation), float(reward), terminated, truncated, info
 

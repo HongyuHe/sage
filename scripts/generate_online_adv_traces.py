@@ -68,10 +68,31 @@ else:
 def _require_sb3():
     try:
         from stable_baselines3 import PPO  # type: ignore
+        from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize  # type: ignore
 
-        return PPO
+        return PPO, DummyVecEnv, VecNormalize
     except Exception as exc:  # pragma: no cover
         raise RuntimeError("stable-baselines3 is required for adversarial trace generation") from exc
+
+
+def _build_obs_normalizer(
+    *,
+    repo_root: str,
+    config_payload: dict[str, Any],
+    env,
+    DummyVecEnv,
+    VecNormalize,
+):
+    vecnormalize_path = config_payload.get("vecnormalize_path")
+    if not vecnormalize_path:
+        return None
+    resolved_path = resolve_repo_path(repo_root, str(vecnormalize_path))
+    if not os.path.exists(resolved_path):
+        raise FileNotFoundError(f"missing VecNormalize stats: {resolved_path}")
+    normalizer = VecNormalize.load(resolved_path, DummyVecEnv([lambda: env]))
+    normalizer.training = False
+    normalizer.norm_reward = False
+    return normalizer
 
 
 def _load_config(repo_root: str, model_path: str, config_path: str | None) -> tuple[str, dict[str, Any]]:
@@ -261,6 +282,8 @@ def _independent_generation(
     out_dir: str,
     test_entries,
     wandb,
+    DummyVecEnv,
+    VecNormalize,
 ) -> list[dict[str, Any]]:
     attack_mode = _attack_mode(config_payload)
     use_gap_objective = attack_mode == "independent_gap"
@@ -292,6 +315,18 @@ def _independent_generation(
             launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
             step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
             runtime_dir=runtime_dir,
+            shared_bandwidth_action=(
+                config_payload.get("attack_shared_bw_min_mbps") is not None
+                and config_payload.get("attack_shared_bw_max_mbps") is not None
+            ),
+            shared_loss_action=(
+                config_payload.get("attack_shared_loss_min") is not None
+                and config_payload.get("attack_shared_loss_max") is not None
+            ),
+            shared_delay_action=(
+                config_payload.get("attack_shared_delay_min_ms") is not None
+                and config_payload.get("attack_shared_delay_max_ms") is not None
+            ),
             smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
         )
 
@@ -300,13 +335,27 @@ def _independent_generation(
         num_generated_traces = int(args.num_traces)
 
     generated_entries: list[dict[str, Any]] = []
+    obs_normalizer = None
     try:
+        obs_normalizer = _build_obs_normalizer(
+            repo_root=repo_root,
+            config_payload=config_payload,
+            env=env,
+            DummyVecEnv=DummyVecEnv,
+            VecNormalize=VecNormalize,
+        )
         for trace_index in range(num_generated_traces):
             trace_id = f"generated-{trace_index:03d}"
 
             def policy_fn(observation: np.ndarray, info: dict[str, Any], step: int) -> np.ndarray:
                 #* Independent trace generation always samples the policy stochastically.
-                action, _ = model.predict(observation, deterministic=False)
+                model_observation = np.asarray(observation, dtype=np.float32)
+                if obs_normalizer is not None:
+                    model_observation = np.asarray(
+                        obs_normalizer.normalize_obs(model_observation[None, ...])[0],
+                        dtype=np.float32,
+                    )
+                action, _ = model.predict(model_observation, deterministic=False)
                 return np.asarray(action, dtype=np.float32)
 
             result = run_online_policy_episode(
@@ -428,7 +477,7 @@ def main() -> None:
     test_entries = load_trace_entries(manifest_path)
     if int(args.num_traces) > 0 and _attack_mode(config_payload) == "trace_conditioned":
         test_entries = test_entries[: int(args.num_traces)]
-    PPO = _require_sb3()
+    PPO, DummyVecEnv, VecNormalize = _require_sb3()
     model = PPO.load(model_path)
 
     out_dir = resolve_repo_path(repo_root, str(args.out_dir))
@@ -499,6 +548,8 @@ def main() -> None:
                 out_dir=out_dir,
                 test_entries=test_entries,
                 wandb=wandb,
+                DummyVecEnv=DummyVecEnv,
+                VecNormalize=VecNormalize,
             )
 
         manifest_payload = {

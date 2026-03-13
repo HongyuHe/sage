@@ -64,6 +64,7 @@ class SageLaunchConfig:
     scheme: str = "pure"
     controller_mode: str = "sage"
     startup_stagger_ms: int | None = 0
+    ready_signal_timeout_ms: int | None = 180_000
     latency_ms: int = 25
     port: int = 5101
     downlink_trace: str = "wired48"
@@ -126,6 +127,8 @@ class SageLaunchConfig:
         }
         if self.startup_stagger_ms is not None:
             env["SAGE_STARTUP_STAGGER_MS"] = str(int(self.startup_stagger_ms))
+        if self.ready_signal_timeout_ms is not None:
+            env["SAGE_READY_SIGNAL_TIMEOUT_MS"] = str(int(self.ready_signal_timeout_ms))
         env["SAGE_MM_ADV_BIN"] = _resolve_mm_adv_bin(repo_root, self.mm_adv_bin)
 
         optional_values: Mapping[str, float | int | None] = {
