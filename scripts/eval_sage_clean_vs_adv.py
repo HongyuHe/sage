@@ -3,9 +3,28 @@ Run this after `scripts/generate_online_adv_traces.py`.
 
 Example usage:
 time python scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/rl-unconstrained-30k/generated_manifest.json \
+  --generated-manifest attacks/adv_traces/hotnets19-300k/generated_manifest.json \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/output/eval \
+  --out-dir attacks/output/eval-300k \
+  --skip-clean-rollout \
+  --wandb --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/rl-constrained-300k-0.01ent/generated_manifest.json \
+  --out-dir attacks/output/eval-300k \
+  --skip-clean-rollout \
+  --wandb --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/rl-unconstrained-300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k \
+  --skip-clean-rollout \
+  --wandb --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/rl-unconstrained-300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k \
+  --clean-only-rollout \
   --wandb --wandb-project sage-gap-eval
 """
 
@@ -21,6 +40,7 @@ from typing import Any
 
 import numpy as np
 
+from attacks.envs import ParallelGapAttackEnv
 from attacks.online import SageLaunchConfig, acquire_run_namespace
 
 
@@ -106,14 +126,120 @@ def _trace_set_name(generated_manifest_path: str, generated_manifest: dict[str, 
     return os.path.basename(parent_dir) or "generated"
 
 
-def _load_action_schedule(schedule_payload: dict[str, Any]) -> list[np.ndarray]:
+def _expand_legacy_saved_action(action: np.ndarray, config_payload: dict[str, Any]) -> np.ndarray:
+    raw = np.asarray(action, dtype=np.float32).reshape(-1)
+    inner_bounds = attack_bounds_from_config(config_payload)
+    inner_low = np.asarray(inner_bounds.low, dtype=np.float32).reshape(-1)
+    inner_high = np.asarray(inner_bounds.high, dtype=np.float32).reshape(-1)
+    if raw.shape[0] == inner_low.shape[0]:
+        return np.clip(raw, inner_low, inner_high).astype(np.float32, copy=False)
+
+    shared_bandwidth_action = (
+        config_payload.get("attack_shared_bw_min_mbps") is not None
+        and config_payload.get("attack_shared_bw_max_mbps") is not None
+    )
+    shared_loss_action = (
+        config_payload.get("attack_shared_loss_min") is not None
+        and config_payload.get("attack_shared_loss_max") is not None
+    )
+    shared_delay_action = (
+        config_payload.get("attack_shared_delay_min_ms") is not None
+        and config_payload.get("attack_shared_delay_max_ms") is not None
+    )
+    log_shared_bandwidth_action = bool(shared_bandwidth_action) and str(
+        config_payload.get("policy_action_transform", "")
+    ) == "log_unit_interval_shared_bandwidth"
+
+    def _shared_bounds(low_a: float, high_a: float, low_b: float, high_b: float, label: str) -> tuple[float, float]:
+        shared_low = max(float(low_a), float(low_b))
+        shared_high = min(float(high_a), float(high_b))
+        if shared_low > shared_high:
+            raise ValueError(f"{label} shared bounds do not overlap")
+        return float(shared_low), float(shared_high)
+
+    outer_low: list[float] = []
+    outer_high: list[float] = []
+    if shared_bandwidth_action:
+        if log_shared_bandwidth_action:
+            outer_low.append(0.0)
+            outer_high.append(1.0)
+        else:
+            shared_low, shared_high = _shared_bounds(inner_low[0], inner_high[0], inner_low[1], inner_high[1], "bandwidth")
+            outer_low.append(shared_low)
+            outer_high.append(shared_high)
+    else:
+        outer_low.extend([float(inner_low[0]), float(inner_low[1])])
+        outer_high.extend([float(inner_high[0]), float(inner_high[1])])
+    if shared_loss_action:
+        shared_low, shared_high = _shared_bounds(inner_low[2], inner_high[2], inner_low[3], inner_high[3], "loss")
+        outer_low.append(shared_low)
+        outer_high.append(shared_high)
+    else:
+        outer_low.extend([float(inner_low[2]), float(inner_low[3])])
+        outer_high.extend([float(inner_high[2]), float(inner_high[3])])
+    if shared_delay_action:
+        shared_low, shared_high = _shared_bounds(inner_low[4], inner_high[4], inner_low[5], inner_high[5], "delay")
+        outer_low.append(shared_low)
+        outer_high.append(shared_high)
+    else:
+        outer_low.extend([float(inner_low[4]), float(inner_low[5])])
+        outer_high.extend([float(inner_high[4]), float(inner_high[5])])
+
+    outer_low_arr = np.asarray(outer_low, dtype=np.float32)
+    outer_high_arr = np.asarray(outer_high, dtype=np.float32)
+    if raw.shape[0] != outer_low_arr.shape[0]:
+        raise ValueError(
+            f"expected saved action with {outer_low_arr.shape[0]} or {inner_low.shape[0]} dims, got {raw.shape[0]}"
+        )
+    clipped = np.clip(raw, outer_low_arr, outer_high_arr)
+    index = 0
+    if shared_bandwidth_action:
+        if log_shared_bandwidth_action:
+            shared_min = max(float(config_payload.get("attack_shared_bw_min_mbps", inner_low[0])), 1e-6)
+            shared_max = max(float(config_payload.get("attack_shared_bw_max_mbps", inner_high[0])), shared_min)
+            log_min = float(np.log(shared_min))
+            log_span = max(float(np.log(shared_max)) - log_min, 1e-6)
+            shared_bandwidth_mbps = float(np.exp(log_min + float(clipped[index]) * log_span))
+        else:
+            shared_bandwidth_mbps = float(clipped[index])
+        uplink_bw = shared_bandwidth_mbps
+        downlink_bw = shared_bandwidth_mbps
+        index += 1
+    else:
+        uplink_bw = float(clipped[index])
+        downlink_bw = float(clipped[index + 1])
+        index += 2
+
+    if shared_loss_action:
+        uplink_loss = float(clipped[index])
+        downlink_loss = float(clipped[index])
+        index += 1
+    else:
+        uplink_loss = float(clipped[index])
+        downlink_loss = float(clipped[index + 1])
+        index += 2
+
+    if shared_delay_action:
+        uplink_delay = float(clipped[index])
+        downlink_delay = float(clipped[index])
+    else:
+        uplink_delay = float(clipped[index])
+        downlink_delay = float(clipped[index + 1])
+
+    return np.asarray(
+        [uplink_bw, downlink_bw, uplink_loss, downlink_loss, uplink_delay, downlink_delay],
+        dtype=np.float32,
+    )
+
+
+def _load_action_schedule(schedule_payload: dict[str, Any], *, config_payload: dict[str, Any]) -> list[np.ndarray]:
     actions: list[np.ndarray] = []
     for step in schedule_payload.get("steps", []):
         if isinstance(step, dict) and isinstance(step.get("effective_action"), list):
             actions.append(np.asarray(step["effective_action"], dtype=np.float32))
             continue
         if isinstance(step, dict) and isinstance(step.get("action"), list):
-            actions.append(np.asarray(step["action"], dtype=np.float32))
+            actions.append(_expand_legacy_saved_action(np.asarray(step["action"], dtype=np.float32), config_payload))
             continue
     return actions
 
@@ -203,12 +329,16 @@ _STEP_AGGREGATE_RECORD_KEYS: dict[str, str] = {
     "gap_score_bbr_rtt_contrib": "gap_score_bbr_rtt_contrib",
     "gap_score_bbr_loss_penalty": "gap_score_bbr_loss_penalty",
     "gap_baseline_score": "gap_baseline_score",
+    "gap_best_baseline_score": "gap_best_baseline_score",
+    "gap_best_baseline_gap": "gap_best_baseline_gap",
+    "gap_best_baseline_wins": "gap_best_baseline_gap_positive_fraction",
     "gap_value": "gap_value",
     "gap_reward": "gap_reward",
     "baseline_cubic_rate_mbps": "baseline_cubic_rate_mbps",
     "baseline_bbr_rate_mbps": "baseline_bbr_rate_mbps",
-    "attacker_uplink_bw_mbps": "attacker_uplink_bw_mbps",
-    "attacker_downlink_bw_mbps": "attacker_downlink_bw_mbps",
+    "attacker_shared_bw_mbps": "replay_shared_bw_mbps",
+    "attacker_uplink_bw_mbps": "replay_uplink_bw_mbps",
+    "attacker_downlink_bw_mbps": "replay_downlink_bw_mbps",
     "mm_up_applied_bw_mbps": "mm_up_applied_bw_mbps",
     "mm_down_applied_bw_mbps": "mm_down_applied_bw_mbps",
     "mm_up_departure_rate_mbps": "mm_up_departure_rate_mbps",
@@ -247,6 +377,36 @@ def _augment_result_metrics(result) -> Any:
             **result.metrics,
             **step_aggregates,
         },
+    )
+
+
+def _rename_eval_bandwidth_metrics(result) -> Any:
+    rename_map = {
+        "attacker_shared_bw_mbps": "replay_shared_bw_mbps",
+        "attacker_uplink_bw_mbps": "replay_uplink_bw_mbps",
+        "attacker_downlink_bw_mbps": "replay_downlink_bw_mbps",
+    }
+    renamed_step_records: list[dict[str, Any]] = []
+    for record in result.step_records:
+        updated = dict(record)
+        for source_key, target_key in rename_map.items():
+            if source_key in updated:
+                updated[target_key] = updated.pop(source_key)
+        renamed_step_records.append(updated)
+
+    renamed_metrics = dict(result.metrics)
+    for source_key, target_key in rename_map.items():
+        if source_key in renamed_metrics:
+            renamed_metrics[target_key] = renamed_metrics.pop(source_key)
+        for suffix in ("-avg", "-p50", "-p95"):
+            metric_key = f"{source_key}{suffix}"
+            if metric_key in renamed_metrics:
+                renamed_metrics[f"{target_key}{suffix}"] = renamed_metrics.pop(metric_key)
+
+    return replace(
+        result,
+        metrics=renamed_metrics,
+        step_records=renamed_step_records,
     )
 
 
@@ -289,6 +449,15 @@ def _summary_rows(per_episode_rows: list[dict[str, float | str]]) -> list[dict[s
     return rows
 
 
+def _summary_payload_for_trace_type(summary_rows: list[dict[str, float | str]], trace_type: str) -> dict[str, float]:
+    return {
+        f"{row['metric']}-{_summary_stat_key(stat)}": float(row[stat])
+        for row in summary_rows
+        if str(row["trace_type"]) == trace_type
+        for stat in ["avg", "p50", "p95"]
+    }
+
+
 def _max_bandwidth_from_schedules(action_schedules: list[list[np.ndarray]]) -> float:
     max_bw = 0.0
     for schedule in action_schedules:
@@ -299,12 +468,137 @@ def _max_bandwidth_from_schedules(action_schedules: list[list[np.ndarray]]) -> f
     return float(max_bw)
 
 
-def _log_episode_to_wandb(wandb, run, *, trace_index: int, episode_id: str, result, global_step: int) -> int:
+def _configured_adv_bandwidth_max(config_payload: dict[str, Any]) -> float | None:
+    effective_high = config_payload.get("effective_action_high")
+    if isinstance(effective_high, list) and len(effective_high) >= 2:
+        try:
+            return float(max(float(effective_high[0]), float(effective_high[1])))
+        except (TypeError, ValueError):
+            return None
+    shared_max = config_payload.get("attack_shared_bw_max_mbps")
+    if shared_max is not None:
+        try:
+            return float(shared_max)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _validate_adversarial_schedule_bounds(
+    *,
+    episode_id: str,
+    action_schedule: list[np.ndarray],
+    config_payload: dict[str, Any],
+    tolerance_mbps: float = 1e-3,
+) -> None:
+    configured_max = _configured_adv_bandwidth_max(config_payload)
+    if configured_max is None:
+        return
+    schedule_max = _max_bandwidth_from_schedules([action_schedule])
+    if schedule_max <= configured_max + float(tolerance_mbps):
+        return
+    raise RuntimeError(
+        f"adversarial schedule '{episode_id}' exceeds configured max bandwidth: "
+        f"schedule_max={schedule_max:.3f} Mbps > configured_max={configured_max:.3f} Mbps"
+    )
+
+
+def _annotate_replay_bandwidth_metrics(result, *, expected_max_bw_mbps: float) -> Any:
+    max_requested = 0.0
+    max_applied = 0.0
+    for record in result.step_records:
+        for key in ("attacker_shared_bw_mbps", "attacker_uplink_bw_mbps", "attacker_downlink_bw_mbps"):
+            value = record.get(key)
+            if isinstance(value, (int, float, np.floating, np.integer)):
+                max_requested = max(max_requested, float(value))
+        for key in ("mm_up_applied_bw_mbps", "mm_down_applied_bw_mbps"):
+            value = record.get(key)
+            if isinstance(value, (int, float, np.floating, np.integer)):
+                max_applied = max(max_applied, float(value))
+    return replace(
+        result,
+        metrics={
+            **result.metrics,
+            "replay_expected_max_bw_mbps": float(expected_max_bw_mbps),
+            "replay_requested_max_bw_mbps": float(max_requested),
+            "replay_applied_max_bw_mbps": float(max_applied),
+        },
+    )
+
+
+def _assert_replay_applied_bandwidth_sane(
+    *,
+    trace_type: str,
+    episode_id: str,
+    result,
+    tolerance_mbps: float = 1e-3,
+) -> None:
+    if trace_type == "clean":
+        return
+    expected_max = float(result.metrics.get("replay_expected_max_bw_mbps", 0.0))
+    applied_max = float(result.metrics.get("replay_applied_max_bw_mbps", 0.0))
+    requested_max = float(result.metrics.get("replay_requested_max_bw_mbps", 0.0))
+    ceiling = max(expected_max, requested_max)
+    if applied_max <= ceiling + float(tolerance_mbps):
+        return
+    raise RuntimeError(
+        f"adversarial replay '{episode_id}' applied bandwidth above schedule bounds: "
+        f"applied_max={applied_max:.3f} Mbps, requested_max={requested_max:.3f} Mbps, "
+        f"expected_max={expected_max:.3f} Mbps"
+    )
+
+
+def _uses_parallel_gap_eval(config_payload: dict[str, Any]) -> bool:
+    attack_mode = str(config_payload.get("attack_mode", "independent"))
+    return attack_mode in {"independent", "independent_gap"}
+
+
+def _default_attack_delay_ms(config_payload: dict[str, Any], *, direction: str) -> float:
+    init_value = config_payload.get(f"init_{direction}_delay_ms")
+    if init_value is not None:
+        return float(init_value)
+    return float(config_payload.get("latency_ms", 25.0))
+
+
+def _load_existing_eval_summary(path: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+    if not os.path.exists(path):
+        return [], [], None
+    try:
+        payload = _load_json(path)
+    except Exception:
+        return [], [], None
+    per_episode = [
+        dict(row)
+        for row in payload.get("per_episode", [])
+        if isinstance(row, dict)
+    ]
+    evaluation_runs = [
+        dict(row)
+        for row in payload.get("evaluation_runs", [])
+        if isinstance(row, dict)
+    ]
+    created_at_utc = payload.get("created_at_utc")
+    if not isinstance(created_at_utc, str):
+        created_at_utc = None
+    return per_episode, evaluation_runs, created_at_utc
+
+
+def _log_episode_to_wandb(
+    wandb,
+    run,
+    *,
+    trace_type: str,
+    trace_index: int,
+    episode_id: str,
+    result,
+    global_step: int,
+) -> int:
     for record in result.step_records:
         payload = {key: float(value) for key, value in record.items() if isinstance(value, (int, float)) and key != "step"}
         payload["trace_index"] = float(trace_index)
         payload["episode_step"] = float(record.get("step", 0))
-        wandb.log(payload, step=global_step)
+        payload["trace_type"] = trace_type
+        run.log(payload, step=global_step)
         global_step += 1
 
     episode_payload = {
@@ -315,13 +609,15 @@ def _log_episode_to_wandb(wandb, run, *, trace_index: int, episode_id: str, resu
     episode_payload["trace_index"] = float(trace_index)
     episode_payload["episode_total_reward"] = float(result.total_reward)
     episode_payload["episode_num_steps"] = float(result.num_steps)
-    wandb.log(episode_payload, step=max(global_step - 1, 0))
+    episode_payload["trace_type"] = trace_type
+    run.log(episode_payload, step=max(global_step - 1, 0))
     run.summary[f"episodes/{episode_id}"] = float(result.total_reward)
     return global_step
 
 
 def _evaluate_trace_set(
     *,
+    trace_type: str,
     repo_root: str,
     runtime_dir: str,
     config_payload: dict[str, Any],
@@ -331,36 +627,59 @@ def _evaluate_trace_set(
     wandb,
     wandb_run,
 ) -> list[Any]:
-    env = IndependentAttackEnv(
-        repo_root=repo_root,
-        launch_config=launch_config,
-        bounds=bounds,
-        obs_history_len=int(config_payload.get("obs_history_len", 4)),
-        attack_interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),
-        max_episode_steps=int(config_payload.get("episode_steps", 6000)),
-        launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
-        step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
-        runtime_dir=runtime_dir,
-        shared_bandwidth_action=(
-            config_payload.get("attack_shared_bw_min_mbps") is not None
-            and config_payload.get("attack_shared_bw_max_mbps") is not None
-        ),
-        shared_loss_action=(
-            config_payload.get("attack_shared_loss_min") is not None
-            and config_payload.get("attack_shared_loss_max") is not None
-        ),
-        shared_delay_action=(
-            config_payload.get("attack_shared_delay_min_ms") is not None
-            and config_payload.get("attack_shared_delay_max_ms") is not None
-        ),
-        smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
-    )
+    if _uses_parallel_gap_eval(config_payload):
+        env = ParallelGapAttackEnv(
+            repo_root=repo_root,
+            launch_config=launch_config,
+            bounds=bounds,
+            obs_history_len=int(config_payload.get("obs_history_len", 4)),
+            attack_interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),
+            max_episode_steps=int(config_payload.get("episode_steps", 6000)),
+            launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
+            step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
+            runtime_dir=runtime_dir,
+            baseline_gap_alpha=float(config_payload.get("baseline_gap_alpha", 2.0)),
+            smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
+            sync_guard_ms=float(config_payload.get("sync_guard_ms", 25.0)),
+            launch_retries=int(config_payload.get("gap_launch_retries", 6)),
+        )
+    else:
+        env = IndependentAttackEnv(
+            repo_root=repo_root,
+            launch_config=launch_config,
+            bounds=bounds,
+            obs_history_len=int(config_payload.get("obs_history_len", 4)),
+            attack_interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),
+            max_episode_steps=int(config_payload.get("episode_steps", 6000)),
+            launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
+            step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
+            runtime_dir=runtime_dir,
+            shared_bandwidth_action=(
+                config_payload.get("attack_shared_bw_min_mbps") is not None
+                and config_payload.get("attack_shared_bw_max_mbps") is not None
+            ),
+            shared_loss_action=(
+                config_payload.get("attack_shared_loss_min") is not None
+                and config_payload.get("attack_shared_loss_max") is not None
+            ),
+            shared_delay_action=(
+                config_payload.get("attack_shared_delay_min_ms") is not None
+                and config_payload.get("attack_shared_delay_max_ms") is not None
+            ),
+            smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
+        )
     results: list[Any] = []
     global_step = 0
     try:
         for trace_index, (episode_id, action_schedule) in enumerate(schedules):
             if not action_schedule:
                 continue
+            if trace_type != "clean":
+                _validate_adversarial_schedule_bounds(
+                    episode_id=episode_id,
+                    action_schedule=action_schedule,
+                    config_payload=config_payload,
+                )
             result = run_online_policy_episode(
                 env,
                 action_fn=lambda observation, info, step, schedule=action_schedule: schedule[min(step, len(schedule) - 1)],
@@ -368,11 +687,22 @@ def _evaluate_trace_set(
                 episode_id=episode_id,
             )
             result = _augment_result_metrics(result)
+            result = _annotate_replay_bandwidth_metrics(
+                result,
+                expected_max_bw_mbps=_max_bandwidth_from_schedules([action_schedule]),
+            )
+            result = _rename_eval_bandwidth_metrics(result)
+            _assert_replay_applied_bandwidth_sane(
+                trace_type=trace_type,
+                episode_id=episode_id,
+                result=result,
+            )
             results.append(result)
             if wandb is not None and wandb_run is not None:
                 global_step = _log_episode_to_wandb(
                     wandb,
                     wandb_run,
+                    trace_type=trace_type,
                     trace_index=trace_index,
                     episode_id=episode_id,
                     result=result,
@@ -427,6 +757,8 @@ def main() -> None:
     parser.add_argument("--generated-manifest", type=str, required=True)
     parser.add_argument("--config-path", type=str, default=None)
     parser.add_argument("--test-manifest", type=str, default="attacks/test/manifest.json")
+    parser.add_argument("--skip-clean-rollout", action="store_true")
+    parser.add_argument("--clean-only-rollout", action="store_true")
     parser.add_argument("--runtime-dir", type=str, default="attacks/runtime")
     parser.add_argument("--out-dir", type=str, default="attacks/output/eval")
     parser.add_argument("--seed", type=int, default=42)
@@ -437,46 +769,73 @@ def main() -> None:
     parser.add_argument("--wandb-mode", type=str, default="online")
     parser.add_argument("--wandb-tags", type=str, default="")
     args = parser.parse_args()
+    if bool(args.skip_clean_rollout) and bool(args.clean_only_rollout):
+        raise ValueError("--skip-clean-rollout and --clean-only-rollout cannot be used together")
 
     repo_root = os.path.abspath(os.path.expanduser(args.repo_root))
     generated_manifest_path = resolve_repo_path(repo_root, str(args.generated_manifest))
     generated_manifest = _load_json(generated_manifest_path)
     config_payload = _load_training_config(repo_root, generated_manifest, args.config_path)
-    test_manifest_path = _ensure_test_manifest(repo_root, str(args.test_manifest))
-    test_entries = load_trace_entries(test_manifest_path)
-    generated_entries = list(generated_manifest.get("generated_entries", []))
+    run_clean_rollout = not bool(args.skip_clean_rollout)
+    run_adv_rollout = not bool(args.clean_only_rollout)
+    test_manifest_path = (
+        _ensure_test_manifest(repo_root, str(args.test_manifest))
+        if run_clean_rollout
+        else resolve_repo_path(repo_root, str(args.test_manifest))
+    )
+    test_entries = load_trace_entries(test_manifest_path) if run_clean_rollout else []
+    generated_entries = list(generated_manifest.get("generated_entries", [])) if run_adv_rollout else []
     trace_set_name = _trace_set_name(generated_manifest_path, generated_manifest)
+    use_parallel_gap_eval = _uses_parallel_gap_eval(config_payload)
+    clean_uplink_delay_ms = _default_attack_delay_ms(config_payload, direction="uplink")
+    clean_downlink_delay_ms = _default_attack_delay_ms(config_payload, direction="downlink")
 
     clean_schedules: list[tuple[str, list[np.ndarray]]] = []
-    for entry in test_entries:
-        schedule = load_mahimahi_trace_schedule(
-            entry.copied_path,
-            interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),
-        )
-        clean_schedules.append((entry.name, build_clean_action_schedule(schedule)))
+    if run_clean_rollout:
+        for entry in test_entries:
+            schedule = load_mahimahi_trace_schedule(
+                entry.copied_path,
+                interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),
+            )
+            clean_schedules.append(
+                (
+                    entry.name,
+                    build_clean_action_schedule(
+                        schedule,
+                        uplink_delay_ms=clean_uplink_delay_ms if use_parallel_gap_eval else 0.0,
+                        downlink_delay_ms=clean_downlink_delay_ms if use_parallel_gap_eval else 0.0,
+                    ),
+                )
+            )
 
     adv_schedules: list[tuple[str, list[np.ndarray]]] = []
-    for index, generated_entry in enumerate(generated_entries):
-        schedule_path = resolve_repo_path(repo_root, str(generated_entry["schedule_path"]))
-        schedule_payload = _load_json(schedule_path)
-        actions = _load_action_schedule(schedule_payload)
-        if not actions:
-            continue
-        episode_id = str(generated_entry.get("trace_name") or generated_entry.get("trace_id") or f"generated-{index:03d}")
-        adv_schedules.append((episode_id, actions))
+    if run_adv_rollout:
+        for index, generated_entry in enumerate(generated_entries):
+            schedule_path = resolve_repo_path(repo_root, str(generated_entry["schedule_path"]))
+            schedule_payload = _load_json(schedule_path)
+            actions = _load_action_schedule(schedule_payload, config_payload=config_payload)
+            if not actions:
+                continue
+            episode_id = str(generated_entry.get("trace_name") or generated_entry.get("trace_id") or f"generated-{index:03d}")
+            adv_schedules.append((episode_id, actions))
 
-    if not clean_schedules:
+    if not clean_schedules and run_clean_rollout:
         raise RuntimeError("no clean schedules were produced from the test manifest")
-    if not adv_schedules:
+    if run_adv_rollout and not adv_schedules:
         raise RuntimeError("no adversarial schedules were found in the generated manifest")
 
     base_bounds = attack_bounds_from_config(config_payload)
-    replay_bounds = expand_attack_bounds_for_bandwidth(
+    clean_replay_bounds = expand_attack_bounds_for_bandwidth(
         base_bounds,
-        max(
-            _max_bandwidth_from_schedules([actions for _, actions in clean_schedules]),
+        _max_bandwidth_from_schedules([actions for _, actions in clean_schedules]) if clean_schedules else 0.0,
+    )
+    adv_replay_bounds = (
+        expand_attack_bounds_for_bandwidth(
+            base_bounds,
             _max_bandwidth_from_schedules([actions for _, actions in adv_schedules]),
-        ),
+        )
+        if adv_schedules
+        else base_bounds
     )
 
     run_namespace = acquire_run_namespace(
@@ -485,6 +844,7 @@ def main() -> None:
         actor_id=int(config_payload.get("actor_id", 900)),
         port=int(config_payload.get("port", 5101)),
         label=str(args.wandb_name or f"eval-{trace_set_name}"),
+        ports_per_run=8 if use_parallel_gap_eval else 1,
     )
     launch_config = _resolved_launch_config(config_payload=config_payload, run_namespace=run_namespace)
 
@@ -495,54 +855,72 @@ def main() -> None:
             raise RuntimeError("--wandb was set but the wandb package is unavailable")
 
     group_name = str(args.wandb_name or trace_set_name)
-    clean_run = _init_wandb_run(
-        wandb,
-        args=args,
-        run_name="clean",
-        group_name=group_name,
-        generated_manifest_path=generated_manifest_path,
-        test_manifest_path=test_manifest_path,
-        trace_count=len(clean_schedules),
-    )
-    clean_results = _evaluate_trace_set(
-        repo_root=repo_root,
-        runtime_dir=os.path.join(run_namespace.runtime_dir, "clean"),
-        config_payload=config_payload,
-        launch_config=launch_config,
-        bounds=replay_bounds,
-        schedules=clean_schedules,
-        wandb=wandb,
-        wandb_run=clean_run,
-    )
+    clean_run = None
+    clean_results: list[Any] = []
+    if clean_schedules:
+        clean_run = _init_wandb_run(
+            wandb,
+            args=args,
+            run_name="clean",
+            group_name=group_name,
+            generated_manifest_path=generated_manifest_path,
+            test_manifest_path=test_manifest_path,
+            trace_count=len(clean_schedules),
+        )
+        clean_results = _evaluate_trace_set(
+            trace_type="clean",
+            repo_root=repo_root,
+            runtime_dir=os.path.join(run_namespace.runtime_dir, "clean"),
+            config_payload=config_payload,
+            launch_config=launch_config,
+            bounds=clean_replay_bounds,
+            schedules=clean_schedules,
+            wandb=wandb,
+            wandb_run=clean_run,
+        )
+        if clean_run is not None:
+            clean_summary_rows = _summary_rows(
+                [_episode_row("clean", episode_id, result) for episode_id, result in zip([item[0] for item in clean_schedules], clean_results)]
+            )
+            clean_run.summary.update(_summary_payload_for_trace_type(clean_summary_rows, "clean"))
+            clean_run.summary["trace_count"] = float(len(clean_results))
+            clean_run.finish()
+            clean_run = None
 
-    adv_run = _init_wandb_run(
-        wandb,
-        args=args,
-        run_name=trace_set_name,
-        group_name=group_name,
-        generated_manifest_path=generated_manifest_path,
-        test_manifest_path=test_manifest_path,
-        trace_count=len(adv_schedules),
-    )
-    adv_results = _evaluate_trace_set(
-        repo_root=repo_root,
-        runtime_dir=os.path.join(run_namespace.runtime_dir, trace_set_name),
-        config_payload=config_payload,
-        launch_config=replace(
-            launch_config,
-            actor_id=int(launch_config.actor_id) + 5000,
-            port=int(launch_config.port) + 500,
-        ),
-        bounds=replay_bounds,
-        schedules=adv_schedules,
-        wandb=wandb,
-        wandb_run=adv_run,
-    )
+    adv_run = None
+    adv_results: list[Any] = []
+    if adv_schedules:
+        adv_run = _init_wandb_run(
+            wandb,
+            args=args,
+            run_name=trace_set_name,
+            group_name=group_name,
+            generated_manifest_path=generated_manifest_path,
+            test_manifest_path=test_manifest_path,
+            trace_count=len(adv_schedules),
+        )
+        adv_results = _evaluate_trace_set(
+            trace_type=trace_set_name,
+            repo_root=repo_root,
+            runtime_dir=os.path.join(run_namespace.runtime_dir, trace_set_name),
+            config_payload=config_payload,
+            launch_config=replace(
+                launch_config,
+                actor_id=int(launch_config.actor_id) + 5000,
+                port=int(launch_config.port) + 500,
+            ),
+            bounds=adv_replay_bounds,
+            schedules=adv_schedules,
+            wandb=wandb,
+            wandb_run=adv_run,
+        )
 
     run_namespace.release()
 
-    if not clean_results or not adv_results:
-        raise RuntimeError("evaluation did not produce both clean and adversarial results")
+    if run_adv_rollout and not adv_results:
+        raise RuntimeError("evaluation did not produce adversarial results")
+    if run_clean_rollout and clean_schedules and not clean_results:
+        raise RuntimeError("evaluation did not produce clean results")
 
     per_episode_rows = []
     per_episode_rows.extend(_episode_row("clean", episode_id, result) for episode_id, result in zip([item[0] for item in clean_schedules], clean_results))
@@ -556,45 +934,44 @@ def main() -> None:
     summary_json_path = os.path.join(out_dir, "clean_vs_adv_summary.json")
     summary_csv_path = os.path.join(out_dir, "clean_vs_adv_summary.csv")
     episodes_csv_path = os.path.join(out_dir, "clean_vs_adv_episode_metrics.csv")
+    existing_per_episode_rows, evaluation_runs, created_at_utc = _load_existing_eval_summary(summary_json_path)
+    current_eval_run = {
+        "created_at_utc": utc_now_iso(),
+        "generated_manifest_path": generated_manifest_path,
+        "test_manifest_path": test_manifest_path,
+        "trace_set_name": trace_set_name,
+        "skip_clean_rollout": bool(args.skip_clean_rollout),
+        "clean_only_rollout": bool(args.clean_only_rollout),
+        "clean_episode_count": int(len(clean_results)),
+        "adv_episode_count": int(len(adv_results)),
+    }
+    combined_per_episode_rows = list(existing_per_episode_rows) + list(per_episode_rows)
+    combined_summary_rows = _summary_rows(combined_per_episode_rows)
 
     save_json(
         summary_json_path,
         {
-            "created_at_utc": utc_now_iso(),
+            "created_at_utc": created_at_utc or current_eval_run["created_at_utc"],
+            "updated_at_utc": current_eval_run["created_at_utc"],
             "generated_manifest_path": generated_manifest_path,
             "test_manifest_path": test_manifest_path,
             "trace_set_name": trace_set_name,
-            "per_episode": per_episode_rows,
-            "summary": summary_rows,
+            "evaluation_runs": evaluation_runs + [current_eval_run],
+            "per_episode": combined_per_episode_rows,
+            "summary": combined_summary_rows,
         },
     )
     _write_csv(
         summary_csv_path,
-        summary_rows,
+        combined_summary_rows,
         fieldnames=["trace_type", "metric", "avg", "p50", "p95"],
     )
 
-    episode_fieldnames = sorted({key for row in per_episode_rows for key in row.keys()})
-    _write_csv(episodes_csv_path, per_episode_rows, fieldnames=episode_fieldnames)
+    episode_fieldnames = sorted({key for row in combined_per_episode_rows for key in row.keys()})
+    _write_csv(episodes_csv_path, combined_per_episode_rows, fieldnames=episode_fieldnames)
 
-    if clean_run is not None:
-        summary_payload = {
-            f"{row['metric']}-{_summary_stat_key(stat)}": float(row[stat])
-            for row in summary_rows
-            if str(row["trace_type"]) == "clean"
-            for stat in ["avg", "p50", "p95"]
-        }
-        clean_run.summary.update(summary_payload)
-        clean_run.summary["trace_count"] = float(len(clean_results))
-        clean_run.finish()
     if adv_run is not None:
-        summary_payload = {
-            f"{row['metric']}-{_summary_stat_key(stat)}": float(row[stat])
-            for row in summary_rows
-            if str(row["trace_type"]) == trace_set_name
-            for stat in ["avg", "p50", "p95"]
-        }
-        adv_run.summary.update(summary_payload)
+        adv_run.summary.update(_summary_payload_for_trace_type(summary_rows, trace_set_name))
         adv_run.summary["trace_count"] = float(len(adv_results))
         adv_run.finish()
 

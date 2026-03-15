@@ -477,6 +477,11 @@ class OnlineSageAttackEnv(gym.Env):
             if self._pending_action is not None
             else np.asarray(self._last_action, dtype=np.float32)
         )
+        reference_action = (
+            np.asarray(expected_action, dtype=np.float32)
+            if expected_action is not None
+            else pending_action
+        )
         terminated = False
         truncated = False
         info: dict[str, Any] = {}
@@ -511,9 +516,10 @@ class OnlineSageAttackEnv(gym.Env):
                     break
 
                 snapshot = self._control_snapshot()
+                if not self._snapshot_matches_action(snapshot=snapshot, action=reference_action):
+                    continue
                 if expected_episode_step is not None and self._applied_step(snapshot=snapshot) < int(expected_episode_step):
-                    if expected_action is None or not self._snapshot_matches_action(snapshot=snapshot, action=expected_action):
-                        continue
+                    continue
 
                 victim_step = candidate
                 break

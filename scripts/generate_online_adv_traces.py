@@ -1,18 +1,25 @@
 """
-Example usage:
-python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260310_hotnets19_30k.zip \
-  --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/hotnets19-30k \
-  --wandb
-
-python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260310_rl-unconstrained_30k.zip \
-  --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/rl-unconstrained-30k \
-  --wandb
-
 Run this after `scripts/train_online_attacker.py`.
+
+Example usage:
+time python scripts/generate_online_adv_traces.py \
+  --model-path attacks/models/online_adv_20260312_hotnets19_300k.zip \
+  --test-manifest attacks/test/manifest.json \
+  --out-dir attacks/adv_traces/hotnets19-300k \
+  --wandb
+
+time python scripts/generate_online_adv_traces.py \
+  --model-path attacks/models/gap_adv_20260313_rl-constrained_300k-0.01ent.zip \
+  --test-manifest attacks/test/manifest.json \
+  --out-dir attacks/adv_traces/rl-constrained-300k-0.01ent \
+  --wandb
+
+time python scripts/generate_online_adv_traces.py \
+  --model-path attacks/models/gap_adv_20260314_rl-unconstrained_300k.zip \
+  --test-manifest attacks/test/manifest.json \
+  --out-dir attacks/adv_traces/rl-unconstrained-300k \
+  --wandb
+
 """
 
 from __future__ import annotations
@@ -79,6 +86,8 @@ def _build_obs_normalizer(
     *,
     repo_root: str,
     config_payload: dict[str, Any],
+    model_path: str,
+    config_path: str,
     env,
     DummyVecEnv,
     VecNormalize,
@@ -86,7 +95,40 @@ def _build_obs_normalizer(
     vecnormalize_path = config_payload.get("vecnormalize_path")
     if not vecnormalize_path:
         return None
-    resolved_path = resolve_repo_path(repo_root, str(vecnormalize_path))
+
+    def _existing_path(path: str) -> str | None:
+        resolved = resolve_repo_path(repo_root, path)
+        return resolved if os.path.exists(resolved) else None
+
+    candidate_paths: list[str] = []
+    stored_path = str(vecnormalize_path)
+    candidate_paths.append(stored_path)
+
+    stored_basename = os.path.basename(stored_path)
+    if stored_basename:
+        candidate_paths.append(os.path.join(os.path.dirname(model_path), stored_basename))
+        candidate_paths.append(os.path.join(os.path.dirname(config_path), stored_basename))
+
+    model_stem, _ = os.path.splitext(model_path)
+    candidate_paths.append(f"{model_stem}.vecnormalize.pkl")
+
+    config_stem = config_path[: -len(".config.json")] if config_path.endswith(".config.json") else os.path.splitext(config_path)[0]
+    candidate_paths.append(f"{config_stem}.vecnormalize.pkl")
+
+    resolved_path = None
+    seen: set[str] = set()
+    for candidate in candidate_paths:
+        normalized = os.path.normpath(candidate)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        existing = _existing_path(candidate)
+        if existing is not None:
+            resolved_path = existing
+            break
+
+    if resolved_path is None:
+        resolved_path = resolve_repo_path(repo_root, stored_path)
     if not os.path.exists(resolved_path):
         raise FileNotFoundError(f"missing VecNormalize stats: {resolved_path}")
     normalizer = VecNormalize.load(resolved_path, DummyVecEnv([lambda: env]))
@@ -274,6 +316,7 @@ def _independent_generation(
     *,
     args,
     repo_root: str,
+    model_path: str,
     config_path: str,
     config_payload: dict[str, Any],
     model,
@@ -340,6 +383,8 @@ def _independent_generation(
         obs_normalizer = _build_obs_normalizer(
             repo_root=repo_root,
             config_payload=config_payload,
+            model_path=str(model_path),
+            config_path=str(config_path),
             env=env,
             DummyVecEnv=DummyVecEnv,
             VecNormalize=VecNormalize,
@@ -540,6 +585,7 @@ def main() -> None:
             generated_entries = _independent_generation(
                 args=args,
                 repo_root=repo_root,
+                model_path=model_path,
                 config_path=config_path,
                 config_payload=config_payload,
                 model=model,

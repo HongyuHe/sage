@@ -12,16 +12,6 @@ python scripts/train_online_attacker.py \
 
 time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
-  --smooth-penalty-scale 0.05 \
-  --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
-  --total-steps 300000 \
-  --attack-interval-ms 100 \
-  --out-dir attacks/output/models \
-  --ppo-ent-coef 0.005 \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v2 --wandb-name rl-constrained
-
-time python scripts/train_online_attacker.py \
-  --attack-mode independent_gap \
   --smooth-penalty-scale 0.00 \
   --attack-shared-bw-min-mbps 0.5 --attack-shared-bw-max-mbps 2000 \
   --effective-bw-cap-mbps 2000 \
@@ -29,7 +19,17 @@ time python scripts/train_online_attacker.py \
   --attack-interval-ms 100 \
   --out-dir attacks/output/models \
   --ppo-ent-coef 0.005 \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v2 --wandb-name rl-unconstrained
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-unconstrained
+  
+time python scripts/train_online_attacker.py \
+  --attack-mode independent_gap \
+  --smooth-penalty-scale 0.05 \
+  --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
+  --total-steps 300000 \
+  --attack-interval-ms 100 \
+  --out-dir attacks/output/models \
+  --ppo-ent-coef 0.01 \
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained
 
 time python scripts/train_online_attacker.py \
   --attack-mode independent \
@@ -39,7 +39,7 @@ time python scripts/train_online_attacker.py \
   --attack-shared-delay-min-ms 25 --attack-shared-delay-max-ms 25 \
   --total-steps 300000 \
   --out-dir attacks/output/models \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v2 --wandb-name hotnets19
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name hotnets19
 
 """
 
@@ -156,6 +156,9 @@ _WANDB_AGGREGATE_INFO_KEYS: dict[str, str] = {
     "gap/score_bbr_rtt_contrib": "gap_score_bbr_rtt_contrib",
     "gap/score_bbr_loss_penalty": "gap_score_bbr_loss_penalty",
     "gap/baseline_score": "gap_baseline_score",
+    "gap/best_baseline_score": "gap_best_baseline_score",
+    "gap/best_baseline_gap": "gap_best_baseline_gap",
+    "gap/best_baseline_wins": "gap_best_baseline_gap_positive_fraction",
     "gap/baseline_weight_cubic": "gap_baseline_weight_cubic",
     "gap/baseline_weight_bbr": "gap_baseline_weight_bbr",
     "gap/value": "gap_value",
