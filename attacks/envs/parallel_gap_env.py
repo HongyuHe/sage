@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from attacks.envs.baseline_utils import BASELINE_CONTROLLER_SPECS, normalize_baseline_methods
 from attacks.envs.online_sage_env import AttackBounds, OnlineSageAttackEnv
 from attacks.envs.score_utils import bounded_linear_score_terms_from_info
 from attacks.online import SageLaunchConfig
@@ -29,7 +30,6 @@ def _require_gym() -> tuple[Any, Any]:
 gym, spaces = _require_gym()
 
 _BASE_OBS_FEATURE_DIM = 69 + 1 + 14 + 6
-_GAP_OBS_FEATURE_DIM = 16
 _SYNC_TOLERANCE_MS = 5.0
 _CONFIG_TOLERANCE = 1e-3
 _RETRYABLE_LAUNCH_MARKERS = (
@@ -73,6 +73,7 @@ class ParallelGapAttackEnv(gym.Env):
         step_timeout_s: float = 10.0,
         runtime_dir: str = "attacks/runtime",
         baseline_gap_alpha: float = 2.0,
+        baseline_methods: tuple[str, ...] | list[str] | None = None,
         smooth_penalty_scale: float = 0.0,
         sync_guard_ms: float = 25.0,
         launch_retries: int = 6,
@@ -88,6 +89,8 @@ class ParallelGapAttackEnv(gym.Env):
         self._step_timeout_s = float(step_timeout_s)
         self._runtime_dir = runtime_dir
         self._baseline_gap_alpha = float(baseline_gap_alpha)
+        self._baseline_methods = normalize_baseline_methods(baseline_methods)
+        self._gap_obs_feature_dim = 8 + 4 * len(self._baseline_methods)
         self._smooth_penalty_scale = float(smooth_penalty_scale)
         self._sync_guard_ms = max(float(sync_guard_ms), 1.0)
         self._launch_retries = max(int(launch_retries), 1)
@@ -136,12 +139,12 @@ class ParallelGapAttackEnv(gym.Env):
             high=np.asarray([1.0], dtype=np.float32),
             dtype=np.float32,
         )
-        obs_dim = self._obs_history_len * _BASE_OBS_FEATURE_DIM + _GAP_OBS_FEATURE_DIM
+        obs_dim = self._obs_history_len * _BASE_OBS_FEATURE_DIM + self._gap_obs_feature_dim
         obs_high = np.full((obs_dim,), 1e9, dtype=np.float32)
         self.observation_space = spaces.Box(low=-obs_high, high=obs_high, dtype=np.float32)
         self._last_policy_action = self._default_policy_action()
         self._last_sage_observation: np.ndarray | None = None
-        self._previous_gap_features = np.zeros((_GAP_OBS_FEATURE_DIM,), dtype=np.float32)
+        self._previous_gap_features = np.zeros((self._gap_obs_feature_dim,), dtype=np.float32)
         self._bootstrap_pending_roles: set[str] = set()
 
     def _default_shared_bandwidth_mbps(self) -> float:
@@ -249,44 +252,50 @@ class ParallelGapAttackEnv(gym.Env):
         self,
         *,
         sage_score_terms: dict[str, float],
-        cubic_score_terms: dict[str, float],
-        bbr_score_terms: dict[str, float],
+        baseline_score_terms: dict[str, dict[str, float]],
         baseline_score: float,
         gap_value: float,
         policy_action: np.ndarray,
     ) -> np.ndarray:
-        return np.asarray(
+        values: list[float] = [float(sage_score_terms["score"])]
+        values.extend(float(baseline_score_terms[method]["score"]) for method in self._baseline_methods)
+        values.extend(
             [
-                float(sage_score_terms["score"]),
-                float(cubic_score_terms["score"]),
-                float(bbr_score_terms["score"]),
                 float(baseline_score),
                 float(gap_value),
                 float(sage_score_terms["rate_norm"]),
                 float(sage_score_terms["rtt_norm"]),
                 float(sage_score_terms["loss_norm"]),
-                float(cubic_score_terms["rate_norm"]),
-                float(cubic_score_terms["rtt_norm"]),
-                float(cubic_score_terms["loss_norm"]),
-                float(bbr_score_terms["rate_norm"]),
-                float(bbr_score_terms["rtt_norm"]),
-                float(bbr_score_terms["loss_norm"]),
+            ]
+        )
+        for method in self._baseline_methods:
+            values.extend(
+                [
+                    float(baseline_score_terms[method]["rate_norm"]),
+                    float(baseline_score_terms[method]["rtt_norm"]),
+                    float(baseline_score_terms[method]["loss_norm"]),
+                ]
+            )
+        values.extend(
+            [
                 float(self._normalized_bandwidth_fraction(policy_action)[0]),
                 float(self._shared_bandwidth_from_policy_action(policy_action)),
-            ],
-            dtype=np.float32,
+            ]
         )
+        return np.asarray(values, dtype=np.float32)
 
-    def _smoothed_baseline_score(self, *, score_cubic: float, score_bbr: float) -> tuple[float, float, float]:
-        scores = np.asarray([float(score_cubic), float(score_bbr)], dtype=np.float64)
+    def _smoothed_baseline_score(self, *, baseline_scores: dict[str, float]) -> tuple[float, dict[str, float]]:
+        scores = np.asarray([float(baseline_scores[method]) for method in self._baseline_methods], dtype=np.float64)
         if abs(self._baseline_gap_alpha) <= 1e-9:
-            weights = np.asarray([0.5, 0.5], dtype=np.float64)
+            weights = np.full((len(self._baseline_methods),), 1.0 / float(len(self._baseline_methods)), dtype=np.float64)
         else:
             logits = self._baseline_gap_alpha * (scores - float(np.max(scores)))
             weights = np.exp(np.clip(logits, -60.0, 0.0))
             weights /= max(float(np.sum(weights)), 1e-12)
         baseline_score = float(np.dot(weights, scores))
-        return baseline_score, float(weights[0]), float(weights[1])
+        return baseline_score, {
+            method: float(weights[index]) for index, method in enumerate(self._baseline_methods)
+        }
 
     def _child_runtime_dir(self, role: str) -> str:
         return os.path.join(str(self._runtime_dir), role)
@@ -334,29 +343,25 @@ class ParallelGapAttackEnv(gym.Env):
     def _create_children(self) -> dict[str, OnlineSageAttackEnv]:
         self._launch_generation += 1
         taken_ports: set[int] = set()
-        return {
+        children = {
             "sage": self._build_child(
                 role="sage",
                 scheme="pure",
                 controller_mode="sage",
                 port_offset=0,
                 taken_ports=taken_ports,
-            ),
-            "cubic": self._build_child(
-                role="cubic",
-                scheme="cubic",
-                controller_mode="kernel_cc",
-                port_offset=1,
-                taken_ports=taken_ports,
-            ),
-            "bbr": self._build_child(
-                role="bbr",
-                scheme="bbr",
-                controller_mode="kernel_cc",
-                port_offset=2,
-                taken_ports=taken_ports,
-            ),
+            )
         }
+        for port_offset, method in enumerate(self._baseline_methods, start=1):
+            scheme, controller_mode = BASELINE_CONTROLLER_SPECS[method]
+            children[method] = self._build_child(
+                role=method,
+                scheme=scheme,
+                controller_mode=controller_mode,
+                port_offset=port_offset,
+                taken_ports=taken_ports,
+            )
+        return children
 
     def _applied_config_matches(self, info: dict[str, Any], action: np.ndarray) -> bool:
         requested = np.asarray(action, dtype=np.float32)
@@ -397,6 +402,21 @@ class ParallelGapAttackEnv(gym.Env):
             base_rtt_ms=self._base_rtt_ms,
             path_cap_mbps=path_cap_mbps,
         )
+
+    def _baseline_metric_defaults(self) -> dict[str, float]:
+        defaults: dict[str, float] = {}
+        for method in self._baseline_methods:
+            defaults[f"gap/score_{method}"] = 0.0
+            defaults[f"gap/score_{method}_rate_norm"] = 0.0
+            defaults[f"gap/score_{method}_rtt_norm"] = 0.0
+            defaults[f"gap/score_{method}_loss_norm"] = 0.0
+            defaults[f"gap/score_{method}_rate_contrib"] = 0.0
+            defaults[f"gap/score_{method}_rtt_contrib"] = 0.0
+            defaults[f"gap/score_{method}_loss_penalty"] = 0.0
+            defaults[f"gap/baseline_weight_{method}"] = 0.0
+            defaults[f"baseline/{method}_rtt_ms"] = 0.0
+            defaults[f"baseline/{method}_rate_mbps"] = 0.0
+        return defaults
 
     def _zero_gap_step_metrics(
         self,
@@ -443,38 +463,19 @@ class ParallelGapAttackEnv(gym.Env):
             "gap/base_rtt_ms": float(self._base_rtt_ms),
             "gap/path_cap_mbps": float(path_cap_mbps),
             "gap/score_sage": 0.0,
-            "gap/score_cubic": 0.0,
-            "gap/score_bbr": 0.0,
             "gap/score_sage_rate_norm": 0.0,
             "gap/score_sage_rtt_norm": 0.0,
             "gap/score_sage_loss_norm": 0.0,
             "gap/score_sage_rate_contrib": 0.0,
             "gap/score_sage_rtt_contrib": 0.0,
             "gap/score_sage_loss_penalty": 0.0,
-            "gap/score_cubic_rate_norm": 0.0,
-            "gap/score_cubic_rtt_norm": 0.0,
-            "gap/score_cubic_loss_norm": 0.0,
-            "gap/score_cubic_rate_contrib": 0.0,
-            "gap/score_cubic_rtt_contrib": 0.0,
-            "gap/score_cubic_loss_penalty": 0.0,
-            "gap/score_bbr_rate_norm": 0.0,
-            "gap/score_bbr_rtt_norm": 0.0,
-            "gap/score_bbr_loss_norm": 0.0,
-            "gap/score_bbr_rate_contrib": 0.0,
-            "gap/score_bbr_rtt_contrib": 0.0,
-            "gap/score_bbr_loss_penalty": 0.0,
             "gap/baseline_score": 0.0,
-            "gap/baseline_weight_cubic": 0.0,
-            "gap/baseline_weight_bbr": 0.0,
             "gap/best_baseline_score": 0.0,
             "gap/best_baseline_gap": 0.0,
             "gap/best_baseline_wins": 0.0,
             "gap/reward": 0.0,
             "gap/value": 0.0,
-            "baseline/cubic_rtt_ms": 0.0,
-            "baseline/bbr_rtt_ms": 0.0,
-            "baseline/cubic_rate_mbps": 0.0,
-            "baseline/bbr_rate_mbps": 0.0,
+            **self._baseline_metric_defaults(),
         }
 
     def close(self) -> None:
@@ -516,7 +517,7 @@ class ParallelGapAttackEnv(gym.Env):
             self._episode_step = 0
             self._episode_anchor_abs_ms = _monotonic_ms() + self._sync_guard_ms
             self._last_policy_action = self._default_policy_action()
-            self._previous_gap_features = np.zeros((_GAP_OBS_FEATURE_DIM,), dtype=np.float32)
+            self._previous_gap_features = np.zeros((self._gap_obs_feature_dim,), dtype=np.float32)
             self._last_sage_observation = initial_obs["sage"]
             self._bootstrap_pending_roles = set(placeholder_roles)
             positive_rtts = [
@@ -537,8 +538,6 @@ class ParallelGapAttackEnv(gym.Env):
                     "sage/score_rate_contrib": 0.0,
                     "sage/score_rtt_contrib": 0.0,
                     "sage/score_loss_penalty": 0.0,
-                    "gap/score_cubic": 0.0,
-                    "gap/score_bbr": 0.0,
                     "gap/score_sage": 0.0,
                     "gap/baseline_score": 0.0,
                     "gap/best_baseline_score": 0.0,
@@ -546,6 +545,7 @@ class ParallelGapAttackEnv(gym.Env):
                     "gap/best_baseline_wins": 0.0,
                     "gap/reward": 0.0,
                     "gap/value": 0.0,
+                    **self._baseline_metric_defaults(),
                 }
             )
             if placeholder_roles:
@@ -666,16 +666,18 @@ class ParallelGapAttackEnv(gym.Env):
 
         path_cap_mbps = max(min(float(effective_action[0]), float(effective_action[1])), 1e-6)
         sage_score_terms = self._score_terms_from_info(sage_info, path_cap_mbps=path_cap_mbps)
-        cubic_score_terms = self._score_terms_from_info(results["cubic"][4], path_cap_mbps=path_cap_mbps)
-        bbr_score_terms = self._score_terms_from_info(results["bbr"][4], path_cap_mbps=path_cap_mbps)
         score_sage = float(sage_score_terms["score"])
-        score_cubic = float(cubic_score_terms["score"])
-        score_bbr = float(bbr_score_terms["score"])
-        baseline_score, baseline_weight_cubic, baseline_weight_bbr = self._smoothed_baseline_score(
-            score_cubic=score_cubic,
-            score_bbr=score_bbr,
+        baseline_score_terms = {
+            method: self._score_terms_from_info(results[method][4], path_cap_mbps=path_cap_mbps)
+            for method in self._baseline_methods
+        }
+        baseline_scores = {
+            method: float(score_terms["score"]) for method, score_terms in baseline_score_terms.items()
+        }
+        baseline_score, baseline_weights = self._smoothed_baseline_score(
+            baseline_scores=baseline_scores,
         )
-        best_baseline_score = float(max(score_cubic, score_bbr))
+        best_baseline_score = float(max(baseline_scores.values()))
         best_baseline_gap = float(best_baseline_score - score_sage)
         best_baseline_wins = 1.0 if best_baseline_gap > 0.0 else 0.0
         gap_value = float(baseline_score - score_sage)
@@ -693,12 +695,29 @@ class ParallelGapAttackEnv(gym.Env):
         self._last_policy_action = policy_action.astype(np.float32, copy=True)
         self._previous_gap_features = self._gap_feature_vector(
             sage_score_terms=sage_score_terms,
-            cubic_score_terms=cubic_score_terms,
-            bbr_score_terms=bbr_score_terms,
+            baseline_score_terms=baseline_score_terms,
             baseline_score=baseline_score,
             gap_value=gap_value,
             policy_action=policy_action,
         )
+
+        baseline_info_payload: dict[str, float] = {}
+        for method in self._baseline_methods:
+            score_terms = baseline_score_terms[method]
+            baseline_info_payload.update(
+                {
+                    f"gap/score_{method}": float(baseline_scores[method]),
+                    f"gap/score_{method}_rate_norm": float(score_terms["rate_norm"]),
+                    f"gap/score_{method}_rtt_norm": float(score_terms["rtt_norm"]),
+                    f"gap/score_{method}_loss_norm": float(score_terms["loss_norm"]),
+                    f"gap/score_{method}_rate_contrib": float(score_terms["rate_contrib"]),
+                    f"gap/score_{method}_rtt_contrib": float(score_terms["rtt_contrib"]),
+                    f"gap/score_{method}_loss_penalty": float(score_terms["loss_penalty"]),
+                    f"gap/baseline_weight_{method}": float(baseline_weights[method]),
+                    f"baseline/{method}_rtt_ms": float(results[method][4].get("sage/current_rtt_ms", 0.0)),
+                    f"baseline/{method}_rate_mbps": float(results[method][4].get("sage/windowed_delivery_rate_mbps", 0.0)),
+                }
+            )
 
         info = dict(sage_info)
         info.update(
@@ -723,38 +742,19 @@ class ParallelGapAttackEnv(gym.Env):
                 "gap/base_rtt_ms": float(self._base_rtt_ms),
                 "gap/path_cap_mbps": float(path_cap_mbps),
                 "gap/score_sage": float(score_sage),
-                "gap/score_cubic": float(score_cubic),
-                "gap/score_bbr": float(score_bbr),
                 "gap/score_sage_rate_norm": float(sage_score_terms["rate_norm"]),
                 "gap/score_sage_rtt_norm": float(sage_score_terms["rtt_norm"]),
                 "gap/score_sage_loss_norm": float(sage_score_terms["loss_norm"]),
                 "gap/score_sage_rate_contrib": float(sage_score_terms["rate_contrib"]),
                 "gap/score_sage_rtt_contrib": float(sage_score_terms["rtt_contrib"]),
                 "gap/score_sage_loss_penalty": float(sage_score_terms["loss_penalty"]),
-                "gap/score_cubic_rate_norm": float(cubic_score_terms["rate_norm"]),
-                "gap/score_cubic_rtt_norm": float(cubic_score_terms["rtt_norm"]),
-                "gap/score_cubic_loss_norm": float(cubic_score_terms["loss_norm"]),
-                "gap/score_cubic_rate_contrib": float(cubic_score_terms["rate_contrib"]),
-                "gap/score_cubic_rtt_contrib": float(cubic_score_terms["rtt_contrib"]),
-                "gap/score_cubic_loss_penalty": float(cubic_score_terms["loss_penalty"]),
-                "gap/score_bbr_rate_norm": float(bbr_score_terms["rate_norm"]),
-                "gap/score_bbr_rtt_norm": float(bbr_score_terms["rtt_norm"]),
-                "gap/score_bbr_loss_norm": float(bbr_score_terms["loss_norm"]),
-                "gap/score_bbr_rate_contrib": float(bbr_score_terms["rate_contrib"]),
-                "gap/score_bbr_rtt_contrib": float(bbr_score_terms["rtt_contrib"]),
-                "gap/score_bbr_loss_penalty": float(bbr_score_terms["loss_penalty"]),
                 "gap/baseline_score": float(baseline_score),
-                "gap/baseline_weight_cubic": float(baseline_weight_cubic),
-                "gap/baseline_weight_bbr": float(baseline_weight_bbr),
                 "gap/best_baseline_score": float(best_baseline_score),
                 "gap/best_baseline_gap": float(best_baseline_gap),
                 "gap/best_baseline_wins": float(best_baseline_wins),
                 "gap/value": float(gap_value),
                 "gap/reward": float(reward),
-                "baseline/cubic_rtt_ms": float(results["cubic"][4].get("sage/current_rtt_ms", 0.0)),
-                "baseline/bbr_rtt_ms": float(results["bbr"][4].get("sage/current_rtt_ms", 0.0)),
-                "baseline/cubic_rate_mbps": float(results["cubic"][4].get("sage/windowed_delivery_rate_mbps", 0.0)),
-                "baseline/bbr_rate_mbps": float(results["bbr"][4].get("sage/windowed_delivery_rate_mbps", 0.0)),
+                **baseline_info_payload,
                 "episode/progress": float(self._episode_step) / float(max(self._max_episode_steps, 1)),
             }
         )

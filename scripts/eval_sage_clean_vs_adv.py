@@ -2,6 +2,7 @@
 Run this after `scripts/generate_online_adv_traces.py`.
 
 Example usage:
+Baseline methods are inferred from the saved training config / generated manifest.
 time python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/hotnets19-300k/generated_manifest.json \
   --test-manifest attacks/test/manifest.json \
@@ -40,7 +41,7 @@ from typing import Any
 
 import numpy as np
 
-from attacks.envs import ParallelGapAttackEnv
+from attacks.envs import ParallelGapAttackEnv, baseline_methods_from_config
 from attacks.online import SageLaunchConfig, acquire_run_namespace
 
 
@@ -328,13 +329,27 @@ _STEP_AGGREGATE_RECORD_KEYS: dict[str, str] = {
     "gap_score_bbr_rate_contrib": "gap_score_bbr_rate_contrib",
     "gap_score_bbr_rtt_contrib": "gap_score_bbr_rtt_contrib",
     "gap_score_bbr_loss_penalty": "gap_score_bbr_loss_penalty",
+    "gap_score_reno": "gap_score_reno",
+    "gap_score_reno_rate_norm": "gap_score_reno_rate_norm",
+    "gap_score_reno_rtt_norm": "gap_score_reno_rtt_norm",
+    "gap_score_reno_loss_norm": "gap_score_reno_loss_norm",
+    "gap_score_reno_rate_contrib": "gap_score_reno_rate_contrib",
+    "gap_score_reno_rtt_contrib": "gap_score_reno_rtt_contrib",
+    "gap_score_reno_loss_penalty": "gap_score_reno_loss_penalty",
     "gap_baseline_score": "gap_baseline_score",
+    "gap_baseline_weight_reno": "gap_baseline_weight_reno",
+    "gap_baseline_weight_cubic": "gap_baseline_weight_cubic",
+    "gap_baseline_weight_bbr": "gap_baseline_weight_bbr",
     "gap_best_baseline_score": "gap_best_baseline_score",
     "gap_best_baseline_gap": "gap_best_baseline_gap",
     "gap_best_baseline_wins": "gap_best_baseline_gap_positive_fraction",
     "gap_value": "gap_value",
     "gap_reward": "gap_reward",
+    "baseline_reno_rtt_ms": "baseline_reno_rtt_ms",
+    "baseline_reno_rate_mbps": "baseline_reno_rate_mbps",
+    "baseline_cubic_rtt_ms": "baseline_cubic_rtt_ms",
     "baseline_cubic_rate_mbps": "baseline_cubic_rate_mbps",
+    "baseline_bbr_rtt_ms": "baseline_bbr_rtt_ms",
     "baseline_bbr_rate_mbps": "baseline_bbr_rate_mbps",
     "attacker_shared_bw_mbps": "replay_shared_bw_mbps",
     "attacker_uplink_bw_mbps": "replay_uplink_bw_mbps",
@@ -628,6 +643,7 @@ def _evaluate_trace_set(
     wandb_run,
 ) -> list[Any]:
     if _uses_parallel_gap_eval(config_payload):
+        baseline_methods = baseline_methods_from_config(config_payload)
         env = ParallelGapAttackEnv(
             repo_root=repo_root,
             launch_config=launch_config,
@@ -639,6 +655,7 @@ def _evaluate_trace_set(
             step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
             runtime_dir=runtime_dir,
             baseline_gap_alpha=float(config_payload.get("baseline_gap_alpha", 2.0)),
+            baseline_methods=baseline_methods,
             smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
             sync_guard_ms=float(config_payload.get("sync_guard_ms", 25.0)),
             launch_retries=int(config_payload.get("gap_launch_retries", 6)),
@@ -722,6 +739,7 @@ def _init_wandb_run(
     generated_manifest_path: str,
     test_manifest_path: str,
     trace_count: int,
+    baseline_methods: tuple[str, ...],
 ) -> Any | None:
     if wandb is None:
         return None
@@ -737,6 +755,7 @@ def _init_wandb_run(
             "test_manifest_path": test_manifest_path,
             "trace_count": trace_count,
             "trace_type": run_name,
+            "baseline_methods": list(baseline_methods),
         },
         reinit=True,
     )
@@ -787,6 +806,7 @@ def main() -> None:
     generated_entries = list(generated_manifest.get("generated_entries", [])) if run_adv_rollout else []
     trace_set_name = _trace_set_name(generated_manifest_path, generated_manifest)
     use_parallel_gap_eval = _uses_parallel_gap_eval(config_payload)
+    baseline_methods = baseline_methods_from_config(config_payload)
     clean_uplink_delay_ms = _default_attack_delay_ms(config_payload, direction="uplink")
     clean_downlink_delay_ms = _default_attack_delay_ms(config_payload, direction="downlink")
 
@@ -844,7 +864,7 @@ def main() -> None:
         actor_id=int(config_payload.get("actor_id", 900)),
         port=int(config_payload.get("port", 5101)),
         label=str(args.wandb_name or f"eval-{trace_set_name}"),
-        ports_per_run=8 if use_parallel_gap_eval else 1,
+        ports_per_run=(len(baseline_methods) + 1) if use_parallel_gap_eval else 1,
     )
     launch_config = _resolved_launch_config(config_payload=config_payload, run_namespace=run_namespace)
 
@@ -866,6 +886,7 @@ def main() -> None:
             generated_manifest_path=generated_manifest_path,
             test_manifest_path=test_manifest_path,
             trace_count=len(clean_schedules),
+            baseline_methods=baseline_methods,
         )
         clean_results = _evaluate_trace_set(
             trace_type="clean",
@@ -898,6 +919,7 @@ def main() -> None:
             generated_manifest_path=generated_manifest_path,
             test_manifest_path=test_manifest_path,
             trace_count=len(adv_schedules),
+            baseline_methods=baseline_methods,
         )
         adv_results = _evaluate_trace_set(
             trace_type=trace_set_name,
@@ -940,6 +962,7 @@ def main() -> None:
         "generated_manifest_path": generated_manifest_path,
         "test_manifest_path": test_manifest_path,
         "trace_set_name": trace_set_name,
+        "baseline_methods": list(baseline_methods),
         "skip_clean_rollout": bool(args.skip_clean_rollout),
         "clean_only_rollout": bool(args.clean_only_rollout),
         "clean_episode_count": int(len(clean_results)),
@@ -956,6 +979,7 @@ def main() -> None:
             "generated_manifest_path": generated_manifest_path,
             "test_manifest_path": test_manifest_path,
             "trace_set_name": trace_set_name,
+            "baseline_methods": list(baseline_methods),
             "evaluation_runs": evaluation_runs + [current_eval_run],
             "per_episode": combined_per_episode_rows,
             "summary": combined_summary_rows,

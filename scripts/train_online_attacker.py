@@ -1,6 +1,6 @@
 """
 Example usage:
-   
+Default gap training now uses all available baselines: reno,bbr,cubic.
 python scripts/train_online_attacker.py \
   --total-steps 300000 \
   --attack-interval-ms 100 \
@@ -12,6 +12,7 @@ python scripts/train_online_attacker.py \
 
 time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
+  --baseline-methods reno,bbr,cubic \
   --smooth-penalty-scale 0.00 \
   --attack-shared-bw-min-mbps 0.5 --attack-shared-bw-max-mbps 2000 \
   --effective-bw-cap-mbps 2000 \
@@ -23,13 +24,14 @@ time python scripts/train_online_attacker.py \
   
 time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
+  --baseline-methods reno,bbr,cubic \
   --smooth-penalty-scale 0.05 \
   --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
   --total-steps 300000 \
   --attack-interval-ms 100 \
   --out-dir attacks/output/models \
   --ppo-ent-coef 0.01 \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-3b
 
 time python scripts/train_online_attacker.py \
   --attack-mode independent \
@@ -41,6 +43,17 @@ time python scripts/train_online_attacker.py \
   --out-dir attacks/output/models \
   --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name hotnets19
 
+Legacy two-baseline reproduction:
+time python scripts/train_online_attacker.py \
+  --attack-mode independent_gap \
+  --baseline-methods cubic,bbr \
+  --smooth-penalty-scale 0.05 \
+  --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
+  --total-steps 300000 \
+  --attack-interval-ms 100 \
+  --out-dir attacks/output/models \
+  --ppo-ent-coef 0.01 \
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-legacy
 """
 
 from __future__ import annotations
@@ -53,7 +66,12 @@ import time
 
 import numpy as np
 
-from attacks.envs import AttackBounds, ParallelGapAttackEnv
+from attacks.envs import (
+    AVAILABLE_BASELINE_METHODS,
+    AttackBounds,
+    ParallelGapAttackEnv,
+    normalize_baseline_methods,
+)
 from attacks.online import SageLaunchConfig, acquire_run_namespace
 
 
@@ -155,15 +173,27 @@ _WANDB_AGGREGATE_INFO_KEYS: dict[str, str] = {
     "gap/score_bbr_rate_contrib": "gap_score_bbr_rate_contrib",
     "gap/score_bbr_rtt_contrib": "gap_score_bbr_rtt_contrib",
     "gap/score_bbr_loss_penalty": "gap_score_bbr_loss_penalty",
+    "gap/score_reno": "gap_score_reno",
+    "gap/score_reno_rate_norm": "gap_score_reno_rate_norm",
+    "gap/score_reno_rtt_norm": "gap_score_reno_rtt_norm",
+    "gap/score_reno_loss_norm": "gap_score_reno_loss_norm",
+    "gap/score_reno_rate_contrib": "gap_score_reno_rate_contrib",
+    "gap/score_reno_rtt_contrib": "gap_score_reno_rtt_contrib",
+    "gap/score_reno_loss_penalty": "gap_score_reno_loss_penalty",
     "gap/baseline_score": "gap_baseline_score",
     "gap/best_baseline_score": "gap_best_baseline_score",
     "gap/best_baseline_gap": "gap_best_baseline_gap",
     "gap/best_baseline_wins": "gap_best_baseline_gap_positive_fraction",
     "gap/baseline_weight_cubic": "gap_baseline_weight_cubic",
     "gap/baseline_weight_bbr": "gap_baseline_weight_bbr",
+    "gap/baseline_weight_reno": "gap_baseline_weight_reno",
     "gap/value": "gap_value",
     "gap/reward": "gap_reward",
+    "baseline/reno_rtt_ms": "baseline_reno_rtt_ms",
+    "baseline/reno_rate_mbps": "baseline_reno_rate_mbps",
+    "baseline/cubic_rtt_ms": "baseline_cubic_rtt_ms",
     "baseline/cubic_rate_mbps": "baseline_cubic_rate_mbps",
+    "baseline/bbr_rtt_ms": "baseline_bbr_rtt_ms",
     "baseline/bbr_rate_mbps": "baseline_bbr_rate_mbps",
     "attacker/uplink_bw_mbps": "attacker_uplink_bw_mbps",
     "attacker/downlink_bw_mbps": "attacker_downlink_bw_mbps",
@@ -201,6 +231,12 @@ def main() -> None:
     parser.add_argument("--step-timeout-s", type=float, default=10.0)
     parser.add_argument("--smooth-penalty-scale", type=float, default=None)
     parser.add_argument("--baseline-gap-alpha", type=float, default=2.0)
+    parser.add_argument(
+        "--baseline-methods",
+        type=str,
+        default=",".join(AVAILABLE_BASELINE_METHODS),
+        help="Comma-separated gap baselines to launch. Default enables all available baselines: reno,bbr,cubic.",
+    )
     parser.add_argument("--sync-guard-ms", type=float, default=25.0)
     parser.add_argument("--gap-launch-retries", type=int, default=6)
     parser.add_argument("--bw-scale-min", type=float, default=0.1)
@@ -268,6 +304,7 @@ def main() -> None:
     repo_root = os.path.abspath(os.path.expanduser(args.repo_root))
     PPO, BaseCallback, Monitor, DummyVecEnv, VecNormalize = _require_sb3()
     use_gap_objective = str(args.attack_mode) == "independent_gap"
+    baseline_methods = normalize_baseline_methods(args.baseline_methods)
     shared_bandwidth_action_requested = (
         args.attack_shared_bw_min_mbps is not None and args.attack_shared_bw_max_mbps is not None
     )
@@ -276,13 +313,14 @@ def main() -> None:
         if args.smooth_penalty_scale is not None
         else (0.0 if use_gap_objective else 0.01)
     )
+    gap_ports_per_run = len(baseline_methods) + 1
     run_namespace = acquire_run_namespace(
         repo_root=repo_root,
         runtime_dir=str(args.runtime_dir),
         actor_id=int(args.actor_id),
         port=int(args.port),
         label=str(args.wandb_name or args.log_prefix or "train-online-attacker"),
-        ports_per_run=8 if use_gap_objective else 1,
+        ports_per_run=gap_ports_per_run if use_gap_objective else 1,
     )
     resolved_runtime_dir = run_namespace.runtime_dir
     resolved_launch_config = {
@@ -291,7 +329,7 @@ def main() -> None:
         "launch_port_base_resolved": int(run_namespace.port_base),
         "launch_actor_id_base_resolved": int(run_namespace.actor_id_base),
         "runtime_slot": int(run_namespace.slot),
-        "ports_per_run": 8 if use_gap_objective else 1,
+        "ports_per_run": gap_ports_per_run if use_gap_objective else 1,
     }
 
     wandb = None
@@ -327,6 +365,7 @@ def main() -> None:
                 config={
                     **vars(args),
                     **resolved_launch_config,
+                    "baseline_methods_resolved": list(baseline_methods),
                     "smooth_penalty_scale": float(resolved_smooth_penalty_scale),
                     "policy_action_transform": (
                         "log_unit_interval_shared_bandwidth"
@@ -529,6 +568,7 @@ def main() -> None:
                 step_timeout_s=float(args.step_timeout_s),
                 runtime_dir=resolved_runtime_dir,
                 baseline_gap_alpha=float(args.baseline_gap_alpha),
+                baseline_methods=baseline_methods,
                 smooth_penalty_scale=float(resolved_smooth_penalty_scale),
                 sync_guard_ms=float(args.sync_guard_ms),
                 launch_retries=int(args.gap_launch_retries),
@@ -683,6 +723,7 @@ def main() -> None:
             **vars(args),
             **resolved_launch_config,
             "repo_root": repo_root,
+            "baseline_methods": list(baseline_methods),
             "smooth_penalty_scale": float(resolved_smooth_penalty_scale),
             "run_namespace": run_namespace.metadata(),
             "policy_action_transform": (

@@ -2,6 +2,7 @@
 Run this after `scripts/train_online_attacker.py`.
 
 Example usage:
+Gap baseline methods are inferred from the saved training config.
 time python scripts/generate_online_adv_traces.py \
   --model-path attacks/models/online_adv_20260312_hotnets19_300k.zip \
   --test-manifest attacks/test/manifest.json \
@@ -20,6 +21,9 @@ time python scripts/generate_online_adv_traces.py \
   --out-dir attacks/adv_traces/rl-unconstrained-300k \
   --wandb
 
+Older two-baseline artifacts still replay with cubic,bbr if the saved config predates
+the `baseline_methods` field.
+
 """
 
 from __future__ import annotations
@@ -33,7 +37,7 @@ from typing import Any
 
 import numpy as np
 
-from attacks.envs import ParallelGapAttackEnv
+from attacks.envs import ParallelGapAttackEnv, baseline_methods_from_config
 from attacks.online import SageLaunchConfig, acquire_run_namespace
 
 
@@ -332,6 +336,7 @@ def _independent_generation(
     use_gap_objective = attack_mode == "independent_gap"
     bounds = attack_bounds_from_config(config_payload)
     if use_gap_objective:
+        baseline_methods = baseline_methods_from_config(config_payload)
         env = ParallelGapAttackEnv(
             repo_root=repo_root,
             launch_config=launch_config,
@@ -343,6 +348,7 @@ def _independent_generation(
             step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
             runtime_dir=runtime_dir,
             baseline_gap_alpha=float(config_payload.get("baseline_gap_alpha", 2.0)),
+            baseline_methods=baseline_methods,
             smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
             sync_guard_ms=float(config_payload.get("sync_guard_ms", 25.0)),
             launch_retries=int(config_payload.get("gap_launch_retries", 6)),
@@ -518,6 +524,7 @@ def main() -> None:
     repo_root = os.path.abspath(os.path.expanduser(args.repo_root))
     model_path = resolve_repo_path(repo_root, str(args.model_path))
     config_path, config_payload = _load_config(repo_root, model_path, args.config_path)
+    baseline_methods = baseline_methods_from_config(config_payload)
     manifest_path = _ensure_test_manifest(repo_root, str(args.test_manifest))
     test_entries = load_trace_entries(manifest_path)
     if int(args.num_traces) > 0 and _attack_mode(config_payload) == "trace_conditioned":
@@ -534,7 +541,11 @@ def main() -> None:
         actor_id=int(config_payload.get("actor_id", 900)),
         port=int(config_payload.get("port", 5101)),
         label=str(args.wandb_name or trace_set_name or "generate-online-adv"),
-        ports_per_run=8 if _attack_mode(config_payload) == "independent_gap" else 1,
+        ports_per_run=(
+            len(baseline_methods) + 1
+            if _attack_mode(config_payload) == "independent_gap"
+            else 1
+        ),
     )
     resolved_runtime_dir = run_namespace.runtime_dir
 
@@ -561,6 +572,7 @@ def main() -> None:
                     ),
                     "trace_set_name": trace_set_name,
                     "attack_mode": _attack_mode(config_payload),
+                    "baseline_methods": list(baseline_methods),
                     "runtime_dir_resolved": resolved_runtime_dir,
                     "run_id": run_namespace.run_id,
                 },
@@ -603,6 +615,7 @@ def main() -> None:
             "repo_root": repo_root,
             "trace_set_name": trace_set_name,
             "attack_mode": _attack_mode(config_payload),
+            "baseline_methods": list(baseline_methods),
             "model_path": model_path,
             "training_config_path": config_path,
             "test_manifest_resolved": manifest_path,

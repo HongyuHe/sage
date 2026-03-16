@@ -25,6 +25,12 @@ STAT_LABELS: dict[str, str] = {
     "p95": "P95",
 }
 _GAP_PERCENT_EPS = 1e-12
+SETUP_NAME_MAP: dict[str, str | None] = {
+    "clean": "Benign Test Traces",
+    "hotnets19-300k": "HotNets '19",
+    "rl-constrained-300k-0.01ent": "Max. Regret (Ours)",
+    "rl-unconstrained-300k": None,  # Exclude from plots
+}
 
 PLOT_SPECS: tuple[dict[str, Any], ...] = (
     {
@@ -42,13 +48,13 @@ PLOT_SPECS: tuple[dict[str, Any], ...] = (
     {
         "key": "gap_percent",
         "title": "Gap Percent",
-        "x_label": "Per-Trace Gap Percent vs Best Baseline",
+        "x_label": "Per-Trace Gap over Reference Policy [%]",
         "series": (("gap_percent_mean", "Gap Percent"),),
     },
     {
         "key": "smoothed_gap_percent",
         "title": "Smoothed Gap Percent",
-        "x_label": "Per-Trace Gap Percent vs Smoothed Baseline",
+        "x_label": "Per-Trace Gap Percent vs Smoothed Baseline [%]",
         "series": (("smoothed_gap_percent_mean", "Smoothed Gap Percent"),),
     },
     {
@@ -63,9 +69,10 @@ PLOT_SPECS: tuple[dict[str, Any], ...] = (
         "x_label": "Per-Trace Score",
         "series": (
             ("gap_score_sage_mean", "Sage"),
+            ("gap_score_reno_mean", "Reno"),
             ("gap_score_bbr_mean", "BBR"),
             ("gap_score_cubic_mean", "CUBIC"),
-            ("gap_best_baseline_score_mean", "Best Baseline"),
+            ("gap_best_baseline_score_mean", "Reference Policy"),
         ),
     },
     {
@@ -74,6 +81,7 @@ PLOT_SPECS: tuple[dict[str, Any], ...] = (
         "x_label": "Per-Trace Throughput [Mbps]",
         "series": (
             ("sage_windowed_rate_mbps_mean", "Sage"),
+            ("baseline_reno_rate_mbps_mean", "Reno"),
             ("baseline_bbr_rate_mbps_mean", "BBR"),
             ("baseline_cubic_rate_mbps_mean", "CUBIC"),
         ),
@@ -84,6 +92,7 @@ PLOT_SPECS: tuple[dict[str, Any], ...] = (
         "x_label": "Per-Trace RTT [ms]",
         "series": (
             ("sage_rtt_ms_mean", "Sage"),
+            ("baseline_reno_rtt_ms_mean", "Reno"),
             ("baseline_bbr_rtt_ms_mean", "BBR"),
             ("baseline_cubic_rtt_ms_mean", "CUBIC"),
         ),
@@ -131,6 +140,42 @@ def _trace_type_order(values: pd.Series) -> list[str]:
     return clean + others
 
 
+def _mapped_setup_name(trace_type: str) -> str | None:
+    mapped = SETUP_NAME_MAP.get(str(trace_type), str(trace_type))
+    if mapped is None:
+        return None
+    return str(mapped)
+
+
+def _apply_setup_name_map(metric_frame: pd.DataFrame) -> pd.DataFrame:
+    mapped_rows = []
+    for row in metric_frame.to_dict(orient="records"):
+        trace_type = str(row["trace_type"])
+        mapped_name = _mapped_setup_name(trace_type)
+        if mapped_name is None:
+            continue
+        updated_row = dict(row)
+        updated_row["trace_label"] = mapped_name
+        mapped_rows.append(updated_row)
+    if not mapped_rows:
+        return metric_frame.iloc[0:0].copy()
+    return pd.DataFrame.from_records(mapped_rows)
+
+
+def _trace_label_order(metric_frame: pd.DataFrame) -> list[str]:
+    trace_order = _trace_type_order(metric_frame["trace_type"])
+    labels: list[str] = []
+    for trace_type in trace_order:
+        mapped_name = _mapped_setup_name(trace_type)
+        if mapped_name is None or mapped_name in labels:
+            continue
+        labels.append(mapped_name)
+    for mapped_name in metric_frame["trace_label"].dropna().astype(str).tolist():
+        if mapped_name not in labels:
+            labels.append(mapped_name)
+    return labels
+
+
 def _series_lookup() -> dict[str, tuple[dict[str, Any], str]]:
     lookup: dict[str, tuple[dict[str, Any], str]] = {}
     for spec in PLOT_SPECS:
@@ -151,7 +196,7 @@ def _gap_percent_from_series(gap_values: pd.Series, baseline_values: pd.Series) 
     baseline_numeric = pd.to_numeric(baseline_values, errors="coerce")
     valid = gap_numeric.notna() & baseline_numeric.notna() & (baseline_numeric > _GAP_PERCENT_EPS)
     result = pd.Series(np.nan, index=gap_numeric.index, dtype=np.float64)
-    result.loc[valid] = gap_numeric.loc[valid] / baseline_numeric.loc[valid]
+    result.loc[valid] = 100.0 * gap_numeric.loc[valid] / baseline_numeric.loc[valid]
     return result
 
 
@@ -217,55 +262,14 @@ def _build_metric_frame_from_per_episode(summary_payload: dict[str, Any]) -> pd.
         series_columns = [(column, label) for column, label in spec["series"] if column in frame.columns]
         if not series_columns:
             continue
-        numeric_columns = {
-            column: pd.to_numeric(frame[column], errors="coerce") for column, _ in series_columns
-        }
-        if len(series_columns) > 1:
-            valid_mask = pd.Series(True, index=frame.index)
-            for column, _ in series_columns:
-                valid_mask &= numeric_columns[column].notna()
         for column, label in series_columns:
-            if len(series_columns) > 1:
-                column_frame = frame.loc[valid_mask, ["trace_type"]].copy()
-                column_frame["value"] = numeric_columns[column].loc[valid_mask].astype(float)
-            else:
-                column_frame = frame.loc[numeric_columns[column].notna(), ["trace_type"]].copy()
-                column_frame["value"] = numeric_columns[column].loc[numeric_columns[column].notna()].astype(float)
-            if column_frame.empty:
-                continue
-            for trace_type, group in column_frame.groupby("trace_type"):
-                values = group["value"].astype(float)
-                records.extend(
-                    (
-                        {
-                            "plot_key": spec["key"],
-                            "plot_title": spec["title"],
-                            "x_label": spec["x_label"],
-                            "metric_label": label,
-                            "trace_type": str(trace_type),
-                            "stat": "avg",
-                            "value": float(values.mean()),
-                        },
-                        {
-                            "plot_key": spec["key"],
-                            "plot_title": spec["title"],
-                            "x_label": spec["x_label"],
-                            "metric_label": label,
-                            "trace_type": str(trace_type),
-                            "stat": "p50",
-                            "value": float(values.quantile(0.50)),
-                        },
-                        {
-                            "plot_key": spec["key"],
-                            "plot_title": spec["title"],
-                            "x_label": spec["x_label"],
-                            "metric_label": label,
-                            "trace_type": str(trace_type),
-                            "stat": "p95",
-                            "value": float(values.quantile(0.95)),
-                        },
-                    )
-                )
+            _append_numeric_records(
+                records=records,
+                frame=frame.loc[:, ["trace_type", column]].copy(),
+                spec=spec,
+                column=column,
+                label=label,
+            )
 
     if {"gap_best_baseline_gap_mean", "gap_best_baseline_score_mean"}.issubset(frame.columns):
         gap_percent_spec = _spec_by_key("gap_percent")
@@ -359,7 +363,7 @@ def _build_metric_frame_from_summary(summary_payload: dict[str, Any]) -> pd.Data
                         "metric_label": "Gap Percent",
                         "trace_type": str(row["trace_type"]),
                         "stat": stat,
-                        "value": float(numerator) / float(denominator),
+                        "value": 100.0 * float(numerator) / float(denominator),
                     }
                 )
 
@@ -386,7 +390,7 @@ def _build_metric_frame_from_summary(summary_payload: dict[str, Any]) -> pd.Data
                         "metric_label": "Smoothed Gap Percent",
                         "trace_type": str(row["trace_type"]),
                         "stat": stat,
-                        "value": float(numerator) / float(denominator),
+                        "value": 100.0 * float(numerator) / float(denominator),
                     }
                 )
 
@@ -425,7 +429,7 @@ def _save_metric_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir:
     if not stats:
         return None
 
-    trace_order = _trace_type_order(plot_frame["trace_type"])
+    trace_order = _trace_label_order(plot_frame)
     metric_labels = [label for _, label in spec["series"] if label in plot_frame["metric_label"].unique()]
     multi_series = len(metric_labels) > 1
     fig_height = max(5.0, 1.1 * len(trace_order) + 2.0)
@@ -444,7 +448,7 @@ def _save_metric_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir:
             sns.barplot(
                 data=stat_frame,
                 x="value",
-                y="trace_type",
+                y="trace_label",
                 hue="metric_label",
                 order=trace_order,
                 hue_order=metric_labels,
@@ -465,7 +469,7 @@ def _save_metric_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir:
             sns.barplot(
                 data=stat_frame,
                 x="value",
-                y="trace_type",
+                y="trace_label",
                 order=trace_order,
                 color=sns.color_palette("bright", n_colors=1)[0],
                 orient="h",
@@ -477,7 +481,7 @@ def _save_metric_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir:
         _mark_zero_bars(axis)
         axis.set_title(STAT_LABELS[stat])
         axis.set_xlabel(spec["x_label"])
-        axis.set_ylabel("Setup" if axis is axes_list[0] else "")
+        axis.set_ylabel("" if axis is axes_list[0] else "")
         if has_negative:
             axis.axvline(0.0, color="black", linestyle="--", linewidth=1.2)
 
@@ -511,7 +515,7 @@ def main() -> None:
     os.makedirs(out_dir, exist_ok=True)
 
     _set_plot_style()
-    metric_frame = _build_metric_frame(summary_payload)
+    metric_frame = _apply_setup_name_map(_build_metric_frame(summary_payload))
 
     output_paths = [
         path
@@ -525,6 +529,7 @@ def main() -> None:
             {
                 "summary_path": summary_path,
                 "out_dir": out_dir,
+                "setup_name_map": SETUP_NAME_MAP,
                 "plots": output_paths,
             },
             file_obj,
