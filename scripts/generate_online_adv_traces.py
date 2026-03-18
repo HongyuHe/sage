@@ -2,9 +2,9 @@
 Run this after `scripts/train_online_attacker.py`.
 
 Example usage:
-Gap baseline methods are inferred from the saved training config.
+
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/online_adv_20260312_hotnets19_300k.zip \
+  --model-path attacks/models/online_adv_20260315_hotnets19_300k.zip \
   --test-manifest attacks/test/manifest.json \
   --out-dir attacks/adv_traces/hotnets19-300k \
   --wandb

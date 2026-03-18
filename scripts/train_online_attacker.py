@@ -32,6 +32,17 @@ time python scripts/train_online_attacker.py \
   --out-dir attacks/output/models \
   --ppo-ent-coef 0.01 \
   --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-3b
+  
+time python scripts/train_online_attacker.py \
+  --attack-mode independent_gap \
+  --baseline-methods bbr \
+  --smooth-penalty-scale 0.05 \
+  --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
+  --total-steps 300000 \
+  --attack-interval-ms 100 \
+  --out-dir attacks/output/models \
+  --ppo-ent-coef 0.01 \
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-bbr-only
 
 time python scripts/train_online_attacker.py \
   --attack-mode independent \
