@@ -43,6 +43,17 @@ sudo dpkg -i linux-headers-4.19.112-0062_4.19.112-0062-10.00.Custom_amd64.deb
 sudo reboot 
 ```
 
+On some CloudLab/Emulab images, the `emulab-ipod-dkms` package tries to rebuild
+against the Sage kernel during `dpkg` post-install and fails. If you see DKMS
+errors mentioning `emulab-ipod-dkms`, purge it and re-run the package
+configuration:
+
+```bash
+sudo apt-get -y purge emulab-ipod-dkms
+sudo apt-get -y -f install
+sudo dpkg --configure -a
+```
+
 ### Verifying the new kernel
 After installing the Sage's kernel and restarting your system, check if the system is using the new kernel:
 

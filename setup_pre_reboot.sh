@@ -64,6 +64,26 @@ apply_text_fix_if_missing() {
   fi
 }
 
+remove_conflicting_emulab_dkms() {
+  local dkms_entries=""
+
+  if command -v dkms >/dev/null 2>&1; then
+    dkms_entries="$(dkms status emulab-ipod-dkms 2>/dev/null | cut -d, -f1 | sort -u || true)"
+    if [[ -n "${dkms_entries}" ]]; then
+      log "Removing lingering emulab-ipod-dkms registrations from DKMS"
+      while IFS= read -r module_version; do
+        [[ -n "${module_version}" ]] || continue
+        sudo dkms remove "${module_version}" --all || true
+      done <<< "${dkms_entries}"
+    fi
+  fi
+
+  if dpkg-query -W -f='${Status}' emulab-ipod-dkms 2>/dev/null | grep -q "ok "; then
+    log "Purging emulab-ipod-dkms to unblock custom kernel installation"
+    sudo apt-get -y purge emulab-ipod-dkms || true
+  fi
+}
+
 install_base_packages() {
   log "Installing base packages"
   sudo apt-get update
@@ -77,6 +97,10 @@ install_kernel_and_grub() {
   [[ -f "${LINUX_PATCH_DIR}/${KERNEL_IMAGE_DEB}" ]] || { echo "Missing ${KERNEL_IMAGE_DEB}" >&2; exit 1; }
   [[ -f "${LINUX_PATCH_DIR}/${KERNEL_HEADERS_DEB}" ]] || { echo "Missing ${KERNEL_HEADERS_DEB}" >&2; exit 1; }
 
+  # On some CloudLab/Emulab images, this DKMS package is incompatible with
+  # Sage's custom kernel and breaks dpkg post-install hooks.
+  remove_conflicting_emulab_dkms
+
   set +e
   sudo dpkg -i \
     "${LINUX_PATCH_DIR}/${KERNEL_IMAGE_DEB}" \
@@ -86,10 +110,7 @@ install_kernel_and_grub() {
 
   # On some CloudLab/Emulab images, emulab-ipod-dkms fails against this kernel.
   if [[ $dpkg_rc -ne 0 ]] || dpkg -l | grep -Eq '^iF\s+linux-(image|headers)-4\.19\.112-0062'; then
-    if dpkg -l | grep -Eq '^ii\s+emulab-ipod-dkms'; then
-      log "Removing emulab-ipod-dkms to unblock kernel configuration"
-      sudo apt-get -y remove emulab-ipod-dkms || true
-    fi
+    remove_conflicting_emulab_dkms
     sudo apt-get -y -f install
     sudo dpkg --configure -a
   fi
