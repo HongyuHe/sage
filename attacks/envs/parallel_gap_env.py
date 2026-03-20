@@ -73,6 +73,7 @@ class ParallelGapAttackEnv(gym.Env):
         step_timeout_s: float = 10.0,
         runtime_dir: str = "attacks/runtime",
         baseline_gap_alpha: float = 2.0,
+        baseline_hard_max: bool = False,
         baseline_methods: tuple[str, ...] | list[str] | None = None,
         smooth_penalty_scale: float = 0.0,
         sync_guard_ms: float = 25.0,
@@ -89,6 +90,7 @@ class ParallelGapAttackEnv(gym.Env):
         self._step_timeout_s = float(step_timeout_s)
         self._runtime_dir = runtime_dir
         self._baseline_gap_alpha = float(baseline_gap_alpha)
+        self._baseline_hard_max = bool(baseline_hard_max)
         self._baseline_methods = normalize_baseline_methods(baseline_methods)
         self._gap_obs_feature_dim = 8 + 4 * len(self._baseline_methods)
         self._smooth_penalty_scale = float(smooth_penalty_scale)
@@ -286,7 +288,12 @@ class ParallelGapAttackEnv(gym.Env):
 
     def _smoothed_baseline_score(self, *, baseline_scores: dict[str, float]) -> tuple[float, dict[str, float]]:
         scores = np.asarray([float(baseline_scores[method]) for method in self._baseline_methods], dtype=np.float64)
-        if abs(self._baseline_gap_alpha) <= 1e-9:
+        if bool(self._baseline_hard_max):
+            max_score = float(np.max(scores))
+            winner_mask = np.isclose(scores, max_score, atol=1e-9)
+            weights = winner_mask.astype(np.float64)
+            weights /= max(float(np.sum(weights)), 1e-12)
+        elif abs(self._baseline_gap_alpha) <= 1e-9:
             weights = np.full((len(self._baseline_methods),), 1.0 / float(len(self._baseline_methods)), dtype=np.float64)
         else:
             logits = self._baseline_gap_alpha * (scores - float(np.max(scores)))
@@ -416,6 +423,7 @@ class ParallelGapAttackEnv(gym.Env):
             defaults[f"gap/baseline_weight_{method}"] = 0.0
             defaults[f"baseline/{method}_rtt_ms"] = 0.0
             defaults[f"baseline/{method}_rate_mbps"] = 0.0
+            defaults[f"baseline/{method}_previous_action"] = 0.0
         return defaults
 
     def _zero_gap_step_metrics(
@@ -716,6 +724,7 @@ class ParallelGapAttackEnv(gym.Env):
                     f"gap/baseline_weight_{method}": float(baseline_weights[method]),
                     f"baseline/{method}_rtt_ms": float(results[method][4].get("sage/current_rtt_ms", 0.0)),
                     f"baseline/{method}_rate_mbps": float(results[method][4].get("sage/windowed_delivery_rate_mbps", 0.0)),
+                    f"baseline/{method}_previous_action": float(results[method][4].get("sage/previous_action", 0.0)),
                 }
             )
 

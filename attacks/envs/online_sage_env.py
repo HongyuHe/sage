@@ -264,18 +264,24 @@ class OnlineSageAttackEnv(gym.Env):
         current_rtt_ms = float(raw[2] * 100.0) if raw.shape[0] > 2 else 0.0
         current_rttvar_ms = float(raw[3]) if raw.shape[0] > 3 else 0.0
         current_delivery_rate_mbps = float(raw[7] * 100.0) if raw.shape[0] > 7 else 0.0
+        time_delta_ms = float(raw[65]) if raw.shape[0] > 65 else 0.0
         current_min_rtt_ratio = float(raw[66]) if raw.shape[0] > 66 else 0.0
         current_loss_mbps = float(raw[67] * 100.0) if raw.shape[0] > 67 else 0.0
+        delivery_growth_ratio = float(raw[69]) if raw.shape[0] > 69 else 0.0
         windowed_delivery_rate_mbps = float(raw[71] * 100.0) if raw.shape[0] > 71 else current_delivery_rate_mbps
+        max_delivery_growth_ratio = float(raw[73]) if raw.shape[0] > 73 else 0.0
         max_windowed_delivery_rate_mbps = float(raw[74] * 100.0) if raw.shape[0] > 74 else 0.0
         return {
             "sage/current_rtt_ms": current_rtt_ms,
             "sage/current_rttvar_ms": current_rttvar_ms,
             "sage/current_delivery_rate_mbps": current_delivery_rate_mbps,
+            "sage/time_delta_ms": time_delta_ms,
             "sage/windowed_delivery_rate_mbps": windowed_delivery_rate_mbps,
             "sage/max_windowed_delivery_rate_mbps": max_windowed_delivery_rate_mbps,
             "sage/current_loss_mbps": current_loss_mbps,
             "sage/current_min_rtt_ratio": current_min_rtt_ratio,
+            "sage/delivery_growth_ratio": delivery_growth_ratio,
+            "sage/max_delivery_growth_ratio": max_delivery_growth_ratio,
         }
 
     def _normalized_action(self, action: np.ndarray) -> np.ndarray:

@@ -13,7 +13,10 @@ import sonnet as snt
 import tensorflow as tf
 
 import numpy as np
+import json
 import os
+import time
+from sage_rl.shield.runtime import maybe_build_shield_from_env
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
@@ -22,6 +25,24 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 tf.config.set_visible_devices([], 'GPU')
 
 yaml = YAML()
+
+
+def _open_controller_timing_log():
+    enabled = str(os.environ.get("SAGE_CONTROLLER_TIMING_LOG_ENABLED", "")).strip()
+    log_path = str(os.environ.get("SAGE_CONTROLLER_TIMING_LOG_PATH", "")).strip()
+    if enabled not in {"1", "true", "True"} and not log_path:
+        return None
+    if not log_path:
+        return None
+    os.makedirs(os.path.dirname(log_path) or ".", exist_ok=True)
+    return open(log_path, "w", encoding="utf-8")
+
+
+def _record_controller_timing(log_handle, payload):
+    if log_handle is None:
+        return
+    log_handle.write(json.dumps(payload, sort_keys=True) + "\n")
+    log_handle.flush()
 
 
 def run_evalcrr(args):
@@ -49,6 +70,7 @@ def run_evalcrr(args):
     environment_spec = specs.make_environment_spec(env)
 
     policy_network = None
+    controller_timing_log = _open_controller_timing_log()
 
     try:
         nw_type = config['nw_type']
@@ -101,6 +123,7 @@ def run_evalcrr(args):
     ])
 
     actor = actors.RecurrentActor(policy_network=eval_policy)
+    shield = maybe_build_shield_from_env(tcpspec=config['tcpspec'])
 
     iterations = np.int64(0)
 
@@ -121,10 +144,33 @@ def run_evalcrr(args):
     except Exception as e:
         print(e)
         print("================================ ERROR: TCP env has problem =============================")
+        if controller_timing_log is not None:
+            controller_timing_log.close()
         return
 
     # write 1st action
+    decision_index = 0
+    decision_started_at = time.perf_counter()
     a = actor.select_action(timestep.observation)
+    policy_decision_ms = (time.perf_counter() - decision_started_at) * 1000.0
+    shield_decision_ms = 0.0
+    if shield is not None:
+        shield_started_at = time.perf_counter()
+        a, _shield_stats = shield.adjust_action(observation=timestep.observation, proposed_action=a)
+        shield_decision_ms = (time.perf_counter() - shield_started_at) * 1000.0
+    controller_decision_ms = (time.perf_counter() - decision_started_at) * 1000.0
+    _record_controller_timing(
+        controller_timing_log,
+        {
+            "decision_index": int(decision_index),
+            "first_action": 1,
+            "shield_enabled": 1 if shield is not None else 0,
+            "policy_decision_time_ms": float(policy_decision_ms),
+            "shield_decision_time_ms": float(shield_decision_ms),
+            "controller_decision_time_ms": float(controller_decision_ms),
+        },
+    )
+    decision_index += 1
     env.write_action(a)
 
     agent_actions_list.append(a)
@@ -148,7 +194,27 @@ def run_evalcrr(args):
 
             actor.observe(action=a, next_timestep=next_timestep)
 
+            decision_started_at = time.perf_counter()
             a1 = actor.select_action(next_timestep.observation)
+            policy_decision_ms = (time.perf_counter() - decision_started_at) * 1000.0
+            shield_decision_ms = 0.0
+            if shield is not None:
+                shield_started_at = time.perf_counter()
+                a1, _shield_stats = shield.adjust_action(observation=next_timestep.observation, proposed_action=a1)
+                shield_decision_ms = (time.perf_counter() - shield_started_at) * 1000.0
+            controller_decision_ms = (time.perf_counter() - decision_started_at) * 1000.0
+            _record_controller_timing(
+                controller_timing_log,
+                {
+                    "decision_index": int(decision_index),
+                    "first_action": 0,
+                    "shield_enabled": 1 if shield is not None else 0,
+                    "policy_decision_time_ms": float(policy_decision_ms),
+                    "shield_decision_time_ms": float(shield_decision_ms),
+                    "controller_decision_time_ms": float(controller_decision_ms),
+                },
+            )
+            decision_index += 1
 
             env.write_action(a1)
 
@@ -168,3 +234,6 @@ def run_evalcrr(args):
             num_episodes += 1
 
         a = a1
+
+    if controller_timing_log is not None:
+        controller_timing_log.close()

@@ -67,7 +67,7 @@ install_system_packages() {
   sudo apt-get -y install \
     build-essential curl git libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev xz-utils \
-    gnuplot
+    gnuplot default-jre-headless
 }
 
 enable_bbr() {
@@ -196,6 +196,8 @@ sanity_checks() {
   sysctl -n net.ipv4.tcp_allowed_congestion_control | grep -qw bbr
   sysctl -n net.ipv4.tcp_allowed_congestion_control | grep -qw pure
   command -v mm-link mm-delay mm-loss mm-adv-net >/dev/null
+  command -v java >/dev/null
+  java -version
   "${VENV_LINK}/bin/python" --version
   "${VENV_LINK}/bin/python" -c "import tensorflow, acme, sonnet, reverb, jax, sysv_ipc, gym; print('python runtime imports ok')"
   "${VENV_LINK}/bin/python" "${SAGE_RL_DIR}/rl_module/test_loading_sage_model.py"
