@@ -4,21 +4,39 @@ Run this after `scripts/train_online_attacker.py`.
 Example usage:
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/online_adv_20260315_hotnets19_300k.zip \
+  --model-path attacks/models/online_adv_20260318_hotnets19-100ms_300k.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/hotnets19-300k \
+  --out-dir attacks/adv_traces/hotnets19-100ms_300k \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260313_rl-constrained_300k-0.01ent.zip \
+  --model-path attacks/models/gap_adv_20260317_gap-constrained-1baseline_300k.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/rl-constrained-300k-0.01ent \
+  --out-dir attacks/adv_traces/gap-constrained-1baseline_300k \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260314_rl-unconstrained_300k.zip \
+  --model-path attacks/models/gap_adv_20260316_gap-constrained-2baselines_300k.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/rl-unconstrained-300k \
+  --out-dir attacks/adv_traces/gap-constrained-2baselines_300k \
+  --wandb
+
+time python scripts/generate_online_adv_traces.py \
+  --model-path attacks/models/gap_adv_20260316_gap-constrained-3baselines_300k.zip \
+  --test-manifest attacks/test/manifest.json \
+  --out-dir attacks/adv_traces/gap-constrained-3baselines_300k \
+  --wandb
+
+time python scripts/generate_online_adv_traces.py \
+  --model-path attacks/models/gap_adv_20260318_gap-constrained-3b-hard_200k.zip \
+  --test-manifest attacks/test/manifest.json \
+  --out-dir attacks/adv_traces/gap_adv_20260318_gap-constrained-3b-hard_200k \
+  --wandb
+
+time python scripts/generate_online_adv_traces.py \
+  --model-path attacks/models/gap_adv_20260315_gap-unconstrained_300k.zip \
+  --test-manifest attacks/test/manifest.json \
+  --out-dir attacks/adv_traces/gap-unconstrained_300k \
   --wandb
 
 Older two-baseline artifacts still replay with cubic,bbr if the saved config predates
@@ -348,6 +366,7 @@ def _independent_generation(
             step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
             runtime_dir=runtime_dir,
             baseline_gap_alpha=float(config_payload.get("baseline_gap_alpha", 2.0)),
+            baseline_hard_max=bool(config_payload.get("baseline_hard_max", False)),
             baseline_methods=baseline_methods,
             smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
             sync_guard_ms=float(config_payload.get("sync_guard_ms", 25.0)),

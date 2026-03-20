@@ -93,6 +93,13 @@ class SageLaunchConfig:
     initial_downlink_queue_packets: int | None = None
     initial_uplink_queue_bytes: int | None = None
     initial_downlink_queue_bytes: int | None = None
+    shield_rules_file: str | None = None
+    shield_action_delta: float | None = None
+    shield_consecutive_risk: int | None = None
+    shield_cooldown_steps: int | None = None
+    shield_log_path: str | None = None
+    controller_timing_log_enabled: bool = False
+    controller_timing_log_path: str | None = None
 
     def make_command(self, repo_root: str) -> list[str]:
         script = _resolve_path(repo_root, self.sage_script)
@@ -142,10 +149,21 @@ class SageLaunchConfig:
             "SAGE_MM_ADV_DOWNLINK_QUEUE_PACKETS": self.initial_downlink_queue_packets,
             "SAGE_MM_ADV_UPLINK_QUEUE_BYTES": self.initial_uplink_queue_bytes,
             "SAGE_MM_ADV_DOWNLINK_QUEUE_BYTES": self.initial_downlink_queue_bytes,
+            "SAGE_SHIELD_ACTION_DELTA": self.shield_action_delta,
+            "SAGE_SHIELD_CONSECUTIVE_RISK": self.shield_consecutive_risk,
+            "SAGE_SHIELD_COOLDOWN_STEPS": self.shield_cooldown_steps,
         }
         for key, value in optional_values.items():
             if value is not None:
                 env[key] = str(value)
+        if self.shield_rules_file:
+            env["SAGE_SHIELD_RULES_FILE"] = _resolve_path(repo_root, self.shield_rules_file)
+        if self.shield_log_path:
+            env["SAGE_SHIELD_LOG_PATH"] = _resolve_path(repo_root, self.shield_log_path)
+        if self.controller_timing_log_enabled:
+            env["SAGE_CONTROLLER_TIMING_LOG_ENABLED"] = "1"
+        if self.controller_timing_log_path:
+            env["SAGE_CONTROLLER_TIMING_LOG_PATH"] = _resolve_path(repo_root, self.controller_timing_log_path)
         return env
 
 
@@ -204,6 +222,16 @@ def launch_sage(
 
     env = os.environ.copy()
     env.update(launch_config.env_overrides(repo_root, control_file=control_file, keys_file=keys_file))
+    if (
+        launch_config.shield_rules_file
+        and "SAGE_SHIELD_LOG_PATH" not in env
+    ):
+        env["SAGE_SHIELD_LOG_PATH"] = os.path.join(runtime_dir, "sage-shield-runtime.jsonl")
+    if (
+        launch_config.controller_timing_log_enabled
+        and "SAGE_CONTROLLER_TIMING_LOG_PATH" not in env
+    ):
+        env["SAGE_CONTROLLER_TIMING_LOG_PATH"] = os.path.join(runtime_dir, "sage-controller-timing.jsonl")
     if extra_env is not None:
         env.update({str(k): str(v) for k, v in extra_env.items()})
 

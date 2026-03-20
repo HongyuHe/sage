@@ -58,6 +58,12 @@ PLOT_SPECS: tuple[dict[str, Any], ...] = (
         "series": (("smoothed_gap_percent_mean", "Smoothed Gap Percent"),),
     },
     {
+        "key": "bbr_gap_percent",
+        "title": "BBR Gap Percent",
+        "x_label": "Per-Trace Gap over BBR [%]",
+        "series": (("bbr_gap_percent_mean", "Gap over BBR"),),
+    },
+    {
         "key": "reward",
         "title": "Per-Trace Attacker Reward",
         "x_label": "Per-Trace Attacker Reward",
@@ -299,6 +305,21 @@ def _build_metric_frame_from_per_episode(summary_payload: dict[str, Any]) -> pd.
             column="smoothed_gap_percent_mean",
             label="Smoothed Gap Percent",
         )
+    if {"gap_score_bbr_mean", "gap_score_sage_mean"}.issubset(frame.columns):
+        bbr_gap_percent_spec = _spec_by_key("bbr_gap_percent")
+        bbr_gap_percent_frame = frame.loc[:, ["trace_type"]].copy()
+        bbr_gap_percent_frame["bbr_gap_percent_mean"] = _gap_percent_from_series(
+            pd.to_numeric(frame["gap_score_bbr_mean"], errors="coerce")
+            - pd.to_numeric(frame["gap_score_sage_mean"], errors="coerce"),
+            frame["gap_score_bbr_mean"],
+        )
+        _append_numeric_records(
+            records=records,
+            frame=bbr_gap_percent_frame,
+            spec=bbr_gap_percent_spec,
+            column="bbr_gap_percent_mean",
+            label="Gap over BBR",
+        )
 
     if not records:
         return None
@@ -391,6 +412,33 @@ def _build_metric_frame_from_summary(summary_payload: dict[str, Any]) -> pd.Data
                         "trace_type": str(row["trace_type"]),
                         "stat": stat,
                         "value": 100.0 * float(numerator) / float(denominator),
+                    }
+                )
+
+    bbr_rows = frame.loc[frame["metric"] == "gap_score_bbr_mean"].copy()
+    sage_rows = frame.loc[frame["metric"] == "gap_score_sage_mean"].copy()
+    if not bbr_rows.empty and not sage_rows.empty:
+        merged = bbr_rows.merge(
+            sage_rows,
+            on="trace_type",
+            suffixes=("_bbr", "_sage"),
+        )
+        bbr_gap_percent_spec = _spec_by_key("bbr_gap_percent")
+        for row in merged.to_dict(orient="records"):
+            for stat in STAT_ORDER:
+                bbr_value = pd.to_numeric(pd.Series([row.get(f"{stat}_bbr")]), errors="coerce").iloc[0]
+                sage_value = pd.to_numeric(pd.Series([row.get(f"{stat}_sage")]), errors="coerce").iloc[0]
+                if pd.isna(bbr_value) or pd.isna(sage_value) or float(bbr_value) <= _GAP_PERCENT_EPS:
+                    continue
+                records.append(
+                    {
+                        "plot_key": bbr_gap_percent_spec["key"],
+                        "plot_title": bbr_gap_percent_spec["title"],
+                        "x_label": bbr_gap_percent_spec["x_label"],
+                        "metric_label": "Gap over BBR",
+                        "trace_type": str(row["trace_type"]),
+                        "stat": stat,
+                        "value": 100.0 * (float(bbr_value) - float(sage_value)) / float(bbr_value),
                     }
                 )
 

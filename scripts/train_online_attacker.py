@@ -32,6 +32,18 @@ time python scripts/train_online_attacker.py \
   --out-dir attacks/output/models \
   --ppo-ent-coef 0.01 \
   --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-3b
+
+time python scripts/train_online_attacker.py \
+  --attack-mode independent_gap \
+  --baseline-methods reno,bbr,cubic \
+  --smooth-penalty-scale 0.05 \
+  --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
+  --total-steps 300000 \
+  --attack-interval-ms 100 \
+  --out-dir attacks/output/models \
+  --ppo-ent-coef 0.01 \
+  --baseline-hard-max \
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-3b-hard
   
 time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
@@ -46,13 +58,13 @@ time python scripts/train_online_attacker.py \
 
 time python scripts/train_online_attacker.py \
   --attack-mode independent \
-  --attack-interval-ms 30 \
+  --attack-interval-ms 100 \
   --attack-shared-bw-min-mbps 6 --attack-shared-bw-max-mbps 24 \
   --attack-shared-loss-min 0.0 --attack-shared-loss-max 0.0 \
   --attack-shared-delay-min-ms 25 --attack-shared-delay-max-ms 25 \
   --total-steps 300000 \
   --out-dir attacks/output/models \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name hotnets19
+  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name hotnets19-100ms
 
 Legacy two-baseline reproduction:
 time python scripts/train_online_attacker.py \
@@ -242,6 +254,11 @@ def main() -> None:
     parser.add_argument("--step-timeout-s", type=float, default=10.0)
     parser.add_argument("--smooth-penalty-scale", type=float, default=None)
     parser.add_argument("--baseline-gap-alpha", type=float, default=2.0)
+    parser.add_argument(
+        "--baseline-hard-max",
+        action="store_true",
+        help="Use the hard max over enabled baseline scores instead of the softmax-smoothed baseline score.",
+    )
     parser.add_argument(
         "--baseline-methods",
         type=str,
@@ -579,6 +596,7 @@ def main() -> None:
                 step_timeout_s=float(args.step_timeout_s),
                 runtime_dir=resolved_runtime_dir,
                 baseline_gap_alpha=float(args.baseline_gap_alpha),
+                baseline_hard_max=bool(args.baseline_hard_max),
                 baseline_methods=baseline_methods,
                 smooth_penalty_scale=float(resolved_smooth_penalty_scale),
                 sync_guard_ms=float(args.sync_guard_ms),
