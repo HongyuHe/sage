@@ -67,6 +67,7 @@ if __package__ in (None, ""):
         attack_bounds_from_config,
         load_trace_entries,
         materialize_trace_splits,
+        print_wandb_run_links,
         repo_root_from_script,
         resolve_repo_path,
         run_online_policy_episode,
@@ -83,6 +84,7 @@ else:
         attack_bounds_from_config,
         load_trace_entries,
         materialize_trace_splits,
+        print_wandb_run_links,
         repo_root_from_script,
         resolve_repo_path,
         run_online_policy_episode,
@@ -595,6 +597,11 @@ def main() -> None:
                     "runtime_dir_resolved": resolved_runtime_dir,
                     "run_id": run_namespace.run_id,
                 },
+            )
+            print_wandb_run_links(
+                wandb_run,
+                entity=args.wandb_entity,
+                project=str(args.wandb_project),
             )
 
         launch_config = _resolved_launch_config(config_payload=config_payload, run_namespace=run_namespace)

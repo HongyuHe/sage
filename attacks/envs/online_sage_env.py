@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, replace
+import json
 import os
 import time
 from typing import Any
@@ -130,6 +131,8 @@ class OnlineSageAttackEnv(gym.Env):
         self._pending_action: np.ndarray | None = None
         self._last_victim_step: SageStep | None = None
         self._has_real_victim_step = False
+        self._keys_file_path: str | None = None
+        self._sage_ipc_keys: tuple[int, int] | None = None
 
     def _recent_process_logs(self, max_lines: int = 40) -> str:
         if self._sage_process is None:
@@ -357,6 +360,42 @@ class OnlineSageAttackEnv(gym.Env):
         if self._control_client is not None:
             self._control_client.close()
             self._control_client = None
+        self._cleanup_ipc_resources()
+
+    def _cleanup_ipc_resources(self) -> None:
+        keys_file = self._keys_file_path
+        keys = self._sage_ipc_keys
+        self._keys_file_path = None
+        self._sage_ipc_keys = None
+
+        if keys is None and keys_file and os.path.exists(keys_file):
+            try:
+                with open(keys_file, "r", encoding="utf-8") as file_obj:
+                    payload = json.load(file_obj)
+                mem_r = payload.get("mem_r")
+                mem_w = payload.get("mem_w")
+                if mem_r is not None and mem_w is not None:
+                    keys = (int(mem_r), int(mem_w))
+            except Exception:
+                keys = None
+
+        if keys is not None:
+            try:
+                import sysv_ipc
+            except Exception:
+                sysv_ipc = None
+            if sysv_ipc is not None:
+                for key in keys:
+                    try:
+                        sysv_ipc.SharedMemory(int(key)).remove()
+                    except Exception:
+                        pass
+
+        if keys_file and os.path.exists(keys_file):
+            try:
+                os.remove(keys_file)
+            except OSError:
+                pass
 
     def close(self) -> None:
         self._cleanup()
@@ -380,6 +419,7 @@ class OnlineSageAttackEnv(gym.Env):
 
         control_file = os.path.join(episode_dir, "mahimahi.control")
         keys_file = os.path.join(episode_dir, "sage.keys.json")
+        self._keys_file_path = keys_file
         #* Prevent attaching to a stale shared-memory key from a previous failed run.
         try:
             if os.path.exists(keys_file):
@@ -403,6 +443,15 @@ class OnlineSageAttackEnv(gym.Env):
         launch_started_at = time.monotonic()
         try:
             self._sage_reader = SageSharedMemoryReader.from_keys_file(keys_file, timeout_s=self.launch_timeout_s)
+            try:
+                with open(keys_file, "r", encoding="utf-8") as file_obj:
+                    payload = json.load(file_obj)
+                mem_r = payload.get("mem_r")
+                mem_w = payload.get("mem_w")
+                if mem_r is not None and mem_w is not None:
+                    self._sage_ipc_keys = (int(mem_r), int(mem_w))
+            except Exception:
+                self._sage_ipc_keys = None
             remaining_launch_timeout_s = max(self.launch_timeout_s - (time.monotonic() - launch_started_at), 0.0)
             initial_step, placeholder_bootstrap = self._wait_for_initial_real_step(
                 timeout_s=remaining_launch_timeout_s

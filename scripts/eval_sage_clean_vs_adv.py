@@ -27,6 +27,12 @@ time python scripts/eval_sage_clean_vs_adv.py \
   --out-dir attacks/output/eval-300k \
   --skip-clean-rollout \
   --wandb --wandb-tags v3 --wandb-project sage-gap-eval
+  
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/gap-constrained-3b-hard_200k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v3 --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/gap-unconstrained_300k/generated_manifest.json \
@@ -75,6 +81,7 @@ if __package__ in (None, ""):
         load_mahimahi_trace_schedule,
         load_trace_entries,
         materialize_trace_splits,
+        print_wandb_run_links,
         repo_root_from_script,
         resolve_repo_path,
         run_online_policy_episode,
@@ -91,6 +98,7 @@ else:
         load_mahimahi_trace_schedule,
         load_trace_entries,
         materialize_trace_splits,
+        print_wandb_run_links,
         repo_root_from_script,
         resolve_repo_path,
         run_online_policy_episode,
@@ -943,7 +951,7 @@ def _init_wandb_run(
 ) -> Any | None:
     if wandb is None:
         return None
-    return wandb.init(
+    run = wandb.init(
         project=str(args.wandb_project),
         entity=args.wandb_entity,
         name=run_name,
@@ -963,6 +971,12 @@ def _init_wandb_run(
         },
         reinit=True,
     )
+    print_wandb_run_links(
+        run,
+        entity=args.wandb_entity,
+        project=str(args.wandb_project),
+    )
+    return run
 
 
 def _write_csv(path: str, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:

@@ -102,6 +102,7 @@ if __package__ in (None, ""):
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from scripts._trace_attack_common import (
         IndependentAttackEnv,
+        print_wandb_run_links,
         repo_root_from_script,
         resolve_repo_path,
         save_json,
@@ -110,6 +111,7 @@ if __package__ in (None, ""):
 else:
     from ._trace_attack_common import (
         IndependentAttackEnv,
+        print_wandb_run_links,
         repo_root_from_script,
         resolve_repo_path,
         save_json,
@@ -402,6 +404,11 @@ def main() -> None:
                     ),
                     "vecnormalize_enabled": bool(use_gap_objective or shared_bandwidth_action_requested),
                 },
+            )
+            print_wandb_run_links(
+                wandb_run,
+                entity=args.wandb_entity,
+                project=str(args.wandb_project),
             )
 
         launch_config = replace(

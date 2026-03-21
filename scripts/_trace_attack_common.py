@@ -1504,6 +1504,8 @@ def save_json(path: str, payload: dict[str, Any]) -> None:
 
 def try_import_wandb() -> Any | None:
     try:
+        os.environ.setdefault("WANDB_SILENT", "true")
+        os.environ.setdefault("WANDB_CONSOLE", "off")
         import wandb  # type: ignore
 
         if not hasattr(wandb, "init"):
@@ -1511,6 +1513,47 @@ def try_import_wandb() -> Any | None:
         return wandb
     except Exception:
         return None
+
+
+def print_wandb_run_links(run: Any | None, *, entity: str | None = None, project: str | None = None) -> None:
+    if run is None:
+        return
+
+    project_url = ""
+    run_url = ""
+
+    project_url_getter = getattr(run, "project_url", None)
+    if callable(project_url_getter):
+        try:
+            project_url = str(project_url_getter() or "")
+        except Exception:
+            project_url = ""
+
+    run_url_getter = getattr(run, "get_url", None)
+    if callable(run_url_getter):
+        try:
+            run_url = str(run_url_getter() or "")
+        except Exception:
+            run_url = ""
+
+    if not run_url:
+        try:
+            run_url = str(getattr(run, "url", "") or "")
+        except Exception:
+            run_url = ""
+
+    if not project_url and run_url and "/runs/" in run_url:
+        project_url = str(run_url.split("/runs/", 1)[0])
+
+    run_entity = str(entity or getattr(run, "entity", "") or "")
+    run_project = str(project or getattr(run, "project", "") or "")
+    if not project_url and run_entity and run_project:
+        project_url = f"https://wandb.ai/{run_entity}/{run_project}"
+
+    if project_url:
+        print(f"wandb: ⭐️ View project at {project_url}")
+    if run_url:
+        print(f"wandb: 🚀 View run at {run_url}")
 
 
 def numeric_info_payload(info: dict[str, Any]) -> dict[str, float]:

@@ -92,6 +92,7 @@ class ParallelGapAttackEnv(gym.Env):
         self._baseline_gap_alpha = float(baseline_gap_alpha)
         self._baseline_hard_max = bool(baseline_hard_max)
         self._baseline_methods = normalize_baseline_methods(baseline_methods)
+        self._child_count = 1 + len(self._baseline_methods)
         self._gap_obs_feature_dim = 8 + 4 * len(self._baseline_methods)
         self._smooth_penalty_scale = float(smooth_penalty_scale)
         self._sync_guard_ms = max(float(sync_guard_ms), 1.0)
@@ -223,10 +224,14 @@ class ParallelGapAttackEnv(gym.Env):
             self.action_space.high,
         ).astype(np.float32, copy=False)
 
-    def _reserve_launch_port(self, preferred_port: int, *, taken_ports: set[int], max_tries: int = 256) -> int:
-        candidate = max(int(preferred_port), 1024)
-        for offset in range(max(int(max_tries), 1)):
-            port = candidate + offset
+    def _reserve_launch_port(self, preferred_port: int, *, taken_ports: set[int]) -> int:
+        block_start = max(int(self._base_launch_config.port), 1024)
+        block_size = max(int(self._child_count), 1)
+        block_end = block_start + block_size - 1
+        candidate = int(np.clip(int(preferred_port), block_start, block_end))
+        candidate_ports = list(range(candidate, block_end + 1))
+        candidate_ports.extend(range(block_start, candidate))
+        for port in candidate_ports:
             if int(port) in taken_ports:
                 continue
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -237,12 +242,9 @@ class ParallelGapAttackEnv(gym.Env):
                     continue
                 taken_ports.add(int(port))
                 return int(port)
-
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.bind(("0.0.0.0", 0))
-            port = int(sock.getsockname()[1])
-            taken_ports.add(port)
-            return port
+        raise RuntimeError(
+            f"Address already in use within reserved launch port block {block_start}-{block_end}"
+        )
 
     def _augment_observation(self, observation: np.ndarray) -> np.ndarray:
         return np.concatenate(
@@ -316,7 +318,7 @@ class ParallelGapAttackEnv(gym.Env):
         port_offset: int,
         taken_ports: set[int],
     ) -> OnlineSageAttackEnv:
-        generation_offset = self._launch_generation * 10
+        generation_offset = self._launch_generation * self._child_count
         preferred_port = int(self._base_launch_config.port) + int(port_offset)
         resolved_port = self._reserve_launch_port(preferred_port, taken_ports=taken_ports)
         launch_config = replace(
@@ -501,9 +503,10 @@ class ParallelGapAttackEnv(gym.Env):
         self.close()
 
         launch_error: RuntimeError | None = None
-        for _ in range(self._launch_retries):
-            children = self._create_children()
+        for attempt in range(self._launch_retries):
+            children: dict[str, OnlineSageAttackEnv] = {}
             try:
+                children = self._create_children()
                 initial_obs: dict[str, np.ndarray] = {}
                 initial_infos: dict[str, dict[str, Any]] = {}
                 placeholder_roles: list[str] = []
@@ -519,6 +522,7 @@ class ParallelGapAttackEnv(gym.Env):
                     child.close()
                 if not _is_retryable_launch_error(exc):
                     raise
+                time.sleep(min(0.25 * float(attempt + 1), 2.0))
                 continue
 
             self._children = children

@@ -1,0 +1,20 @@
+{
+  "out_dir": "/users/hy/sage/attacks/output/eval-300k/plots-new",
+  "plots": [
+    "/users/hy/sage/attacks/output/eval-300k/plots-new/gap_value_stats.png",
+    "/users/hy/sage/attacks/output/eval-300k/plots-new/hard_max_gap_stats.png",
+    "/users/hy/sage/attacks/output/eval-300k/plots-new/gap_percent_stats.png",
+    "/users/hy/sage/attacks/output/eval-300k/plots-new/smoothed_gap_percent_stats.png",
+    "/users/hy/sage/attacks/output/eval-300k/plots-new/reward_stats.png",
+    "/users/hy/sage/attacks/output/eval-300k/plots-new/baseline_scores_stats.png",
+    "/users/hy/sage/attacks/output/eval-300k/plots-new/throughput_stats.png",
+    "/users/hy/sage/attacks/output/eval-300k/plots-new/latency_stats.png"
+  ],
+  "setup_name_map": {
+    "clean": "Benign Test Traces",
+    "hotnets19-300k": "HotNets '19",
+    "rl-constrained-300k-0.01ent": "Max. Regret (Ours)",
+    "rl-unconstrained-300k": null
+  },
+  "summary_path": "/users/hy/sage/attacks/output/eval-300k/clean_vs_adv_summary.json"
+}
