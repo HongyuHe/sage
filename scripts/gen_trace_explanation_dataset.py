@@ -6,6 +6,21 @@ time python scripts/gen_trace_explanation_dataset.py \
   --generated-manifest attacks/adv_traces/gap-constrained-3baselines_300k/generated_manifest.json \
   --clean-manifest attacks/train/manifest.json \
   --out-dir attacks/output/trace-explanations/gap-constrained-3baselines_300k
+
+time python scripts/gen_trace_explanation_dataset.py \
+  --generated-manifest attacks/adv_traces/gap-constrained-1baseline_300k/generated_manifest.json \
+  --clean-manifest attacks/train/manifest.json \
+  --out-dir attacks/output/trace-explanations/gap-constrained-1baseline_300k
+  
+time python scripts/gen_trace_explanation_dataset.py \
+  --generated-manifest attacks/adv_traces/gap-unconstrained_300k/generated_manifest.json \
+  --clean-manifest attacks/train/manifest.json \
+  --out-dir attacks/output/trace-explanations/gap-unconstrained_300k
+  
+time python scripts/gen_trace_explanation_dataset.py \
+  --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
+  --clean-manifest attacks/train/manifest.json \
+  --out-dir attacks/output/trace-explanations/hotnets19-loss_50ms_300k
 """
 
 from __future__ import annotations
@@ -18,7 +33,13 @@ from typing import Any, Iterable
 
 import numpy as np
 
-from attacks.analysis import FEATURE_COLUMNS, FEATURE_DESCRIPTIONS, extract_trace_explanation_features
+from attacks.analysis import (
+    DEFAULT_SHARED_WINDOW_STEPS,
+    extract_trace_explanation_features,
+    normalize_trace_explanation_window_steps,
+    trace_explanation_feature_columns,
+    trace_explanation_feature_descriptions,
+)
 from attacks.envs import ParallelGapAttackEnv, baseline_methods_from_config
 from attacks.online import acquire_run_namespace
 
@@ -86,6 +107,14 @@ _SUMMARY_METRIC_KEYS: tuple[str, ...] = (
 )
 
 
+def _parse_window_steps_arg(value: str | None) -> tuple[int, ...]:
+    if value is None or not str(value).strip():
+        return normalize_trace_explanation_window_steps(DEFAULT_SHARED_WINDOW_STEPS)
+    return normalize_trace_explanation_window_steps(
+        [int(part.strip()) for part in str(value).split(",") if part.strip()]
+    )
+
+
 def _aggregate_summary(values: list[float], *, prefix: str) -> dict[str, float]:
     array = np.asarray(values, dtype=np.float64)
     array = np.nan_to_num(array, nan=0.0, posinf=0.0, neginf=0.0)
@@ -123,6 +152,7 @@ def _replay_trace_summary(
     attack_interval_ms: float,
     baseline_methods_key: str,
     attack_mode: str,
+    shared_window_steps: tuple[int, ...],
 ) -> dict[str, Any]:
     _observation, _info = env.reset()
     per_metric: dict[str, list[float]] = {key: [] for key in _SUMMARY_METRIC_KEYS}
@@ -195,6 +225,7 @@ def _replay_trace_summary(
             attack_interval_ms=float(attack_interval_ms),
             baseline_methods_key=str(baseline_methods_key),
             attack_mode=str(attack_mode),
+            shared_window_steps=shared_window_steps,
         )
     )
     return summary
@@ -208,6 +239,12 @@ def main() -> None:
     parser.add_argument("--config-path", type=str, default=None)
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--runtime-dir", type=str, default="attacks/runtime")
+    parser.add_argument(
+        "--window-steps",
+        type=str,
+        default=",".join(str(value) for value in DEFAULT_SHARED_WINDOW_STEPS),
+        help="Comma-separated shared-bandwidth sliding-window lengths in replay steps for windowed trace features.",
+    )
     parser.add_argument("--skip-clean-rollout", action="store_true")
     parser.add_argument("--adv-only-rollout", action="store_true")
     parser.add_argument("--clean-only-rollout", action="store_true")
@@ -220,6 +257,9 @@ def main() -> None:
     repo_root = os.path.abspath(str(args.repo_root))
     out_dir = resolve_repo_path(repo_root, str(args.out_dir))
     os.makedirs(out_dir, exist_ok=True)
+    shared_window_steps = _parse_window_steps_arg(args.window_steps)
+    feature_columns = trace_explanation_feature_columns(shared_window_steps)
+    feature_descriptions = trace_explanation_feature_descriptions(shared_window_steps)
 
     generated_manifest_path = resolve_repo_path(repo_root, str(args.generated_manifest))
     generated_manifest = _load_json(generated_manifest_path)
@@ -293,6 +333,7 @@ def main() -> None:
         label=f"trace-explanations-{trace_set_name}",
         ports_per_run=len(baseline_methods) + 1,
     )
+    resolved_runtime_dir = run_namespace.runtime_dir
     launch_config = _resolved_launch_config(config_payload=config_payload, run_namespace=run_namespace)
 
     rows: list[dict[str, Any]] = []
@@ -305,13 +346,15 @@ def main() -> None:
         max_episode_steps=int(config_payload.get("episode_steps", 6000)),
         launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
         step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
-        runtime_dir=str(args.runtime_dir),
+        runtime_dir=resolved_runtime_dir,
         baseline_gap_alpha=float(config_payload.get("baseline_gap_alpha", 2.0)),
         baseline_hard_max=bool(config_payload.get("baseline_hard_max", False)),
         baseline_methods=baseline_methods,
         smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
         sync_guard_ms=float(config_payload.get("sync_guard_ms", 25.0)),
         launch_retries=int(config_payload.get("gap_launch_retries", 6)),
+        shared_bin_loss_enabled=bool(config_payload.get("shared_bin_loss_enabled", False)),
+        shared_bin_loss_bin_ms=float(config_payload.get("shared_bin_loss_bin_ms", 5.0)),
     )
     try:
         for trace_type, schedules in (("clean", clean_schedules), ("adv", adv_schedules)):
@@ -327,6 +370,7 @@ def main() -> None:
                         attack_interval_ms=float(config_payload.get("attack_interval_ms", 100.0)),
                         baseline_methods_key=baseline_methods_key,
                         attack_mode=attack_mode,
+                        shared_window_steps=shared_window_steps,
                     )
                 )
     finally:
@@ -344,18 +388,20 @@ def main() -> None:
             writer.writerow(row)
 
     feature_desc_path = os.path.join(out_dir, "trace_explanation_feature_descriptions.json")
-    save_json(feature_desc_path, FEATURE_DESCRIPTIONS)
+    save_json(feature_desc_path, feature_descriptions)
     summary_payload = {
         "created_at_utc": utc_now_iso(),
         "repo_root": repo_root,
         "generated_manifest_path": generated_manifest_path,
         "training_config_path": config_path,
         "clean_manifest_path": clean_manifest_path,
+        "runtime_dir_resolved": resolved_runtime_dir,
         "trace_set_name": trace_set_name,
         "baseline_methods": list(baseline_methods),
         "baseline_methods_key": baseline_methods_key,
         "attack_mode": attack_mode,
-        "feature_columns": list(FEATURE_COLUMNS),
+        "shared_window_steps": list(shared_window_steps),
+        "feature_columns": list(feature_columns),
         "feature_description_path": os.path.relpath(feature_desc_path, repo_root),
         "csv_path": os.path.relpath(csv_path, repo_root),
         "num_rows": len(rows),

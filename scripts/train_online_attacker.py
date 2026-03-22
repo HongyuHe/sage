@@ -3,7 +3,8 @@ Example usage:
 Default gap training now uses all available baselines: reno,bbr,cubic.
 python scripts/train_online_attacker.py \
   --total-steps 300000 \
-  --attack-interval-ms 100 \
+  --attack-interval-ms 50 \
+  --port 5201 \
   --ppo-n-steps 256 \
   --ppo-batch-size 64 \
   --ppo-n-epochs 4 \
@@ -17,10 +18,39 @@ time python scripts/train_online_attacker.py \
   --attack-shared-bw-min-mbps 0.5 --attack-shared-bw-max-mbps 2000 \
   --effective-bw-cap-mbps 2000 \
   --total-steps 300000 \
-  --attack-interval-ms 100 \
+  --attack-interval-ms 50 \
+  --port 5211 \
   --out-dir attacks/output/models \
   --ppo-ent-coef 0.005 \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-unconstrained
+  --wandb --wandb-tags 300k-50ms --wandb-project sage-gap-train-v3 --wandb-name gap-unconstrained-all
+
+time python scripts/train_online_attacker.py \
+  --attack-mode independent_gap \
+  --baseline-methods reno,bbr,cubic \
+  --smooth-penalty-scale 0.00 \
+  --attack-shared-bw-min-mbps 0.5 --attack-shared-bw-max-mbps 2000 \
+  --attack-shared-bin-loss-min-rate 0.0 --attack-shared-bin-loss-max-rate 0.5 \
+  --shared-bin-loss-bin-ms 1 \
+  --effective-bw-cap-mbps 2000 \
+  --total-steps 300000 \
+  --attack-interval-ms 50 \
+  --port 4221 \
+  --out-dir attacks/output/models \
+  --ppo-ent-coef 0.005 \
+  --wandb --wandb-tags 300k-50ms,loss --wandb-project sage-gap-train-v3 --wandb-name gap-unconstrained-all-loss
+
+time python scripts/train_online_attacker.py \
+  --attack-mode independent_gap \
+  --baseline-methods bbr \
+  --smooth-penalty-scale 0.00 \
+  --attack-shared-bw-min-mbps 0.5 --attack-shared-bw-max-mbps 2000 \
+  --effective-bw-cap-mbps 2000 \
+  --total-steps 300000 \
+  --attack-interval-ms 50 \
+  --port 5231 \
+  --out-dir attacks/output/models \
+  --ppo-ent-coef 0.005 \
+  --wandb --wandb-tags 300k-50ms --wandb-project sage-gap-train-v3 --wandb-name gap-unconstrained-bbr
   
 time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
@@ -28,10 +58,25 @@ time python scripts/train_online_attacker.py \
   --smooth-penalty-scale 0.05 \
   --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
   --total-steps 300000 \
-  --attack-interval-ms 100 \
+  --attack-interval-ms 50 \
+  --port 5241 \
   --out-dir attacks/output/models \
   --ppo-ent-coef 0.01 \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-3b
+  --wandb --wandb-tags 300k-50ms --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-all
+
+time python scripts/train_online_attacker.py \
+  --attack-mode independent_gap \
+  --baseline-methods reno,bbr,cubic \
+  --smooth-penalty-scale 0.05 \
+  --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
+  --attack-shared-bin-loss-min-rate 0.0 --attack-shared-bin-loss-max-rate 0.02 \
+  --shared-bin-loss-bin-ms 1 \
+  --total-steps 300000 \
+  --attack-interval-ms 50 \
+  --port 5251 \
+  --out-dir attacks/output/models \
+  --ppo-ent-coef 0.01 \
+  --wandb --wandb-tags 300k-50ms,loss --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-all-loss
 
 time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
@@ -39,11 +84,12 @@ time python scripts/train_online_attacker.py \
   --smooth-penalty-scale 0.05 \
   --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
   --total-steps 300000 \
-  --attack-interval-ms 100 \
+  --attack-interval-ms 50 \
+  --port 4261 \
   --out-dir attacks/output/models \
   --ppo-ent-coef 0.01 \
   --baseline-hard-max \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-3b-hard
+  --wandb --wandb-tags 300k-50ms --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-all-hard
   
 time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
@@ -51,20 +97,33 @@ time python scripts/train_online_attacker.py \
   --smooth-penalty-scale 0.05 \
   --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
   --total-steps 300000 \
-  --attack-interval-ms 100 \
+  --attack-interval-ms 50 \
+  --port 4271 \
   --out-dir attacks/output/models \
   --ppo-ent-coef 0.01 \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-bbr-only
+  --wandb --wandb-tags 300k-50ms --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-bbr
 
 time python scripts/train_online_attacker.py \
   --attack-mode independent \
-  --attack-interval-ms 100 \
+  --attack-interval-ms 50 \
+  --port 5101 \
   --attack-shared-bw-min-mbps 6 --attack-shared-bw-max-mbps 24 \
-  --attack-shared-loss-min 0.0 --attack-shared-loss-max 0.0 \
   --attack-shared-delay-min-ms 25 --attack-shared-delay-max-ms 25 \
   --total-steps 300000 \
   --out-dir attacks/output/models \
-  --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name hotnets19-100ms
+  --wandb --wandb-tags 300k-50ms --wandb-project sage-gap-train-v3 --wandb-name hotnets19
+
+time python scripts/train_online_attacker.py \
+  --attack-mode independent \
+  --attack-interval-ms 50 \
+  --port 8111 \
+  --attack-shared-bw-min-mbps 6 --attack-shared-bw-max-mbps 24 \
+  --attack-shared-bin-loss-min-rate 0.0 --attack-shared-bin-loss-max-rate 0.01 \
+  --shared-bin-loss-bin-ms 1 \
+  --attack-shared-delay-min-ms 25 --attack-shared-delay-max-ms 25 \
+  --total-steps 300000 \
+  --out-dir attacks/output/models \
+  --wandb --wandb-tags 300k-50ms,loss --wandb-project sage-gap-train-v3 --wandb-name hotnets19-loss
 
 Legacy two-baseline reproduction:
 time python scripts/train_online_attacker.py \
@@ -74,6 +133,7 @@ time python scripts/train_online_attacker.py \
   --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
   --total-steps 300000 \
   --attack-interval-ms 100 \
+  --port 5281 \
   --out-dir attacks/output/models \
   --ppo-ent-coef 0.01 \
   --wandb --wandb-tags 300k --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-legacy
@@ -165,6 +225,7 @@ _WANDB_AGGREGATE_INFO_KEYS: dict[str, str] = {
     "attacker/reward": "attacker_reward",
     "attacker/shared_bw_mbps": "attacker_shared_bw_mbps",
     "attacker/shared_bw_fraction": "attacker_shared_bw_fraction",
+    "attacker/shared_bin_loss_rate": "attacker_shared_bin_loss_rate",
     "sage/reward": "sage_reward",
     "sage/score": "sage_score",
     "sage/score_rate_norm": "sage_score_rate_norm",
@@ -230,6 +291,7 @@ _WANDB_AGGREGATE_INFO_KEYS: dict[str, str] = {
 
 _WANDB_STEP_INFO_KEYS: dict[str, str] = {
     "attacker/shared_bw_mbps": "attacker_shared_bw_mbps",
+    "attacker/shared_bin_loss_rate": "attacker_shared_bin_loss_rate",
 }
 
 
@@ -250,7 +312,7 @@ def main() -> None:
     parser.add_argument("--checkpoint-every", type=int, default=10_000)
     parser.add_argument("--runtime-dir", type=str, default="attacks/runtime")
     parser.add_argument("--obs-history-len", type=int, default=4)
-    parser.add_argument("--attack-interval-ms", type=float, default=100.0)
+    parser.add_argument("--attack-interval-ms", type=float, default=50.0)
     parser.add_argument("--episode-steps", type=int, default=6000)
     parser.add_argument("--launch-timeout-s", type=float, default=90.0)
     parser.add_argument("--step-timeout-s", type=float, default=10.0)
@@ -286,6 +348,33 @@ def main() -> None:
     parser.add_argument("--attack-downlink-loss-max", type=float, default=None)
     parser.add_argument("--attack-shared-loss-min", type=float, default=None)
     parser.add_argument("--attack-shared-loss-max", type=float, default=None)
+    parser.add_argument(
+        "--attack-shared-bin-loss-min-rate",
+        type=float,
+        default=None,
+        help=(
+            "Minimum shared_bin_loss_rate in [0,1]. This is the normalized density of "
+            "shared blackout bins inside each attacker interval."
+        ),
+    )
+    parser.add_argument(
+        "--attack-shared-bin-loss-max-rate",
+        type=float,
+        default=None,
+        help=(
+            "Maximum shared_bin_loss_rate in [0,1]. A value of 1.0 blackouts every fixed "
+            "loss sub-bin inside the attacker interval."
+        ),
+    )
+    parser.add_argument(
+        "--shared-bin-loss-bin-ms",
+        type=float,
+        default=5.0,
+        help=(
+            "Fixed sub-bin size used to realize shared_bin_loss_rate as a deterministic "
+            "shared blackout mask. --attack-interval-ms must be an integer multiple of this."
+        ),
+    )
     parser.add_argument("--attack-uplink-delay-min-ms", type=float, default=None)
     parser.add_argument("--attack-uplink-delay-max-ms", type=float, default=None)
     parser.add_argument("--attack-downlink-delay-min-ms", type=float, default=None)
@@ -300,7 +389,15 @@ def main() -> None:
     parser.add_argument("--ppo-ent-coef", type=float, default=0.0)
 
     parser.add_argument("--latency-ms", type=int, default=25)
-    parser.add_argument("--port", type=int, default=5101)
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help=(
+            "Preferred base port. Defaults to 5101 for --attack-mode independent and "
+            "5201 for --attack-mode independent_gap so the example families can run in parallel more safely."
+        ),
+    )
     parser.add_argument("--iteration-id", type=int, default=0)
     parser.add_argument("--qsize-packets", type=int, default=128)
     parser.add_argument("--env-bw-mbps", type=int, default=48)
@@ -334,9 +431,15 @@ def main() -> None:
     repo_root = os.path.abspath(os.path.expanduser(args.repo_root))
     PPO, BaseCallback, Monitor, DummyVecEnv, VecNormalize = _require_sb3()
     use_gap_objective = str(args.attack_mode) == "independent_gap"
+    if args.port is None:
+        args.port = 5201 if use_gap_objective else 5101
     baseline_methods = normalize_baseline_methods(args.baseline_methods)
     shared_bandwidth_action_requested = (
         args.attack_shared_bw_min_mbps is not None and args.attack_shared_bw_max_mbps is not None
+    )
+    shared_bin_loss_action_requested = (
+        args.attack_shared_bin_loss_min_rate is not None
+        and args.attack_shared_bin_loss_max_rate is not None
     )
     resolved_smooth_penalty_scale = (
         float(args.smooth_penalty_scale)
@@ -396,6 +499,8 @@ def main() -> None:
                     **vars(args),
                     **resolved_launch_config,
                     "baseline_methods_resolved": list(baseline_methods),
+                    "shared_bin_loss_enabled": bool(shared_bin_loss_action_requested),
+                    "loss_control_mode": "shared_bin_loss" if shared_bin_loss_action_requested else "scalar",
                     "smooth_penalty_scale": float(resolved_smooth_penalty_scale),
                     "policy_action_transform": (
                         "log_unit_interval_shared_bandwidth"
@@ -500,11 +605,39 @@ def main() -> None:
             attack_downlink_bw_max = float(args.attack_shared_bw_max_mbps)
         if (args.attack_shared_loss_min is None) != (args.attack_shared_loss_max is None):
             raise ValueError("--attack-shared-loss-min and --attack-shared-loss-max must be set together")
+        if (args.attack_shared_bin_loss_min_rate is None) != (args.attack_shared_bin_loss_max_rate is None):
+            raise ValueError(
+                "--attack-shared-bin-loss-min-rate and --attack-shared-bin-loss-max-rate must be set together"
+            )
+        shared_bin_loss_action = (
+            args.attack_shared_bin_loss_min_rate is not None
+            and args.attack_shared_bin_loss_max_rate is not None
+        )
+        if shared_bin_loss_action and (
+            args.attack_shared_loss_min is not None
+            or args.attack_shared_loss_max is not None
+        ):
+            raise ValueError("shared scalar loss and shared bin-loss controls are mutually exclusive")
+        if shared_bin_loss_action and any(
+            value is not None
+            for value in (
+                args.attack_uplink_loss_min,
+                args.attack_uplink_loss_max,
+                args.attack_downlink_loss_min,
+                args.attack_downlink_loss_max,
+            )
+        ):
+            raise ValueError("per-direction scalar loss bounds are not supported with shared bin-loss control")
         if args.attack_shared_loss_min is not None and args.attack_shared_loss_max is not None:
             attack_uplink_loss_min = float(args.attack_shared_loss_min)
             attack_uplink_loss_max = float(args.attack_shared_loss_max)
             attack_downlink_loss_min = float(args.attack_shared_loss_min)
             attack_downlink_loss_max = float(args.attack_shared_loss_max)
+        if shared_bin_loss_action:
+            attack_uplink_loss_min = float(args.attack_shared_bin_loss_min_rate)
+            attack_uplink_loss_max = float(args.attack_shared_bin_loss_max_rate)
+            attack_downlink_loss_min = float(args.attack_shared_bin_loss_min_rate)
+            attack_downlink_loss_max = float(args.attack_shared_bin_loss_max_rate)
         if (args.attack_shared_delay_min_ms is None) != (args.attack_shared_delay_max_ms is None):
             raise ValueError(
                 "--attack-shared-delay-min-ms and --attack-shared-delay-max-ms must be set together"
@@ -522,10 +655,25 @@ def main() -> None:
             raise ValueError("--attack-uplink-loss-min must be <= --attack-uplink-loss-max")
         if attack_downlink_loss_min > attack_downlink_loss_max:
             raise ValueError("--attack-downlink-loss-min must be <= --attack-downlink-loss-max")
+        if shared_bin_loss_action and (
+            attack_uplink_loss_min < 0.0
+            or attack_uplink_loss_max > 1.0
+            or attack_downlink_loss_min < 0.0
+            or attack_downlink_loss_max > 1.0
+        ):
+            raise ValueError("shared_bin_loss_rate bounds must lie in [0, 1]")
         if attack_uplink_delay_min > attack_uplink_delay_max:
             raise ValueError("--attack-uplink-delay-min-ms must be <= --attack-uplink-delay-max-ms")
         if attack_downlink_delay_min > attack_downlink_delay_max:
             raise ValueError("--attack-downlink-delay-min-ms must be <= --attack-downlink-delay-max-ms")
+        if float(args.shared_bin_loss_bin_ms) <= 0.0:
+            raise ValueError("--shared-bin-loss-bin-ms must be > 0")
+        if shared_bin_loss_action:
+            loss_bin_count = float(args.attack_interval_ms) / float(args.shared_bin_loss_bin_ms)
+            if abs(loss_bin_count - round(loss_bin_count)) > 1e-6:
+                raise ValueError(
+                    "--attack-interval-ms must be an integer multiple of --shared-bin-loss-bin-ms"
+                )
         if use_gap_objective:
             if float(args.init_uplink_loss) != 0.0 or float(args.init_downlink_loss) != 0.0:
                 raise ValueError("--init-uplink-loss and --init-downlink-loss must be 0 with --attack-mode independent_gap")
@@ -540,7 +688,10 @@ def main() -> None:
                     args.attack_shared_loss_max,
                 )
             ):
-                raise ValueError("loss is fixed to 0 with --attack-mode independent_gap")
+                raise ValueError(
+                    "scalar loss is not supported with --attack-mode independent_gap; "
+                    "use --attack-shared-bin-loss-min-rate/--attack-shared-bin-loss-max-rate instead"
+                )
             if any(
                 value is not None
                 for value in (
@@ -568,8 +719,8 @@ def main() -> None:
             online_attack_bounds = AttackBounds(
                 uplink_bw_mbps=(shared_bw_min, shared_bw_max),
                 downlink_bw_mbps=(shared_bw_min, shared_bw_max),
-                uplink_loss=(0.0, 0.0),
-                downlink_loss=(0.0, 0.0),
+                uplink_loss=(attack_uplink_loss_min, attack_uplink_loss_max),
+                downlink_loss=(attack_downlink_loss_min, attack_downlink_loss_max),
                 uplink_delay_ms=(fixed_uplink_delay, fixed_uplink_delay),
                 downlink_delay_ms=(fixed_downlink_delay, fixed_downlink_delay),
             )
@@ -608,6 +759,8 @@ def main() -> None:
                 smooth_penalty_scale=float(resolved_smooth_penalty_scale),
                 sync_guard_ms=float(args.sync_guard_ms),
                 launch_retries=int(args.gap_launch_retries),
+                shared_bin_loss_enabled=shared_bin_loss_action,
+                shared_bin_loss_bin_ms=float(args.shared_bin_loss_bin_ms),
             )
         else:
             env = IndependentAttackEnv(
@@ -622,6 +775,8 @@ def main() -> None:
                 runtime_dir=resolved_runtime_dir,
                 shared_bandwidth_action=shared_bandwidth_action,
                 shared_loss_action=shared_loss_action,
+                shared_bin_loss_action=shared_bin_loss_action,
+                shared_bin_loss_bin_ms=float(args.shared_bin_loss_bin_ms),
                 shared_delay_action=shared_delay_action,
                 smooth_penalty_scale=float(resolved_smooth_penalty_scale),
             )
@@ -661,12 +816,13 @@ def main() -> None:
                 self._episode_records: list[dict[str, float]] = []
 
             def _save_checkpoint(self, *, suffix: str | None = None) -> None:
-                if self.model is None or not model_stem:
+                model_ref = getattr(self, "model", None) or model
+                if model_ref is None or not model_stem:
                     return
-                step = int(self.num_timesteps)
+                step = int(getattr(self, "num_timesteps", getattr(model_ref, "num_timesteps", 0)))
                 if step <= 0:
                     return
-                self.model.save(_checkpoint_path(step, suffix=suffix))
+                model_ref.save(_checkpoint_path(step, suffix=suffix))
                 if use_vecnormalize and isinstance(venv, VecNormalize):
                     venv.save(_checkpoint_vecnormalize_path(step, suffix=suffix))
                 self._last_checkpoint_step = step
@@ -760,6 +916,8 @@ def main() -> None:
             **resolved_launch_config,
             "repo_root": repo_root,
             "baseline_methods": list(baseline_methods),
+            "shared_bin_loss_enabled": bool(shared_bin_loss_action),
+            "loss_control_mode": "shared_bin_loss" if shared_bin_loss_action else "scalar",
             "smooth_penalty_scale": float(resolved_smooth_penalty_scale),
             "run_namespace": run_namespace.metadata(),
             "policy_action_transform": (

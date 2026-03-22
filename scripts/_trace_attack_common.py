@@ -451,8 +451,10 @@ def attack_bounds_from_config(config_payload: dict[str, Any]) -> AttackBounds:
     delay_max_ms = float(config_payload.get("delay_max_ms", 150.0))
     shared_bw_min = config_payload.get("attack_shared_bw_min_mbps")
     shared_bw_max = config_payload.get("attack_shared_bw_max_mbps")
-    shared_loss_min = config_payload.get("attack_shared_loss_min")
-    shared_loss_max = config_payload.get("attack_shared_loss_max")
+    shared_bin_loss_min = config_payload.get("attack_shared_bin_loss_min_rate")
+    shared_bin_loss_max = config_payload.get("attack_shared_bin_loss_max_rate")
+    shared_loss_min = config_payload.get("attack_shared_loss_min", shared_bin_loss_min)
+    shared_loss_max = config_payload.get("attack_shared_loss_max", shared_bin_loss_max)
     shared_delay_min = config_payload.get("attack_shared_delay_min_ms")
     shared_delay_max = config_payload.get("attack_shared_delay_max_ms")
     uplink_bw_min = _float_value(
@@ -914,6 +916,8 @@ class IndependentAttackEnv(gym.Env):
         runtime_dir: str = "attacks/runtime",
         shared_bandwidth_action: bool = False,
         shared_loss_action: bool = False,
+        shared_bin_loss_action: bool = False,
+        shared_bin_loss_bin_ms: float = 5.0,
         shared_delay_action: bool = False,
         smooth_penalty_scale: float = 0.0,
     ) -> None:
@@ -928,8 +932,12 @@ class IndependentAttackEnv(gym.Env):
         self._runtime_dir = runtime_dir
         self._shared_bandwidth_action = bool(shared_bandwidth_action)
         self._shared_loss_action = bool(shared_loss_action)
+        self._shared_bin_loss_action = bool(shared_bin_loss_action)
+        self._shared_bin_loss_bin_ms = max(float(shared_bin_loss_bin_ms), 0.0)
         self._shared_delay_action = bool(shared_delay_action)
         self._log_shared_bandwidth_action = bool(self._shared_bandwidth_action)
+        if self._shared_loss_action and self._shared_bin_loss_action:
+            raise ValueError("shared scalar loss action and shared bin-loss action are mutually exclusive")
         self.smooth_penalty_scale = float(smooth_penalty_scale)
         self.max_episode_steps = max(1, int(max_episode_steps))
         self._episode_step = 0
@@ -1011,6 +1019,8 @@ class IndependentAttackEnv(gym.Env):
             smooth_penalty_scale=0.0,
             reward_scale=1.0,
             runtime_dir=self._runtime_dir,
+            shared_bin_loss_enabled=self._shared_bin_loss_action,
+            shared_bin_loss_bin_ms=self._shared_bin_loss_bin_ms,
         )
 
     def _shared_bounds(self, low_a: float, high_a: float, low_b: float, high_b: float, label: str) -> tuple[float, float]:
@@ -1038,7 +1048,7 @@ class IndependentAttackEnv(gym.Env):
         else:
             low_parts.extend([float(inner_low[0]), float(inner_low[1])])
             high_parts.extend([float(inner_high[0]), float(inner_high[1])])
-        if self._shared_loss_action:
+        if self._shared_loss_action or self._shared_bin_loss_action:
             shared_low, shared_high = self._shared_bounds(
                 inner_low[2], inner_high[2], inner_low[3], inner_high[3], "loss"
             )
@@ -1091,7 +1101,7 @@ class IndependentAttackEnv(gym.Env):
                 values.append(shared_bandwidth_mbps)
         else:
             values.extend([float(effective[0]), float(effective[1])])
-        if self._shared_loss_action:
+        if self._shared_loss_action or self._shared_bin_loss_action:
             values.append(float(min(effective[2], effective[3])))
         else:
             values.extend([float(effective[2]), float(effective[3])])
@@ -1127,7 +1137,7 @@ class IndependentAttackEnv(gym.Env):
             uplink_bw = float(clipped[index])
             downlink_bw = float(clipped[index + 1])
             index += 2
-        if self._shared_loss_action:
+        if self._shared_loss_action or self._shared_bin_loss_action:
             uplink_loss = float(clipped[index])
             downlink_loss = float(clipped[index])
             index += 1
@@ -1251,11 +1261,14 @@ class IndependentAttackEnv(gym.Env):
             info["attacker/shared_bw_mbps"] = float(effective_action[0])
             if self._log_shared_bandwidth_action:
                 info["attacker/shared_bw_fraction"] = float(clipped[0])
-        if self._shared_loss_action:
+        if self._shared_bin_loss_action:
+            info["attacker/shared_bin_loss_rate"] = float(clipped[1 if self._shared_bandwidth_action else 2])
+            info["attacker/shared_bin_loss_bin_ms"] = float(self._shared_bin_loss_bin_ms)
+        elif self._shared_loss_action:
             info["attacker/shared_loss"] = float(clipped[1 if self._shared_bandwidth_action else 2])
         if self._shared_delay_action:
             delay_index = 1 if self._shared_bandwidth_action else 2
-            delay_index += 1 if self._shared_loss_action else 2
+            delay_index += 1 if (self._shared_loss_action or self._shared_bin_loss_action) else 2
             info["attacker/shared_delay_ms"] = float(clipped[delay_index])
         info["episode/progress"] = float(self._progress_feature()[0])
         return self._augment_observation(observation), float(reward), terminated, truncated, info
@@ -1370,6 +1383,7 @@ def _plain_step_record(
         record["effective_action"] = [float(value) for value in effective_action]
     key_map = {
         "attacker/shared_bw_mbps": "attacker_shared_bw_mbps",
+        "attacker/shared_bin_loss_rate": "attacker_shared_bin_loss_rate",
         "attacker/uplink_bw_mbps": "attacker_uplink_bw_mbps",
         "attacker/downlink_bw_mbps": "attacker_downlink_bw_mbps",
         "attacker/uplink_loss": "attacker_uplink_loss",

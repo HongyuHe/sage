@@ -45,6 +45,11 @@ DirectionTelemetry * telemetry_ptr( ControlBlock * block, const Direction direct
     return direction == Direction::Uplink ? &block->uplink_telemetry : &block->downlink_telemetry;
 }
 
+ControlSettings * settings_ptr( ControlBlock * block )
+{
+    return reinterpret_cast<ControlSettings *>( block->reserved );
+}
+
 DirectionConfig * config_ptr( ControlBlock * block, const Direction direction )
 {
     return direction == Direction::Uplink ? &block->uplink : &block->downlink;
@@ -129,6 +134,37 @@ DirectionConfig ControlBlockView::read( const Direction direction ) const
     }
 
     return defaults_[ direction == Direction::Uplink ? 0 : 1 ];
+}
+
+ControlSettings ControlBlockView::settings( void ) const
+{
+    if ( block_->magic != CONTROL_MAGIC
+         or block_->version != CONTROL_VERSION
+         or block_->byte_size != sizeof( ControlBlock ) ) {
+        return ControlSettings { 0.0, 0.0 };
+    }
+
+    ControlSettings result {};
+    for ( unsigned int attempt = 0; attempt < 8; attempt++ ) {
+        const uint64_t seq_before = block_->sequence;
+        if ( seq_before & 1U ) {
+            continue;
+        }
+
+        result = *settings_ptr( block_ );
+        const uint64_t seq_after = block_->sequence;
+        if ( seq_before == seq_after and ((seq_after & 1U) == 0) ) {
+            if ( not isfinite( result.shared_bin_loss_bin_ms ) or result.shared_bin_loss_bin_ms < 0.0 ) {
+                result.shared_bin_loss_bin_ms = 0.0;
+            }
+            if ( not isfinite( result.attack_interval_ms ) or result.attack_interval_ms < 0.0 ) {
+                result.attack_interval_ms = 0.0;
+            }
+            return result;
+        }
+    }
+
+    return ControlSettings { 0.0, 0.0 };
 }
 
 void ControlBlockView::update_telemetry( const Direction direction,

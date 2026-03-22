@@ -7,6 +7,7 @@ import fcntl
 import json
 import os
 import re
+import socket
 import time
 from typing import Any
 
@@ -68,6 +69,39 @@ def _write_json_atomic(path: str, payload: dict[str, Any]) -> None:
     os.replace(tmp_path, path)
 
 
+def _port_ranges_overlap(
+    first_port_base: int,
+    first_ports_per_run: int,
+    second_port_base: int,
+    second_ports_per_run: int,
+) -> bool:
+    first_start = int(first_port_base)
+    first_end = first_start + max(int(first_ports_per_run), 1) - 1
+    second_start = int(second_port_base)
+    second_end = second_start + max(int(second_ports_per_run), 1) - 1
+    return not (first_end < second_start or second_end < first_start)
+
+
+def _port_block_is_available(port_base: int, ports_per_run: int) -> bool:
+    sockets: list[socket.socket] = []
+    try:
+        for port in range(int(port_base), int(port_base) + max(int(ports_per_run), 1)):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(("0.0.0.0", int(port)))
+            sock.listen(1)
+            sockets.append(sock)
+        return True
+    except OSError:
+        return False
+    finally:
+        for sock in sockets:
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+
 @dataclass(frozen=True)
 class RunNamespace:
     run_id: str
@@ -76,6 +110,7 @@ class RunNamespace:
     runtime_dir: str
     actor_id_base: int
     port_base: int
+    ports_per_run: int
     lease_path: str
 
 
@@ -123,6 +158,7 @@ class RunNamespaceLease:
             "runtime_dir": self.runtime_dir,
             "actor_id_base": self.actor_id_base,
             "port_base": self.port_base,
+            "ports_per_run": int(self.namespace.ports_per_run),
             "lease_path": self.namespace.lease_path,
         }
 
@@ -177,6 +213,8 @@ def acquire_run_namespace(
 
     with open(lock_path, "a+", encoding="utf-8") as lock_file:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        active_slots: set[int] = set()
+        live_payloads: list[dict[str, Any]] = []
         for slot in range(slot_limit):
             lease_path = os.path.join(lease_root, f"slot-{slot:04d}.json")
             try:
@@ -189,11 +227,31 @@ def acquire_run_namespace(
                 live_pid = int(payload.get("pid", -1))
                 live_start_ticks = payload.get("proc_start_ticks")
                 if _process_is_alive(live_pid, live_start_ticks):
+                    active_slots.add(int(slot))
+                    live_payloads.append(dict(payload))
                     continue
                 try:
                     os.remove(lease_path)
                 except FileNotFoundError:
                     pass
+
+        for slot in range(slot_limit):
+            if int(slot) in active_slots:
+                continue
+            lease_path = os.path.join(lease_root, f"slot-{slot:04d}.json")
+            candidate_port_base = int(preferred_port) + int(slot) * int(port_block)
+            if any(
+                _port_ranges_overlap(
+                    candidate_port_base,
+                    port_block,
+                    int(payload.get("port_base", -1)),
+                    int(payload.get("ports_per_run", 1)),
+                )
+                for payload in live_payloads
+            ):
+                continue
+            if not _port_block_is_available(candidate_port_base, port_block):
+                continue
 
             timestamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
             run_id = f"{label_prefix}-{timestamp}-p{pid}-s{slot:04d}"
@@ -203,7 +261,8 @@ def acquire_run_namespace(
                 runtime_parent_dir=runtime_parent_dir,
                 runtime_dir=os.path.join(runtime_parent_dir, run_id),
                 actor_id_base=max(int(actor_id) + int(slot) * int(actor_id_stride), 0),
-                port_base=int(preferred_port) + int(slot) * int(port_block),
+                port_base=candidate_port_base,
+                ports_per_run=int(port_block),
                 lease_path=lease_path,
             )
             os.makedirs(namespace.runtime_dir, exist_ok=True)
@@ -213,6 +272,7 @@ def acquire_run_namespace(
                     "actor_id_base": namespace.actor_id_base,
                     "pid": pid,
                     "port_base": namespace.port_base,
+                    "ports_per_run": int(namespace.ports_per_run),
                     "proc_start_ticks": proc_start_ticks,
                     "run_id": namespace.run_id,
                     "runtime_dir": namespace.runtime_dir,

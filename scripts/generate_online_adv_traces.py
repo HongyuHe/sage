@@ -2,11 +2,16 @@
 Run this after `scripts/train_online_attacker.py`.
 
 Example usage:
+time python scripts/generate_online_adv_traces.py \
+  --model-path attacks/models/online_adv_20260321_hotnets19_300k_50ms.zip \
+  --test-manifest attacks/test/manifest.json \
+  --out-dir attacks/adv_traces/hotnets19_50ms_300k \
+  --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/online_adv_20260318_hotnets19-100ms_300k.zip \
+  --model-path attacks/models/online_adv_20260321_hotnets19-loss_300k_50ms.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/hotnets19-100ms_300k \
+  --out-dir attacks/adv_traces/hotnets19-loss_50ms_300k \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
@@ -16,9 +21,9 @@ time python scripts/generate_online_adv_traces.py \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260316_gap-constrained-2baselines_300k.zip \
+  --model-path attacks/models/gap_adv_20260321_gap-constrained-bbr_300k_50ms.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/gap-constrained-2baselines_300k \
+  --out-dir attacks/adv_traces/gap-constrained-bbr_300k_50ms \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
@@ -302,6 +307,8 @@ def _legacy_trace_conditioned_generation(
                 "training_config_path": config_path,
                 "source_trace": entry.to_dict(),
                 "attack_interval_ms": float(config_payload.get("attack_interval_ms", 100.0)),
+                "shared_bin_loss_enabled": bool(config_payload.get("shared_bin_loss_enabled", False)),
+                "shared_bin_loss_bin_ms": float(config_payload.get("shared_bin_loss_bin_ms", 5.0)),
                 "num_steps": int(result.num_steps),
                 "metrics": result.metrics,
                 "steps": result.step_records,
@@ -373,6 +380,8 @@ def _independent_generation(
             smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
             sync_guard_ms=float(config_payload.get("sync_guard_ms", 25.0)),
             launch_retries=int(config_payload.get("gap_launch_retries", 6)),
+            shared_bin_loss_enabled=bool(config_payload.get("shared_bin_loss_enabled", False)),
+            shared_bin_loss_bin_ms=float(config_payload.get("shared_bin_loss_bin_ms", 5.0)),
         )
     else:
         env = IndependentAttackEnv(
@@ -393,6 +402,11 @@ def _independent_generation(
                 config_payload.get("attack_shared_loss_min") is not None
                 and config_payload.get("attack_shared_loss_max") is not None
             ),
+            shared_bin_loss_action=(
+                config_payload.get("attack_shared_bin_loss_min_rate") is not None
+                and config_payload.get("attack_shared_bin_loss_max_rate") is not None
+            ),
+            shared_bin_loss_bin_ms=float(config_payload.get("shared_bin_loss_bin_ms", 5.0)),
             shared_delay_action=(
                 config_payload.get("attack_shared_delay_min_ms") is not None
                 and config_payload.get("attack_shared_delay_max_ms") is not None
@@ -490,6 +504,8 @@ def _independent_generation(
                 "model_path": resolve_repo_path(repo_root, str(args.model_path)),
                 "training_config_path": config_path,
                 "attack_interval_ms": float(config_payload.get("attack_interval_ms", 100.0)),
+                "shared_bin_loss_enabled": bool(config_payload.get("shared_bin_loss_enabled", False)),
+                "shared_bin_loss_bin_ms": float(config_payload.get("shared_bin_loss_bin_ms", 5.0)),
                 "num_steps": int(result.num_steps),
                 "metrics": result.metrics,
                 "steps": result.step_records,

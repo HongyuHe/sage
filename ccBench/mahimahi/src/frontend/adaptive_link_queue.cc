@@ -6,6 +6,7 @@
 #include <limits>
 #include <stdexcept>
 #include <time.h>
+#include <utility>
 
 #include "adaptive_link_queue.hh"
 #include "timestamp.hh"
@@ -50,6 +51,14 @@ uint64_t monotonic_abs_timestamp_ms( void )
     return millis;
 }
 
+uint64_t splitmix64( uint64_t value )
+{
+    value += 0x9e3779b97f4a7c15ULL;
+    value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
+    return value ^ (value >> 31);
+}
+
 } /* namespace */
 
 AdaptiveLinkQueue::AdaptiveLinkQueue( const string & link_name,
@@ -64,6 +73,7 @@ AdaptiveLinkQueue::AdaptiveLinkQueue( const string & link_name,
       defaults_( defaults ),
       active_config_( defaults ),
       control_( control_file, link_name, defaults, defaults ),
+      control_settings_( control_.settings() ),
       packet_queue_(),
       packet_in_service_( nullopt ),
       packet_in_service_bytes_left_( 0 ),
@@ -73,6 +83,9 @@ AdaptiveLinkQueue::AdaptiveLinkQueue( const string & link_name,
       service_credit_bytes_( 0.0 ),
       prng_( random_device()() ),
       log_(),
+      shared_bin_loss_mask_(),
+      shared_bin_loss_bin_ms_( 0.0 ),
+      shared_bin_loss_bins_per_step_( 0 ),
       enqueued_packets_( 0 ),
       dequeued_packets_( 0 ),
       dropped_packets_( 0 ),
@@ -105,6 +118,8 @@ AdaptiveLinkQueue::AdaptiveLinkQueue( const string & link_name,
         }
         *init_log << initial_timestamp() + timestamp() << endl;
     }
+
+    rebuild_shared_bin_loss_mask();
 }
 
 void AdaptiveLinkQueue::record_arrival( const uint64_t now, const size_t pkt_size )
@@ -170,12 +185,81 @@ void AdaptiveLinkQueue::refresh_config( const uint64_t now )
                          or fabs( next.delay_ms - active_config_.delay_ms ) > 1e-9
                          or next.queue_packets != active_config_.queue_packets
                          or next.queue_bytes != active_config_.queue_bytes
-                         or next.episode_step != active_config_.episode_step;
+                         or next.episode_step != active_config_.episode_step
+                         or next.flags != active_config_.flags;
     active_config_ = next;
     if ( changed ) {
+        rebuild_shared_bin_loss_mask();
         last_apply_ms_ = now;
         trim_queue_to_limits( now );
     }
+}
+
+void AdaptiveLinkQueue::rebuild_shared_bin_loss_mask( void )
+{
+    shared_bin_loss_mask_.clear();
+    shared_bin_loss_bin_ms_ = 0.0;
+    shared_bin_loss_bins_per_step_ = 0;
+
+    if ( (active_config_.flags & adaptive::DIRECTION_FLAG_SHARED_BIN_LOSS) == 0 ) {
+        return;
+    }
+
+    const double bin_ms = control_settings_.shared_bin_loss_bin_ms;
+    const double attack_interval_ms = control_settings_.attack_interval_ms;
+    if ( not isfinite( bin_ms ) or not isfinite( attack_interval_ms )
+         or bin_ms <= 0.0 or attack_interval_ms <= 0.0 ) {
+        return;
+    }
+
+    const double ratio = attack_interval_ms / bin_ms;
+    const uint32_t bins_per_step = max<uint32_t>( 1U, uint32_t( llround( ratio ) ) );
+    const uint32_t active_bins = min<uint32_t>(
+        bins_per_step,
+        uint32_t( llround( clamp( active_config_.loss_rate, 0.0, 1.0 ) * double( bins_per_step ) ) )
+    );
+
+    shared_bin_loss_bin_ms_ = bin_ms;
+    shared_bin_loss_bins_per_step_ = bins_per_step;
+    shared_bin_loss_mask_.assign( bins_per_step, uint8_t( 0 ) );
+
+    if ( active_bins == 0 ) {
+        return;
+    }
+
+    vector<pair<uint64_t, uint32_t>> ranked_bins;
+    ranked_bins.reserve( bins_per_step );
+    const uint64_t step_seed = splitmix64(
+        (uint64_t( active_config_.episode_step ) << 32)
+        ^ uint64_t( llround( active_config_.effective_after_abs_ms ) )
+    );
+    for ( uint32_t bin_index = 0; bin_index < bins_per_step; bin_index++ ) {
+        ranked_bins.emplace_back( splitmix64( step_seed ^ uint64_t( bin_index ) ), bin_index );
+    }
+    sort( ranked_bins.begin(), ranked_bins.end(),
+          [] ( const pair<uint64_t, uint32_t> & left, const pair<uint64_t, uint32_t> & right ) {
+              if ( left.first != right.first ) {
+                  return left.first < right.first;
+              }
+              return left.second < right.second;
+          } );
+
+    for ( uint32_t rank = 0; rank < active_bins; rank++ ) {
+        shared_bin_loss_mask_.at( ranked_bins.at( rank ).second ) = uint8_t( 1 );
+    }
+}
+
+bool AdaptiveLinkQueue::shared_bin_loss_active( const uint64_t now_abs_ms ) const
+{
+    if ( shared_bin_loss_mask_.empty() or shared_bin_loss_bins_per_step_ == 0 or shared_bin_loss_bin_ms_ <= 0.0 ) {
+        return false;
+    }
+
+    const double effective_after_abs_ms = max( active_config_.effective_after_abs_ms, 0.0 );
+    const double elapsed_ms = max( double( now_abs_ms ) - effective_after_abs_ms, 0.0 );
+    const uint64_t raw_bin_index = uint64_t( floor( elapsed_ms / shared_bin_loss_bin_ms_ ) );
+    const uint32_t bin_index = uint32_t( raw_bin_index % uint64_t( shared_bin_loss_bins_per_step_ ) );
+    return shared_bin_loss_mask_.at( bin_index ) != 0;
 }
 
 bool AdaptiveLinkQueue::queue_accepts( const size_t pkt_size ) const
@@ -322,13 +406,16 @@ void AdaptiveLinkQueue::update_telemetry( const uint64_t now )
 void AdaptiveLinkQueue::read_packet( const string & contents )
 {
     const uint64_t now = timestamp();
+    const uint64_t now_abs_ms = monotonic_abs_timestamp_ms();
     rationalize( now );
     record_arrival( now, contents.size() );
 
     const double loss_rate = clamp( active_config_.loss_rate, 0.0, 1.0 );
     if ( loss_rate > 0.0 ) {
-        bernoulli_distribution dist( loss_rate );
-        if ( dist( prng_ ) ) {
+        const bool should_drop = ((active_config_.flags & adaptive::DIRECTION_FLAG_SHARED_BIN_LOSS) != 0)
+                                 ? shared_bin_loss_active( now_abs_ms )
+                                 : bernoulli_distribution( loss_rate )( prng_ );
+        if ( should_drop ) {
             dropped_packets_++;
             dropped_bytes_ += contents.size();
             record_drop( now, 1, contents.size() );

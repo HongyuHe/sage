@@ -6,6 +6,7 @@ import signal
 import shutil
 import stat
 import subprocess
+import time
 from typing import Mapping
 
 
@@ -190,15 +191,31 @@ class SageProcess:
         return self.process.wait(timeout=timeout)
 
     def terminate(self, timeout_s: float = 10.0) -> None:
+        pgid = int(self.process.pid)
+        try:
+            os.killpg(pgid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        except Exception:
+            pass
         if self.process.poll() is None:
             try:
-                os.killpg(self.process.pid, signal.SIGTERM)
                 self.process.wait(timeout=timeout_s)
             except Exception:
-                try:
-                    os.killpg(self.process.pid, signal.SIGKILL)
-                except Exception:
-                    pass
+                pass
+        else:
+            time.sleep(min(max(float(timeout_s), 0.0), 0.5))
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        except Exception:
+            pass
+        if self.process.poll() is None:
+            try:
+                self.process.wait(timeout=1.0)
+            except Exception:
+                pass
         self.stdout_handle.close()
         self.stderr_handle.close()
 

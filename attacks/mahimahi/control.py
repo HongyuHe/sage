@@ -14,6 +14,7 @@ from .protocol import (
     DOWNLINK_CONFIG_OFFSET,
     HEADER_STRUCT,
     SEQUENCE_OFFSET,
+    ControlSettings,
     UPLINK_CONFIG_OFFSET,
     UPDATE_COUNTER_OFFSET,
     ControlBlockSnapshot,
@@ -32,6 +33,7 @@ class MahimahiControlClient:
         label: str = "sage-adv",
         initial_uplink: DirectionConfig | None = None,
         initial_downlink: DirectionConfig | None = None,
+        settings: ControlSettings | None = None,
     ) -> None:
         self.path = os.path.abspath(path)
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
@@ -47,6 +49,7 @@ class MahimahiControlClient:
                 uplink=uplink,
                 downlink=downlink,
                 created_ms=int(time.time() * 1000.0),
+                settings=settings,
             )
             self._mmap.seek(0)
             self._mmap.write(block)
@@ -122,6 +125,8 @@ class MahimahiControlClient:
             effective_after_abs_ms=float(
                 params.get("effective_after_abs_ms", current.uplink.effective_after_abs_ms)
             ),
+            flags=int(params.get("uplink_flags", current.uplink.flags)),
+            reserved1=float(params.get("uplink_reserved1", current.uplink.reserved1)),
         )
         downlink = replace(
             current.downlink,
@@ -134,5 +139,7 @@ class MahimahiControlClient:
             effective_after_abs_ms=float(
                 params.get("effective_after_abs_ms", current.downlink.effective_after_abs_ms)
             ),
+            flags=int(params.get("downlink_flags", current.downlink.flags)),
+            reserved1=float(params.get("downlink_reserved1", current.downlink.reserved1)),
         )
         return self.update(uplink=uplink, downlink=downlink)

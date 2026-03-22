@@ -5,54 +5,54 @@ Example usage:
 Baseline methods are inferred from the saved training config / generated manifest.
 
 time python scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/hotnets19-100ms_300k/generated_manifest.json \
+  --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
   --out-dir attacks/output/eval-300k \
   --skip-clean-rollout \
-  --wandb --wandb-tags v3 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/gap-constrained-1baseline_300k/generated_manifest.json \
   --out-dir attacks/output/eval-300k \
   --skip-clean-rollout \
-  --wandb --wandb-tags v3 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/gap-constrained-2baselines_300k/generated_manifest.json \
   --out-dir attacks/output/eval-300k \
   --skip-clean-rollout \
-  --wandb --wandb-tags v3 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
   
 time python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/gap-constrained-3baselines_300k/generated_manifest.json \
   --out-dir attacks/output/eval-300k \
   --skip-clean-rollout \
-  --wandb --wandb-tags v3 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
   
 time python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/gap-constrained-3b-hard_200k/generated_manifest.json \
   --out-dir attacks/output/eval-300k \
   --skip-clean-rollout \
-  --wandb --wandb-tags v3 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/gap-unconstrained_300k/generated_manifest.json \
   --out-dir attacks/output/eval-300k \
   --skip-clean-rollout \
-  --wandb --wandb-tags v3 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
   --test-manifest attacks/test/manifest.json \
-  --config-path attacks/models/gap_adv_20260316_gap-constrained-3baselines_300k.config.json \
+  --config-path attacks/models/gap_adv_20260321_gap-constrained-bbr_300k_50ms.config.json \
   --out-dir attacks/output/eval-300k \
   --clean-only-rollout \
-  --wandb --wandb-tags v3 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/gap-constrained-3baselines_300k/generated_manifest.json \
   --out-dir attacks/output/eval-300k \
   --skip-clean-rollout \
   --shield-rules-file attacks/output/shield-rules/gap-constrained-3baselines_300k/sage_directional_shield_rules.json \
-  --wandb --wandb-tags v3 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
 """
 
 from __future__ import annotations
@@ -192,6 +192,10 @@ def _expand_legacy_saved_action(action: np.ndarray, config_payload: dict[str, An
         config_payload.get("attack_shared_loss_min") is not None
         and config_payload.get("attack_shared_loss_max") is not None
     )
+    shared_bin_loss_action = (
+        config_payload.get("attack_shared_bin_loss_min_rate") is not None
+        and config_payload.get("attack_shared_bin_loss_max_rate") is not None
+    )
     shared_delay_action = (
         config_payload.get("attack_shared_delay_min_ms") is not None
         and config_payload.get("attack_shared_delay_max_ms") is not None
@@ -220,7 +224,7 @@ def _expand_legacy_saved_action(action: np.ndarray, config_payload: dict[str, An
     else:
         outer_low.extend([float(inner_low[0]), float(inner_low[1])])
         outer_high.extend([float(inner_high[0]), float(inner_high[1])])
-    if shared_loss_action:
+    if shared_loss_action or shared_bin_loss_action:
         shared_low, shared_high = _shared_bounds(inner_low[2], inner_high[2], inner_low[3], inner_high[3], "loss")
         outer_low.append(shared_low)
         outer_high.append(shared_high)
@@ -260,7 +264,7 @@ def _expand_legacy_saved_action(action: np.ndarray, config_payload: dict[str, An
         downlink_bw = float(clipped[index + 1])
         index += 2
 
-    if shared_loss_action:
+    if shared_loss_action or shared_bin_loss_action:
         uplink_loss = float(clipped[index])
         downlink_loss = float(clipped[index])
         index += 1
@@ -858,6 +862,8 @@ def _evaluate_trace_set(
             smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
             sync_guard_ms=float(config_payload.get("sync_guard_ms", 25.0)),
             launch_retries=int(config_payload.get("gap_launch_retries", 6)),
+            shared_bin_loss_enabled=bool(config_payload.get("shared_bin_loss_enabled", False)),
+            shared_bin_loss_bin_ms=float(config_payload.get("shared_bin_loss_bin_ms", 5.0)),
         )
     else:
         env = IndependentAttackEnv(
@@ -878,6 +884,11 @@ def _evaluate_trace_set(
                 config_payload.get("attack_shared_loss_min") is not None
                 and config_payload.get("attack_shared_loss_max") is not None
             ),
+            shared_bin_loss_action=(
+                config_payload.get("attack_shared_bin_loss_min_rate") is not None
+                and config_payload.get("attack_shared_bin_loss_max_rate") is not None
+            ),
+            shared_bin_loss_bin_ms=float(config_payload.get("shared_bin_loss_bin_ms", 5.0)),
             shared_delay_action=(
                 config_payload.get("attack_shared_delay_min_ms") is not None
                 and config_payload.get("attack_shared_delay_max_ms") is not None

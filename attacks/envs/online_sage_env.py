@@ -9,7 +9,12 @@ from typing import Any
 
 import numpy as np
 
-from attacks.mahimahi import DirectionConfig, MahimahiControlClient
+from attacks.mahimahi import (
+    DIRECTION_FLAG_SHARED_BIN_LOSS,
+    ControlSettings,
+    DirectionConfig,
+    MahimahiControlClient,
+)
 from attacks.online import SageLaunchConfig, SageSharedMemoryReader, SageStep, is_placeholder_step, launch_sage
 
 
@@ -92,6 +97,8 @@ class OnlineSageAttackEnv(gym.Env):
         smooth_penalty_scale: float = 0.05,
         reward_scale: float = 1.0,
         runtime_dir: str = "attacks/runtime",
+        shared_bin_loss_enabled: bool = False,
+        shared_bin_loss_bin_ms: float = 5.0,
     ) -> None:
         super().__init__()
 
@@ -115,6 +122,13 @@ class OnlineSageAttackEnv(gym.Env):
         self.smooth_penalty_scale = float(smooth_penalty_scale)
         self.reward_scale = float(reward_scale)
         self.runtime_dir = os.path.abspath(os.path.join(self.repo_root, runtime_dir))
+        self.shared_bin_loss_enabled = bool(shared_bin_loss_enabled)
+        self.shared_bin_loss_bin_ms = max(float(shared_bin_loss_bin_ms), 0.0)
+        if self.shared_bin_loss_enabled:
+            if self.bounds.uplink_loss[0] < 0.0 or self.bounds.uplink_loss[1] > 1.0:
+                raise ValueError("shared_bin_loss_rate uplink bounds must lie in [0, 1]")
+            if self.bounds.downlink_loss[0] < 0.0 or self.bounds.downlink_loss[1] > 1.0:
+                raise ValueError("shared_bin_loss_rate downlink bounds must lie in [0, 1]")
 
         self._feature_dim = 69 + 1 + 14 + 6
         obs_high = np.full((self.obs_history_len * self._feature_dim,), 1e9, dtype=np.float32)
@@ -198,7 +212,9 @@ class OnlineSageAttackEnv(gym.Env):
             queue_packets=uplink_queue_packets,
             queue_bytes=int(self.launch_config.initial_uplink_queue_bytes or 0),
             episode_step=max(int(episode_step), 0),
+            flags=(DIRECTION_FLAG_SHARED_BIN_LOSS if self.shared_bin_loss_enabled else 0),
             effective_after_abs_ms=max(float(effective_after_abs_ms), 0.0),
+            reserved1=float(self.shared_bin_loss_bin_ms if self.shared_bin_loss_enabled else 0.0),
         )
         downlink = DirectionConfig(
             bandwidth_mbps=float(clipped[1]),
@@ -207,7 +223,9 @@ class OnlineSageAttackEnv(gym.Env):
             queue_packets=downlink_queue_packets,
             queue_bytes=int(self.launch_config.initial_downlink_queue_bytes or 0),
             episode_step=max(int(episode_step), 0),
+            flags=(DIRECTION_FLAG_SHARED_BIN_LOSS if self.shared_bin_loss_enabled else 0),
             effective_after_abs_ms=max(float(effective_after_abs_ms), 0.0),
+            reserved1=float(self.shared_bin_loss_bin_ms if self.shared_bin_loss_enabled else 0.0),
         )
         return uplink, downlink
 
@@ -260,6 +278,17 @@ class OnlineSageAttackEnv(gym.Env):
             and abs(float(down.applied_loss_rate) - float(requested[3])) <= _APPLIED_CONFIG_TOLERANCE
             and abs(float(up.applied_delay_ms) - float(requested[4])) <= _APPLIED_CONFIG_TOLERANCE
             and abs(float(down.applied_delay_ms) - float(requested[5])) <= _APPLIED_CONFIG_TOLERANCE
+            and bool(snapshot.uplink.flags & DIRECTION_FLAG_SHARED_BIN_LOSS) == bool(self.shared_bin_loss_enabled)
+            and bool(snapshot.downlink.flags & DIRECTION_FLAG_SHARED_BIN_LOSS) == bool(self.shared_bin_loss_enabled)
+            and (
+                (not self.shared_bin_loss_enabled)
+                or (
+                    abs(float(snapshot.uplink.reserved1) - float(self.shared_bin_loss_bin_ms))
+                    <= _APPLIED_CONFIG_TOLERANCE
+                    and abs(float(snapshot.downlink.reserved1) - float(self.shared_bin_loss_bin_ms))
+                    <= _APPLIED_CONFIG_TOLERANCE
+                )
+            )
         )
 
     def _sage_metrics(self, step: SageStep) -> dict[str, float]:
@@ -432,6 +461,10 @@ class OnlineSageAttackEnv(gym.Env):
             label=f"sage-adv-{self._episode_index}",
             initial_uplink=uplink,
             initial_downlink=downlink,
+            settings=ControlSettings(
+                shared_bin_loss_bin_ms=float(self.shared_bin_loss_bin_ms if self.shared_bin_loss_enabled else 0.0),
+                attack_interval_ms=float(self.attack_interval_ms),
+            ),
         )
         self._sage_process = launch_sage(
             self.repo_root,
@@ -626,6 +659,8 @@ class OnlineSageAttackEnv(gym.Env):
                 "attacker/downlink_loss": float(self._last_action[3]),
                 "attacker/uplink_delay_ms": float(self._last_action[4]),
                 "attacker/downlink_delay_ms": float(self._last_action[5]),
+                "attacker/shared_bin_loss_rate": float(self._last_action[2]) if self.shared_bin_loss_enabled else 0.0,
+                "attacker/shared_bin_loss_bin_ms": float(self.shared_bin_loss_bin_ms) if self.shared_bin_loss_enabled else 0.0,
                 "mm/up_queue_packets": float(uplink.queue_packets),
                 "mm/down_queue_packets": float(downlink.queue_packets),
                 "mm/up_applied_bw_mbps": float(telemetry[0]),

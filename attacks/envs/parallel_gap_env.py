@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 import os
 import socket
+import subprocess
 import time
 from typing import Any
 
@@ -57,6 +58,70 @@ def _is_retryable_launch_error(exc: RuntimeError) -> bool:
     return any(marker in str(exc) for marker in _RETRYABLE_LAUNCH_MARKERS)
 
 
+def _list_port_block_listeners(block_start: int, block_end: int) -> str:
+    try:
+        output = subprocess.check_output(
+            ["ss", "-ltnpH"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return ""
+    listeners: list[str] = []
+    for raw_line in output.splitlines():
+        columns = raw_line.split()
+        if len(columns) < 4:
+            continue
+        local_address = str(columns[3]).strip()
+        if ":" not in local_address:
+            continue
+        port_token = local_address.rsplit(":", 1)[-1]
+        if not port_token.isdigit():
+            continue
+        port = int(port_token)
+        if port < int(block_start) or port > int(block_end):
+            continue
+        listeners.append(f"{port}:{columns[-1]}")
+    if not listeners:
+        return ""
+    return "; listeners=" + ", ".join(listeners[:8])
+
+
+def _list_port_block_tcp_states(block_start: int, block_end: int) -> str:
+    try:
+        output = subprocess.check_output(
+            ["ss", "-tanpH"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return ""
+    sockets: list[str] = []
+    for raw_line in output.splitlines():
+        columns = raw_line.split()
+        if len(columns) < 4:
+            continue
+        state = str(columns[0]).strip()
+        local_address = str(columns[3]).strip()
+        if ":" not in local_address:
+            continue
+        port_token = local_address.rsplit(":", 1)[-1]
+        if not port_token.isdigit():
+            continue
+        port = int(port_token)
+        if port < int(block_start) or port > int(block_end):
+            continue
+        peer_address = str(columns[4]).strip() if len(columns) > 4 else "?"
+        owner = str(columns[-1]).strip() if len(columns) > 5 else ""
+        entry = f"{state}:{port}->{peer_address}"
+        if owner and owner != peer_address:
+            entry += f":{owner}"
+        sockets.append(entry)
+    if not sockets:
+        return ""
+    return "; tcp_states=" + ", ".join(sockets[:8])
+
+
 class ParallelGapAttackEnv(gym.Env):
     metadata = {"render_modes": []}
 
@@ -78,6 +143,8 @@ class ParallelGapAttackEnv(gym.Env):
         smooth_penalty_scale: float = 0.0,
         sync_guard_ms: float = 25.0,
         launch_retries: int = 6,
+        shared_bin_loss_enabled: bool = False,
+        shared_bin_loss_bin_ms: float = 5.0,
     ) -> None:
         super().__init__()
         self.repo_root = os.path.abspath(repo_root)
@@ -93,7 +160,9 @@ class ParallelGapAttackEnv(gym.Env):
         self._baseline_hard_max = bool(baseline_hard_max)
         self._baseline_methods = normalize_baseline_methods(baseline_methods)
         self._child_count = 1 + len(self._baseline_methods)
-        self._gap_obs_feature_dim = 8 + 4 * len(self._baseline_methods)
+        self._shared_bin_loss_enabled = bool(shared_bin_loss_enabled)
+        self._shared_bin_loss_bin_ms = max(float(shared_bin_loss_bin_ms), 0.0)
+        self._gap_obs_feature_dim = 8 + 4 * len(self._baseline_methods) + (1 if self._shared_bin_loss_enabled else 0)
         self._smooth_penalty_scale = float(smooth_penalty_scale)
         self._sync_guard_ms = max(float(sync_guard_ms), 1.0)
         self._launch_retries = max(int(launch_retries), 1)
@@ -129,6 +198,20 @@ class ParallelGapAttackEnv(gym.Env):
             if self._base_launch_config.initial_downlink_delay_ms is not None
             else self._base_launch_config.latency_ms
         )
+        self._shared_loss_min = max(
+            float(self._bounds.uplink_loss[0]),
+            float(self._bounds.downlink_loss[0]),
+        )
+        self._shared_loss_max = min(
+            float(self._bounds.uplink_loss[1]),
+            float(self._bounds.downlink_loss[1]),
+        )
+        if self._shared_bin_loss_enabled and self._shared_loss_min > self._shared_loss_max:
+            raise ValueError("shared bin-loss bounds do not overlap")
+        if self._shared_bin_loss_enabled and (
+            self._shared_loss_min < 0.0 or self._shared_loss_max > 1.0
+        ):
+            raise ValueError("shared bin-loss bounds must lie in [0, 1]")
         self._effective_bounds = AttackBounds(
             uplink_bw_mbps=tuple(self._bounds.uplink_bw_mbps),
             downlink_bw_mbps=tuple(self._bounds.downlink_bw_mbps),
@@ -137,9 +220,14 @@ class ParallelGapAttackEnv(gym.Env):
             uplink_delay_ms=tuple(self._bounds.uplink_delay_ms),
             downlink_delay_ms=tuple(self._bounds.downlink_delay_ms),
         )
+        action_low = [0.0]
+        action_high = [1.0]
+        if self._shared_bin_loss_enabled:
+            action_low.append(float(self._shared_loss_min))
+            action_high.append(float(self._shared_loss_max))
         self.action_space = spaces.Box(
-            low=np.asarray([0.0], dtype=np.float32),
-            high=np.asarray([1.0], dtype=np.float32),
+            low=np.asarray(action_low, dtype=np.float32),
+            high=np.asarray(action_high, dtype=np.float32),
             dtype=np.float32,
         )
         obs_dim = self._obs_history_len * _BASE_OBS_FEATURE_DIM + self._gap_obs_feature_dim
@@ -149,6 +237,60 @@ class ParallelGapAttackEnv(gym.Env):
         self._last_sage_observation: np.ndarray | None = None
         self._previous_gap_features = np.zeros((self._gap_obs_feature_dim,), dtype=np.float32)
         self._bootstrap_pending_roles: set[str] = set()
+
+    def _reserved_launch_port_bounds(self) -> tuple[int, int]:
+        block_start = max(int(self._base_launch_config.port), 1024)
+        block_size = max(int(self._child_count), 1)
+        return block_start, block_start + block_size - 1
+
+    def _reserved_launch_ports_available(self) -> bool:
+        block_start, block_end = self._reserved_launch_port_bounds()
+        probes: list[socket.socket] = []
+        try:
+            for port in range(block_start, block_end + 1):
+                probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                probe.bind(("0.0.0.0", int(port)))
+                probe.listen(1)
+                probes.append(probe)
+            return True
+        except OSError:
+            return False
+        finally:
+            for probe in probes:
+                try:
+                    probe.close()
+                except OSError:
+                    pass
+
+    def _wait_for_reserved_launch_ports(self, timeout_s: float) -> None:
+        deadline = time.monotonic() + max(float(timeout_s), 0.0)
+        block_start, block_end = self._reserved_launch_port_bounds()
+        listenerless_since: float | None = None
+        while True:
+            if self._reserved_launch_ports_available():
+                return
+            listener_diagnostics = _list_port_block_listeners(block_start, block_end)
+            if not listener_diagnostics:
+                #* Recently closed Sage children can leave the reserved port
+                #* block in a listener-free TCP drain state (for example
+                #* FIN_WAIT/TIME_WAIT). The conservative bind probe above can
+                #* still fail transiently there, so after a short quiet period
+                #* we continue and let the normal launch retry path handle any
+                #* residual Address-in-use race.
+                if listenerless_since is None:
+                    listenerless_since = time.monotonic()
+                elif (time.monotonic() - listenerless_since) >= 1.0:
+                    return
+            else:
+                listenerless_since = None
+            if time.monotonic() >= deadline:
+                tcp_state_diagnostics = _list_port_block_tcp_states(block_start, block_end)
+                raise RuntimeError(
+                    f"reserved launch port block {block_start}-{block_end} did not become available within "
+                    f"{max(float(timeout_s), 0.0):.1f}s{listener_diagnostics}{tcp_state_diagnostics}"
+                )
+            time.sleep(0.1)
 
     def _default_shared_bandwidth_mbps(self) -> float:
         initial_uplink_bw = float(
@@ -181,13 +323,19 @@ class ParallelGapAttackEnv(gym.Env):
         return np.asarray([float(np.clip(fraction, 0.0, 1.0))], dtype=np.float32)
 
     def _effective_action_from_policy(self, policy_action: np.ndarray) -> np.ndarray:
-        shared_bandwidth_mbps = self._shared_bandwidth_from_policy_action(policy_action)
+        policy = np.asarray(policy_action, dtype=np.float32).reshape(-1)
+        shared_bandwidth_mbps = self._shared_bandwidth_from_policy_action(policy)
+        shared_bin_loss_rate = (
+            float(np.clip(policy[1], self._shared_loss_min, self._shared_loss_max))
+            if self._shared_bin_loss_enabled and policy.size > 1
+            else 0.0
+        )
         return np.asarray(
             [
                 shared_bandwidth_mbps,
                 shared_bandwidth_mbps,
-                0.0,
-                0.0,
+                shared_bin_loss_rate,
+                shared_bin_loss_rate,
                 self._fixed_uplink_delay_ms,
                 self._fixed_downlink_delay_ms,
             ],
@@ -201,8 +349,11 @@ class ParallelGapAttackEnv(gym.Env):
         if raw.shape[0] == effective_low.shape[0]:
             effective_action = np.clip(raw, effective_low, effective_high).astype(np.float32, copy=False)
             shared_bandwidth_mbps = float(min(float(effective_action[0]), float(effective_action[1])))
+            policy_values = [float(self._policy_action_from_bandwidth(shared_bandwidth_mbps)[0])]
+            if self._shared_bin_loss_enabled:
+                policy_values.append(float(min(float(effective_action[2]), float(effective_action[3]))))
             policy_action = np.clip(
-                self._policy_action_from_bandwidth(shared_bandwidth_mbps),
+                np.asarray(policy_values, dtype=np.float32),
                 self.action_space.low,
                 self.action_space.high,
             ).astype(np.float32, copy=False)
@@ -215,19 +366,19 @@ class ParallelGapAttackEnv(gym.Env):
         return self._effective_action_from_policy(policy_action), policy_action
 
     def _default_policy_action(self) -> np.ndarray:
-        return self._policy_action_from_bandwidth(self._default_shared_bandwidth_mbps())
+        values = [float(self._policy_action_from_bandwidth(self._default_shared_bandwidth_mbps())[0])]
+        if self._shared_bin_loss_enabled:
+            values.append(0.0)
+        return np.asarray(values, dtype=np.float32)
 
-    def _normalized_bandwidth_fraction(self, policy_action: np.ndarray) -> np.ndarray:
-        return np.clip(
-            np.asarray(policy_action, dtype=np.float32),
-            self.action_space.low,
-            self.action_space.high,
-        ).astype(np.float32, copy=False)
+    def _normalized_policy_action(self, policy_action: np.ndarray) -> np.ndarray:
+        normalized = (
+            np.asarray(policy_action, dtype=np.float32) - self.action_space.low
+        ) / np.maximum(self.action_space.high - self.action_space.low, 1e-6)
+        return np.clip(normalized, 0.0, 1.0).astype(np.float32, copy=False)
 
     def _reserve_launch_port(self, preferred_port: int, *, taken_ports: set[int]) -> int:
-        block_start = max(int(self._base_launch_config.port), 1024)
-        block_size = max(int(self._child_count), 1)
-        block_end = block_start + block_size - 1
+        block_start, block_end = self._reserved_launch_port_bounds()
         candidate = int(np.clip(int(preferred_port), block_start, block_end))
         candidate_ports = list(range(candidate, block_end + 1))
         candidate_ports.extend(range(block_start, candidate))
@@ -282,10 +433,12 @@ class ParallelGapAttackEnv(gym.Env):
             )
         values.extend(
             [
-                float(self._normalized_bandwidth_fraction(policy_action)[0]),
+                float(self._normalized_policy_action(policy_action)[0]),
                 float(self._shared_bandwidth_from_policy_action(policy_action)),
             ]
         )
+        if self._shared_bin_loss_enabled:
+            values.append(float(np.asarray(policy_action, dtype=np.float32).reshape(-1)[1]))
         return np.asarray(values, dtype=np.float32)
 
     def _smoothed_baseline_score(self, *, baseline_scores: dict[str, float]) -> tuple[float, dict[str, float]]:
@@ -347,6 +500,8 @@ class ParallelGapAttackEnv(gym.Env):
             smooth_penalty_scale=0.0,
             reward_scale=1.0,
             runtime_dir=self._child_runtime_dir(role),
+            shared_bin_loss_enabled=self._shared_bin_loss_enabled,
+            shared_bin_loss_bin_ms=self._shared_bin_loss_bin_ms,
         )
 
     def _create_children(self) -> dict[str, OnlineSageAttackEnv]:
@@ -441,12 +596,14 @@ class ParallelGapAttackEnv(gym.Env):
             "attacker/smooth_penalty": 0.0,
             "attacker/shared_bw_mbps": float(shared_bandwidth_mbps),
             "attacker/shared_bw_fraction": float(policy_action.reshape(-1)[0]),
+            "attacker/shared_bin_loss_rate": float(policy_action.reshape(-1)[1]) if self._shared_bin_loss_enabled else 0.0,
             "attacker/uplink_bw_mbps": float(effective_action[0]),
             "attacker/downlink_bw_mbps": float(effective_action[1]),
             "attacker/uplink_loss": float(effective_action[2]),
             "attacker/downlink_loss": float(effective_action[3]),
             "attacker/uplink_delay_ms": float(effective_action[4]),
             "attacker/downlink_delay_ms": float(effective_action[5]),
+            "attacker/shared_bin_loss_bin_ms": float(self._shared_bin_loss_bin_ms) if self._shared_bin_loss_enabled else 0.0,
             "mm/up_queue_packets": 0.0,
             "mm/down_queue_packets": 0.0,
             "mm/up_applied_bw_mbps": 0.0,
@@ -489,10 +646,16 @@ class ParallelGapAttackEnv(gym.Env):
         }
 
     def close(self) -> None:
+        had_children = bool(self._children)
         for child in self._children.values():
             child.close()
         self._children = {}
         self._bootstrap_pending_roles = set()
+        if had_children:
+            try:
+                self._wait_for_reserved_launch_ports(timeout_s=min(max(self._launch_timeout_s / 4.0, 2.0), 15.0))
+            except RuntimeError:
+                pass
 
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):
         try:
@@ -501,6 +664,7 @@ class ParallelGapAttackEnv(gym.Env):
             if seed is not None and hasattr(self, "seed"):
                 self.seed(seed)
         self.close()
+        self._wait_for_reserved_launch_ports(timeout_s=min(max(self._launch_timeout_s / 4.0, 2.0), 15.0))
 
         launch_error: RuntimeError | None = None
         for attempt in range(self._launch_retries):
@@ -522,6 +686,7 @@ class ParallelGapAttackEnv(gym.Env):
                     child.close()
                 if not _is_retryable_launch_error(exc):
                     raise
+                self._wait_for_reserved_launch_ports(timeout_s=min(max(self._launch_timeout_s / 4.0, 2.0), 15.0))
                 time.sleep(min(0.25 * float(attempt + 1), 2.0))
                 continue
 
@@ -696,8 +861,8 @@ class ParallelGapAttackEnv(gym.Env):
         smooth_penalty = float(
             np.mean(
                 np.abs(
-                    self._normalized_bandwidth_fraction(policy_action)
-                    - self._normalized_bandwidth_fraction(self._last_policy_action)
+                    self._normalized_policy_action(policy_action)
+                    - self._normalized_policy_action(self._last_policy_action)
                 )
             )
         )
@@ -739,12 +904,14 @@ class ParallelGapAttackEnv(gym.Env):
                 "attacker/smooth_penalty": float(smooth_penalty),
                 "attacker/shared_bw_mbps": float(shared_bandwidth_mbps),
                 "attacker/shared_bw_fraction": float(policy_action.reshape(-1)[0]),
+                "attacker/shared_bin_loss_rate": float(policy_action.reshape(-1)[1]) if self._shared_bin_loss_enabled else 0.0,
                 "attacker/uplink_bw_mbps": float(effective_action[0]),
                 "attacker/downlink_bw_mbps": float(effective_action[1]),
                 "attacker/uplink_loss": float(effective_action[2]),
                 "attacker/downlink_loss": float(effective_action[3]),
                 "attacker/uplink_delay_ms": float(effective_action[4]),
                 "attacker/downlink_delay_ms": float(effective_action[5]),
+                "attacker/shared_bin_loss_bin_ms": float(self._shared_bin_loss_bin_ms) if self._shared_bin_loss_enabled else 0.0,
                 "sage/score": float(score_sage),
                 "sage/score_rate_norm": float(sage_score_terms["rate_norm"]),
                 "sage/score_rtt_norm": float(sage_score_terms["rtt_norm"]),

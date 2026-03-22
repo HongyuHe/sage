@@ -233,6 +233,10 @@ def _expand_legacy_saved_action(action: np.ndarray, config_payload: dict[str, An
         config_payload.get("attack_shared_loss_min") is not None
         and config_payload.get("attack_shared_loss_max") is not None
     )
+    shared_bin_loss_action = (
+        config_payload.get("attack_shared_bin_loss_min_rate") is not None
+        and config_payload.get("attack_shared_bin_loss_max_rate") is not None
+    )
     shared_delay_action = (
         config_payload.get("attack_shared_delay_min_ms") is not None
         and config_payload.get("attack_shared_delay_max_ms") is not None
@@ -262,7 +266,7 @@ def _expand_legacy_saved_action(action: np.ndarray, config_payload: dict[str, An
         outer_low.extend([float(inner_low[0]), float(inner_low[1])])
         outer_high.extend([float(inner_high[0]), float(inner_high[1])])
 
-    if shared_loss_action:
+    if shared_loss_action or shared_bin_loss_action:
         shared_low, shared_high = _shared_bounds(inner_low[2], inner_high[2], inner_low[3], inner_high[3])
         outer_low.append(shared_low)
         outer_high.append(shared_high)
@@ -297,7 +301,7 @@ def _expand_legacy_saved_action(action: np.ndarray, config_payload: dict[str, An
         downlink_bw = float(clipped[index + 1])
         index += 2
 
-    if shared_loss_action:
+    if shared_loss_action or shared_bin_loss_action:
         uplink_loss = float(clipped[index])
         downlink_loss = float(clipped[index])
         index += 1
@@ -545,6 +549,7 @@ def main() -> None:
         label=f"shield-dataset-{trace_set_name}",
         ports_per_run=len(baseline_methods) + 1,
     )
+    resolved_runtime_dir = run_namespace.runtime_dir
     launch_config = _resolved_launch_config(config_payload=config_payload, run_namespace=run_namespace)
 
     fieldnames = [
@@ -587,6 +592,7 @@ def main() -> None:
         "generated_manifest_path": generated_manifest_path,
         "training_config_path": config_path,
         "clean_manifest_path": clean_manifest_path,
+        "runtime_dir_resolved": resolved_runtime_dir,
         "trace_set_name": trace_set_name,
         "baseline_methods": list(baseline_methods),
         "feature_history_len": int(args.feature_history_len),
@@ -606,13 +612,15 @@ def main() -> None:
         max_episode_steps=int(config_payload.get("episode_steps", 6000)),
         launch_timeout_s=float(config_payload.get("launch_timeout_s", 90.0)),
         step_timeout_s=float(config_payload.get("step_timeout_s", 10.0)),
-        runtime_dir=str(args.runtime_dir),
+        runtime_dir=resolved_runtime_dir,
         baseline_gap_alpha=float(config_payload.get("baseline_gap_alpha", 2.0)),
         baseline_hard_max=bool(config_payload.get("baseline_hard_max", False)),
         baseline_methods=baseline_methods,
         smooth_penalty_scale=float(config_payload.get("smooth_penalty_scale", 0.0)),
         sync_guard_ms=float(config_payload.get("sync_guard_ms", 25.0)),
         launch_retries=int(config_payload.get("gap_launch_retries", 6)),
+        shared_bin_loss_enabled=bool(config_payload.get("shared_bin_loss_enabled", False)),
+        shared_bin_loss_bin_ms=float(config_payload.get("shared_bin_loss_bin_ms", 5.0)),
     )
     try:
         with open(csv_path, "w", encoding="utf-8", newline="") as file_obj:

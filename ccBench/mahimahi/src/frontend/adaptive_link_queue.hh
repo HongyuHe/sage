@@ -11,6 +11,7 @@
 #include <queue>
 #include <random>
 #include <string>
+#include <vector>
 
 #include "adaptive_control.hh"
 #include "file_descriptor.hh"
@@ -32,6 +33,7 @@ private:
     adaptive::DirectionConfig defaults_;
     adaptive::DirectionConfig active_config_;
     adaptive::ControlBlockView control_;
+    adaptive::ControlSettings control_settings_;
 
     std::deque<QueuedPacket> packet_queue_;
     std::optional<QueuedPacket> packet_in_service_;
@@ -45,6 +47,9 @@ private:
 
     std::default_random_engine prng_;
     std::unique_ptr<std::ofstream> log_;
+    std::vector<uint8_t> shared_bin_loss_mask_;
+    double shared_bin_loss_bin_ms_;
+    uint32_t shared_bin_loss_bins_per_step_;
 
     uint64_t enqueued_packets_;
     uint64_t dequeued_packets_;
@@ -65,6 +70,8 @@ private:
     uint64_t queue_occupancy_bytes( void ) const;
     void rationalize( const uint64_t now );
     void update_telemetry( const uint64_t now );
+    void rebuild_shared_bin_loss_mask( void );
+    bool shared_bin_loss_active( const uint64_t now_abs_ms ) const;
 
 public:
     AdaptiveLinkQueue( const std::string & link_name,

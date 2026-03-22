@@ -1,10 +1,18 @@
 """
-Train trace-level explanation rules for difference, challenge, mechanism, and prototype tasks.
+Train trace-level explanation rules for difference, challenge, mechanism, baseline winner, and prototype tasks.
 
 Example usage:
 time python scripts/train_trace_explanation_rules.py \
   --dataset attacks/output/trace-explanations/gap-constrained-3baselines_300k/trace_explanation_dataset.csv \
-  --out-dir attacks/output/trace-explanations/gap-constrained-3baselines_300k/rules
+  --out-dir attacks/output/trace-explanations/gap-constrained-3baselines_300k/rules --backend sklearn
+
+time python scripts/train_trace_explanation_rules.py \
+  --dataset attacks/output/trace-explanations/gap-constrained-1baseline_300k/trace_explanation_dataset.csv \
+  --out-dir attacks/output/trace-explanations/gap-constrained-1baseline_300k/rules --backend sklearn
+
+time python scripts/train_trace_explanation_rules.py \
+  --dataset attacks/output/trace-explanations/hotnets19_300k/trace_explanation_dataset.csv \
+  --out-dir attacks/output/trace-explanations/hotnets19_300k/rules --backend sklearn
 """
 
 from __future__ import annotations
@@ -27,12 +35,15 @@ else:
     from ._trace_attack_common import repo_root_from_script, resolve_repo_path, save_json, utc_now_iso
 
 from attacks.analysis import (
-    CATEGORICAL_FEATURE_COLUMNS,
-    FEATURE_COLUMNS,
-    FEATURE_DESCRIPTIONS,
-    NUMERIC_FEATURE_COLUMNS,
+    BASELINE_WINNER_CUBIC,
+    BASELINE_WINNER_LABELS,
+    BASELINE_WINNER_RENO,
+    BASELINE_WINNER_BBR,
+    baseline_winner_label,
     challenge_label,
     difference_label,
+    feature_descriptions_for_columns,
+    infer_trace_explanation_feature_schema,
     mechanism_label_map,
     mechanism_shares,
 )
@@ -88,26 +99,36 @@ def _require_sklearn_component() -> dict[str, Any]:
     }
 
 
-def _coerce_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
+def _coerce_feature_frame(
+    df: pd.DataFrame,
+    *,
+    numeric_feature_columns: tuple[str, ...],
+    categorical_feature_columns: tuple[str, ...],
+) -> pd.DataFrame:
     out = df.copy()
-    for column in NUMERIC_FEATURE_COLUMNS:
+    for column in numeric_feature_columns:
         if column in out.columns:
             out[column] = pd.to_numeric(out[column], errors="coerce").fillna(0.0).astype(float)
-    for column in CATEGORICAL_FEATURE_COLUMNS:
+    for column in categorical_feature_columns:
         if column in out.columns:
             out[column] = out[column].fillna("missing").astype(str)
     return out
 
 
-def _prepare_sklearn_matrix(df: pd.DataFrame) -> tuple[pd.DataFrame, list[_EncodedFeatureSpec]]:
+def _prepare_sklearn_matrix(
+    df: pd.DataFrame,
+    *,
+    numeric_feature_columns: tuple[str, ...],
+    categorical_feature_columns: tuple[str, ...],
+) -> tuple[pd.DataFrame, list[_EncodedFeatureSpec]]:
     numeric = pd.DataFrame(index=df.index)
     specs: list[_EncodedFeatureSpec] = []
-    for column in NUMERIC_FEATURE_COLUMNS:
+    for column in numeric_feature_columns:
         if column in df.columns:
             numeric[str(column)] = pd.to_numeric(df[str(column)], errors="coerce").fillna(0.0).astype(float)
             specs.append(_EncodedFeatureSpec(encoded_name=str(column), feature_name=str(column), kind="numeric"))
 
-    categorical = df[[column for column in CATEGORICAL_FEATURE_COLUMNS if column in df.columns]].copy()
+    categorical = df[[column for column in categorical_feature_columns if column in df.columns]].copy()
     categorical = categorical.fillna("missing").astype(str)
     categorical_blocks: list[pd.DataFrame] = []
     for column in categorical.columns:
@@ -134,12 +155,17 @@ def _prepare_sklearn_matrix(df: pd.DataFrame) -> tuple[pd.DataFrame, list[_Encod
     return matrix, specs
 
 
-def _feature_frame_for_h2o(df: pd.DataFrame) -> pd.DataFrame:
+def _feature_frame_for_h2o(
+    df: pd.DataFrame,
+    *,
+    numeric_feature_columns: tuple[str, ...],
+    categorical_feature_columns: tuple[str, ...],
+) -> pd.DataFrame:
     data: dict[str, Any] = {}
-    for column in NUMERIC_FEATURE_COLUMNS:
+    for column in numeric_feature_columns:
         if column in df.columns:
             data[str(column)] = pd.to_numeric(df[str(column)], errors="coerce").fillna(0.0).astype(float)
-    for column in CATEGORICAL_FEATURE_COLUMNS:
+    for column in categorical_feature_columns:
         if column in df.columns:
             data[str(column)] = df[str(column)].fillna("missing").astype(str)
     out = pd.DataFrame(data, index=df.index)
@@ -189,6 +215,13 @@ def _random_split(num_rows: int, *, validation_fraction: float, seed: int) -> _S
     val_indices = np.sort(shuffled[:val_count]) if val_count > 0 else np.asarray([], dtype=np.int64)
     train_indices = np.sort(shuffled[val_count:]) if val_count > 0 else indices
     return _SplitSpec(train_indices=train_indices, val_indices=val_indices)
+
+
+def _trace_type_counts(df: pd.DataFrame) -> dict[str, int]:
+    if "trace_type" not in df.columns or df.empty:
+        return {}
+    counts = df["trace_type"].fillna("missing").astype(str).value_counts(dropna=False)
+    return {str(label): int(count) for label, count in counts.items()}
 
 
 def _fit_sklearn_tree(
@@ -700,34 +733,59 @@ def _cluster_prototypes(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train trace explanation rules for difference, challenge, mechanism, and prototype tasks.")
+    parser = argparse.ArgumentParser(description="Train trace explanation rules for difference, challenge, mechanism, baseline winner, and prototype tasks.")
     parser.add_argument("--repo-root", type=str, default=repo_root_from_script(__file__))
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--backend", choices=["sklearn", "h2o"], default="h2o")
-    parser.add_argument("--tasks", type=str, default="difference,challenge,mechanism,prototype")
+    parser.add_argument("--tasks", type=str, default="difference,challenge,mechanism,baseline_winner,prototype")
     parser.add_argument("--validation-fraction", type=float, default=0.2)
-    parser.add_argument("--challenge-gap-pct", type=float, default=25.0)
+    parser.add_argument("--challenge-gap-pct", type=float, default=10.0)
     parser.add_argument("--baseline-score-floor", type=float, default=0.3)
     parser.add_argument("--mechanism-share-threshold", type=float, default=0.45)
     parser.add_argument("--mechanism-min-strength", type=float, default=0.02)
+    parser.add_argument("--baseline-winner-min-fraction", type=float, default=0.5)
     parser.add_argument("--prototype-clusters", type=int, default=4)
     parser.add_argument("--prototype-min-train-support", type=int, default=5)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--max-depth", type=int, default=8)
-    parser.add_argument("--max-leaf-nodes", type=int, default=24)
+    parser.add_argument("--max-depth", type=int, default=100)
+    parser.add_argument("--max-leaf-nodes", type=int, default=100)
     parser.add_argument("--min-samples-leaf", type=int, default=2)
     parser.add_argument("--leaf-purity", type=float, default=0.95)
     parser.add_argument("--h2o-ntrees", type=int, default=1)
-    parser.add_argument("--h2o-max-depth", type=int, default=20)
+    parser.add_argument("--h2o-max-depth", type=int, default=100)
     parser.add_argument("--h2o-min-rows", type=int, default=2)
     parser.add_argument("--h2o-sample-rate", type=float, default=1.0)
     parser.add_argument("--h2o-mtries", type=int, default=None)
-    parser.add_argument("--max-env-error-steps", type=int, default=0)
+    parser.add_argument(
+        "--max-env-error-steps",
+        type=int,
+        default=-1,
+        help="Maximum allowed env_error_steps. Set a negative value to disable this absolute-count filter.",
+    )
+    parser.add_argument(
+        "--max-env-error-rate",
+        type=float,
+        default=0.01,
+        help=(
+            "Maximum allowed env_error_steps / max(num_replay_steps, 1). "
+            "This is more robust than filtering on raw error steps because long replays "
+            "can tolerate an occasional error step. Set a negative value to disable it."
+        ),
+    )
+    parser.add_argument(
+        "--min-replay-coverage",
+        type=float,
+        default=0.0,
+        help=(
+            "Minimum required num_replay_steps / max(num_steps, 1). "
+            "Useful for dropping traces that terminate almost immediately."
+        ),
+    )
     args = parser.parse_args()
 
     requested_tasks = [item.strip() for item in str(args.tasks).split(",") if item.strip()]
-    allowed_tasks = {"difference", "challenge", "mechanism", "prototype"}
+    allowed_tasks = {"difference", "challenge", "mechanism", "baseline_winner", "prototype"}
     unknown_tasks = [item for item in requested_tasks if item not in allowed_tasks]
     if unknown_tasks:
         raise RuntimeError(f"unknown tasks requested: {unknown_tasks}")
@@ -738,16 +796,81 @@ def main() -> None:
     os.makedirs(out_dir, exist_ok=True)
 
     df = pd.read_csv(dataset_path)
-    if "env_error_steps" in df.columns:
-        df = df[pd.to_numeric(df["env_error_steps"], errors="coerce").fillna(0.0) <= float(args.max_env_error_steps)].copy()
+    env_error_steps = (
+        pd.to_numeric(df["env_error_steps"], errors="coerce").fillna(0.0)
+        if "env_error_steps" in df.columns
+        else pd.Series(np.zeros(df.shape[0], dtype=np.float64), index=df.index)
+    )
+    num_replay_steps = (
+        pd.to_numeric(df["num_replay_steps"], errors="coerce").fillna(0.0).clip(lower=1.0)
+        if "num_replay_steps" in df.columns
+        else pd.Series(np.ones(df.shape[0], dtype=np.float64), index=df.index)
+    )
+    env_error_rate = env_error_steps / num_replay_steps
+    replay_coverage = (
+        num_replay_steps
+        / pd.to_numeric(df["num_steps"], errors="coerce").fillna(0.0).clip(lower=1.0)
+        if "num_steps" in df.columns
+        else pd.Series(np.ones(df.shape[0], dtype=np.float64), index=df.index)
+    )
+    filter_mask = np.ones(df.shape[0], dtype=bool)
+    max_env_error_steps = int(args.max_env_error_steps)
+    if max_env_error_steps >= 0:
+        filter_mask &= np.asarray(env_error_steps <= float(max_env_error_steps), dtype=bool)
+    max_env_error_rate = float(args.max_env_error_rate)
+    if max_env_error_rate >= 0.0:
+        filter_mask &= np.asarray(env_error_rate <= float(max_env_error_rate), dtype=bool)
+    min_replay_coverage = max(float(args.min_replay_coverage), 0.0)
+    if min_replay_coverage > 0.0:
+        filter_mask &= np.asarray(replay_coverage >= float(min_replay_coverage), dtype=bool)
+    filter_stats = {
+        "max_env_error_steps": max_env_error_steps if max_env_error_steps >= 0 else None,
+        "max_env_error_rate": max_env_error_rate if max_env_error_rate >= 0.0 else None,
+        "min_replay_coverage": float(min_replay_coverage),
+        "rows_before_filtering": int(df.shape[0]),
+        "rows_after_filtering": int(np.sum(filter_mask)),
+        "trace_type_counts_before_filtering": _trace_type_counts(df),
+        "trace_type_counts_after_filtering": _trace_type_counts(df.loc[filter_mask]),
+        "rows_with_env_errors_before_filtering": int(np.sum(np.asarray(env_error_steps > 0.0, dtype=np.int32))),
+        "rows_with_env_errors_after_filtering": int(
+            np.sum(np.asarray((env_error_steps > 0.0) & np.asarray(filter_mask, dtype=bool), dtype=np.int32))
+        ),
+        "mean_env_error_rate_before_filtering": float(np.mean(np.asarray(env_error_rate, dtype=np.float64)))
+        if df.shape[0] > 0
+        else 0.0,
+        "mean_env_error_rate_after_filtering": float(np.mean(np.asarray(env_error_rate[filter_mask], dtype=np.float64)))
+        if int(np.sum(filter_mask)) > 0
+        else 0.0,
+        "mean_replay_coverage_before_filtering": float(np.mean(np.asarray(replay_coverage, dtype=np.float64)))
+        if df.shape[0] > 0
+        else 0.0,
+        "mean_replay_coverage_after_filtering": float(np.mean(np.asarray(replay_coverage[filter_mask], dtype=np.float64)))
+        if int(np.sum(filter_mask)) > 0
+        else 0.0,
+    }
+    df = df.loc[filter_mask].copy()
     if df.empty:
-        raise RuntimeError("dataset is empty after filtering invalid rows")
-    df = _coerce_feature_frame(df)
+        raise RuntimeError(f"dataset is empty after filtering invalid rows: {json.dumps(filter_stats, sort_keys=True)}")
+    categorical_feature_columns, numeric_feature_columns, feature_columns = infer_trace_explanation_feature_schema(df.columns)
+    feature_descriptions = feature_descriptions_for_columns(feature_columns)
+    df = _coerce_feature_frame(
+        df,
+        numeric_feature_columns=numeric_feature_columns,
+        categorical_feature_columns=categorical_feature_columns,
+    )
 
-    sklearn_matrix, encoded_specs = _prepare_sklearn_matrix(df)
-    h2o_matrix = _feature_frame_for_h2o(df)
+    sklearn_matrix, encoded_specs = _prepare_sklearn_matrix(
+        df,
+        numeric_feature_columns=numeric_feature_columns,
+        categorical_feature_columns=categorical_feature_columns,
+    )
+    h2o_matrix = _feature_frame_for_h2o(
+        df,
+        numeric_feature_columns=numeric_feature_columns,
+        categorical_feature_columns=categorical_feature_columns,
+    )
     feature_matrix = sklearn_matrix if str(args.backend) == "sklearn" else h2o_matrix
-    categorical_feature_names = set(CATEGORICAL_FEATURE_COLUMNS if str(args.backend) == "h2o" else ())
+    categorical_feature_names = set(categorical_feature_columns if str(args.backend) == "h2o" else ())
     train_cfg = _TreeTrainingConfig(
         backend=str(args.backend),
         seed=int(args.seed),
@@ -766,10 +889,11 @@ def main() -> None:
         "repo_root": repo_root,
         "dataset_path": dataset_path,
         "backend": str(args.backend),
-        "feature_columns": list(FEATURE_COLUMNS),
-        "categorical_feature_columns": list(CATEGORICAL_FEATURE_COLUMNS),
-        "numeric_feature_columns": list(NUMERIC_FEATURE_COLUMNS),
-        "feature_descriptions": FEATURE_DESCRIPTIONS,
+        "feature_columns": list(feature_columns),
+        "categorical_feature_columns": list(categorical_feature_columns),
+        "numeric_feature_columns": list(numeric_feature_columns),
+        "feature_descriptions": feature_descriptions,
+        "dataset_filtering": filter_stats,
         "tasks": {},
     }
     text_sections: list[str] = []
@@ -792,7 +916,7 @@ def main() -> None:
         text_sections.append(_rules_to_text(heading="difference / adv_like", rules=list(diff_bundle["rules"])))
 
     adv_mask = np.asarray(df["trace_type"].astype(str).str.lower() == "adv", dtype=bool)
-    if np.any(adv_mask) and any(task in requested_tasks for task in ("challenge", "mechanism", "prototype")):
+    if np.any(adv_mask) and any(task in requested_tasks for task in ("challenge", "mechanism", "baseline_winner", "prototype")):
         adv_df = df.loc[adv_mask].reset_index(drop=True)
         adv_feature_matrix = feature_matrix.loc[adv_mask].reset_index(drop=True)
         adv_sklearn_matrix = sklearn_matrix.loc[adv_mask].reset_index(drop=True)
@@ -866,6 +990,91 @@ def main() -> None:
             outputs["tasks"]["mechanism"] = mechanism_outputs
             outputs["mechanism_share_examples"] = {
                 str(label): float(np.mean([mechanism_shares(row).get(label, 0.0) for row in adv_rows])) for label in ("throughput_harm", "rtt_harm", "loss_harm")
+            }
+
+        if "baseline_winner" in requested_tasks:
+            baseline_winner_outputs: dict[str, Any] = {}
+            adv_rows = adv_df.to_dict(orient="records")
+            baseline_winner_labels = {
+                BASELINE_WINNER_RENO: np.asarray(
+                    [
+                        baseline_winner_label(
+                            row,
+                            method="reno",
+                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
+                            baseline_score_floor=float(args.baseline_score_floor),
+                            min_fraction=float(args.baseline_winner_min_fraction),
+                        )
+                        for row in adv_rows
+                    ],
+                    dtype=np.int32,
+                ),
+                BASELINE_WINNER_BBR: np.asarray(
+                    [
+                        baseline_winner_label(
+                            row,
+                            method="bbr",
+                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
+                            baseline_score_floor=float(args.baseline_score_floor),
+                            min_fraction=float(args.baseline_winner_min_fraction),
+                        )
+                        for row in adv_rows
+                    ],
+                    dtype=np.int32,
+                ),
+                BASELINE_WINNER_CUBIC: np.asarray(
+                    [
+                        baseline_winner_label(
+                            row,
+                            method="cubic",
+                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
+                            baseline_score_floor=float(args.baseline_score_floor),
+                            min_fraction=float(args.baseline_winner_min_fraction),
+                        )
+                        for row in adv_rows
+                    ],
+                    dtype=np.int32,
+                ),
+            }
+            for label_name, label_values in baseline_winner_labels.items():
+                winner_split = _stratified_split(
+                    label_values,
+                    validation_fraction=float(args.validation_fraction),
+                    seed=int(args.seed),
+                )
+                bundle = _binary_bundle(
+                    task_name=str(label_name),
+                    feature_df=adv_feature_matrix,
+                    y=label_values,
+                    split=winner_split,
+                    backend=str(args.backend),
+                    encoded_specs=encoded_specs,
+                    categorical_feature_names=categorical_feature_names,
+                    train_cfg=train_cfg,
+                    leaf_purity=float(args.leaf_purity),
+                )
+                baseline_winner_outputs[str(label_name)] = bundle
+                text_sections.append(_rules_to_text(heading=f"baseline_winner / {label_name}", rules=list(bundle["rules"])))
+            outputs["tasks"]["baseline_winner"] = baseline_winner_outputs
+            outputs["baseline_winner_examples"] = {
+                label_name: float(
+                    np.mean(
+                        [
+                            max(
+                                float(
+                                    row.get(
+                                        f"best_baseline_fraction_{label_name[:-5] if label_name.endswith('_wins') else label_name}",
+                                        0.0,
+                                    )
+                                    or 0.0
+                                ),
+                                0.0,
+                            )
+                            for row in adv_rows
+                        ]
+                    )
+                )
+                for label_name in BASELINE_WINNER_LABELS
             }
 
         if "prototype" in requested_tasks:

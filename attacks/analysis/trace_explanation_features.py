@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import re
 from typing import Any
 
 import numpy as np
@@ -23,9 +24,18 @@ CATEGORICAL_FEATURE_COLUMNS: tuple[str, ...] = (
 )
 
 _SHARED_BW_PREFIX = "shared_bw"
-_DIRECTIONAL_BW_PREFIXES = ("uplink_bw", "downlink_bw")
 _LOSS_DELAY_PREFIXES = ("uplink_loss", "downlink_loss", "uplink_delay", "downlink_delay")
-_SHARED_WINDOW_STEPS = (5, 10, 20)
+DEFAULT_SHARED_WINDOW_STEPS: tuple[int, ...] = (5, 10, 20, 40, 100, 200)
+_WINDOW_FEATURE_SUFFIXES: tuple[str, ...] = (
+    "min_mean",
+    "max_mean",
+    "max_cv",
+    "max_curvature",
+    "negative_slope_fraction",
+)
+_WINDOW_FEATURE_PATTERN = re.compile(
+    r"^shared_bw_window(?P<steps>\d+)_(?P<suffix>min_mean|max_mean|max_cv|max_curvature|negative_slope_fraction)$"
+)
 
 
 def _bandwidth_feature_columns(prefix: str) -> list[str]:
@@ -55,24 +65,6 @@ def _bandwidth_feature_columns(prefix: str) -> list[str]:
         f"{prefix}_autocorr_lag1",
     ]
     return base
-
-
-def _directional_bandwidth_feature_columns(prefix: str) -> list[str]:
-    return [
-        f"{prefix}_mean",
-        f"{prefix}_std",
-        f"{prefix}_min",
-        f"{prefix}_max",
-        f"{prefix}_p10",
-        f"{prefix}_p90",
-        f"{prefix}_slope",
-        f"{prefix}_abs_diff_mean",
-        f"{prefix}_abs_second_diff_mean",
-        f"{prefix}_sign_change_rate",
-        f"{prefix}_plateau_fraction",
-        f"{prefix}_peak_to_mean",
-        f"{prefix}_autocorr_lag1",
-    ]
 
 
 def _loss_delay_feature_columns(prefix: str) -> list[str]:
@@ -108,18 +100,42 @@ CROSS_FEATURE_COLUMNS: tuple[str, ...] = (
     "delay_abs_diff_mean",
 )
 
-NUMERIC_FEATURE_COLUMNS: tuple[str, ...] = tuple(
+_BASE_NUMERIC_FEATURE_COLUMNS: tuple[str, ...] = tuple(
     [*_bandwidth_feature_columns(_SHARED_BW_PREFIX)]
-    + [feature for prefix in _DIRECTIONAL_BW_PREFIXES for feature in _directional_bandwidth_feature_columns(prefix)]
     + [feature for prefix in _LOSS_DELAY_PREFIXES for feature in _loss_delay_feature_columns(prefix)]
-    + [feature for window_steps in _SHARED_WINDOW_STEPS for feature in _window_feature_columns(window_steps)]
     + list(CROSS_FEATURE_COLUMNS)
 )
 
-FEATURE_COLUMNS: tuple[str, ...] = tuple([*CATEGORICAL_FEATURE_COLUMNS, *NUMERIC_FEATURE_COLUMNS])
+
+def normalize_trace_explanation_window_steps(window_steps: Sequence[int] | None = None) -> tuple[int, ...]:
+    source = DEFAULT_SHARED_WINDOW_STEPS if window_steps is None else tuple(window_steps)
+    normalized: list[int] = []
+    seen: set[int] = set()
+    for value in source:
+        step_count = int(value)
+        if step_count <= 0:
+            raise ValueError(f"window step counts must be positive integers, received {value}")
+        if step_count in seen:
+            continue
+        seen.add(step_count)
+        normalized.append(step_count)
+    return tuple(normalized)
 
 
-def _description_map() -> dict[str, str]:
+def trace_explanation_numeric_feature_columns(window_steps: Sequence[int] | None = None) -> tuple[str, ...]:
+    resolved_window_steps = normalize_trace_explanation_window_steps(window_steps)
+    return tuple(
+        list(_BASE_NUMERIC_FEATURE_COLUMNS)
+        + [feature for step_count in resolved_window_steps for feature in _window_feature_columns(int(step_count))]
+    )
+
+
+def trace_explanation_feature_columns(window_steps: Sequence[int] | None = None) -> tuple[str, ...]:
+    return tuple([*CATEGORICAL_FEATURE_COLUMNS, *trace_explanation_numeric_feature_columns(window_steps)])
+
+
+def _description_map(window_steps: Sequence[int] | None = None) -> dict[str, str]:
+    resolved_window_steps = normalize_trace_explanation_window_steps(window_steps)
     descriptions: dict[str, str] = {
         CATEGORY_BANDWIDTH_COUPLING_KIND: "Categorical summary of whether uplink and downlink bandwidth move together like a shared bottleneck or behave independently.",
         CATEGORY_BANDWIDTH_PROFILE_KIND: "Categorical summary of whether the shared bottleneck bandwidth is nearly flat or meaningfully time-varying.",
@@ -167,26 +183,6 @@ def _description_map() -> dict[str, str]:
             }
         )
 
-    for prefix in _DIRECTIONAL_BW_PREFIXES:
-        direction = "uplink" if prefix.startswith("uplink") else "downlink"
-        descriptions.update(
-            {
-                f"{prefix}_mean": f"Average {direction} bandwidth across the trace.",
-                f"{prefix}_std": f"Standard deviation of {direction} bandwidth.",
-                f"{prefix}_min": f"Minimum {direction} bandwidth.",
-                f"{prefix}_max": f"Maximum {direction} bandwidth.",
-                f"{prefix}_p10": f"10th percentile {direction} bandwidth.",
-                f"{prefix}_p90": f"90th percentile {direction} bandwidth.",
-                f"{prefix}_slope": f"Least-squares linear slope of {direction} bandwidth over time.",
-                f"{prefix}_abs_diff_mean": f"Mean absolute first difference of {direction} bandwidth, measuring average per-step jump size.",
-                f"{prefix}_abs_second_diff_mean": f"Mean absolute second difference of {direction} bandwidth, measuring curvature.",
-                f"{prefix}_sign_change_rate": f"Rate at which the {direction} bandwidth derivative changes sign, measuring oscillation frequency.",
-                f"{prefix}_plateau_fraction": f"Fraction of tiny step-to-step changes in {direction} bandwidth, capturing plateaus.",
-                f"{prefix}_peak_to_mean": f"Peak-to-mean ratio of {direction} bandwidth.",
-                f"{prefix}_autocorr_lag1": f"Lag-1 autocorrelation of {direction} bandwidth.",
-            }
-        )
-
     for prefix in _LOSS_DELAY_PREFIXES:
         metric = "loss" if "loss" in prefix else "delay"
         direction = "uplink" if prefix.startswith("uplink") else "downlink"
@@ -202,7 +198,7 @@ def _description_map() -> dict[str, str]:
             }
         )
 
-    for window_steps in _SHARED_WINDOW_STEPS:
+    for window_steps in resolved_window_steps:
         descriptions.update(
             {
                 f"shared_bw_window{window_steps}_min_mean": f"Minimum mean shared bottleneck bandwidth over any sliding window of {window_steps} steps, capturing sustained low-bandwidth segments.",
@@ -216,7 +212,47 @@ def _description_map() -> dict[str, str]:
     return descriptions
 
 
-FEATURE_DESCRIPTIONS: dict[str, str] = _description_map()
+def trace_explanation_feature_descriptions(window_steps: Sequence[int] | None = None) -> dict[str, str]:
+    return _description_map(window_steps)
+
+
+def window_steps_from_feature_columns(columns: Sequence[str]) -> tuple[int, ...]:
+    resolved: list[int] = []
+    seen: set[int] = set()
+    for column in columns:
+        match = _WINDOW_FEATURE_PATTERN.match(str(column))
+        if match is None:
+            continue
+        if str(match.group("suffix")) not in _WINDOW_FEATURE_SUFFIXES:
+            continue
+        step_count = int(match.group("steps"))
+        if step_count in seen:
+            continue
+        seen.add(step_count)
+        resolved.append(step_count)
+    return tuple(sorted(resolved))
+
+
+def infer_trace_explanation_feature_schema(
+    columns: Sequence[str],
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    available = {str(column) for column in columns}
+    categorical = tuple(column for column in CATEGORICAL_FEATURE_COLUMNS if column in available)
+    window_steps = window_steps_from_feature_columns(tuple(available))
+    numeric_candidates = trace_explanation_numeric_feature_columns(window_steps)
+    numeric = tuple(column for column in numeric_candidates if column in available)
+    return categorical, numeric, tuple([*categorical, *numeric])
+
+
+def feature_descriptions_for_columns(columns: Sequence[str]) -> dict[str, str]:
+    _, _, feature_columns = infer_trace_explanation_feature_schema(columns)
+    descriptions = trace_explanation_feature_descriptions(window_steps_from_feature_columns(feature_columns))
+    return {column: descriptions[column] for column in feature_columns if column in descriptions}
+
+
+NUMERIC_FEATURE_COLUMNS: tuple[str, ...] = trace_explanation_numeric_feature_columns()
+FEATURE_COLUMNS: tuple[str, ...] = trace_explanation_feature_columns()
+FEATURE_DESCRIPTIONS: dict[str, str] = trace_explanation_feature_descriptions()
 
 
 def _safe_series(values: Sequence[float]) -> np.ndarray:
@@ -376,27 +412,6 @@ def _bandwidth_feature_values(prefix: str, values: np.ndarray) -> dict[str, floa
     }
 
 
-def _directional_bandwidth_feature_values(prefix: str, values: np.ndarray) -> dict[str, float]:
-    diffs = np.abs(np.diff(values))
-    second = np.abs(np.diff(values, n=2))
-    mean = float(np.mean(values))
-    return {
-        f"{prefix}_mean": mean,
-        f"{prefix}_std": float(np.std(values)),
-        f"{prefix}_min": float(np.min(values)),
-        f"{prefix}_max": float(np.max(values)),
-        f"{prefix}_p10": _percentile(values, 10.0),
-        f"{prefix}_p90": _percentile(values, 90.0),
-        f"{prefix}_slope": _linear_slope(values),
-        f"{prefix}_abs_diff_mean": float(np.mean(diffs)) if diffs.size > 0 else 0.0,
-        f"{prefix}_abs_second_diff_mean": float(np.mean(second)) if second.size > 0 else 0.0,
-        f"{prefix}_sign_change_rate": _series_sign_change_rate(values),
-        f"{prefix}_plateau_fraction": _series_plateau_fraction(values),
-        f"{prefix}_peak_to_mean": float(np.max(values) / max(mean, 1e-6)),
-        f"{prefix}_autocorr_lag1": _autocorr_lag1(values),
-    }
-
-
 def _loss_delay_feature_values(prefix: str, values: np.ndarray) -> dict[str, float]:
     diffs = np.abs(np.diff(values))
     return {
@@ -474,7 +489,9 @@ def extract_trace_explanation_features(
     attack_interval_ms: float,
     baseline_methods_key: str,
     attack_mode: str,
+    shared_window_steps: Sequence[int] | None = None,
 ) -> dict[str, Any]:
+    resolved_window_steps = normalize_trace_explanation_window_steps(shared_window_steps)
     actions = np.asarray(action_schedule, dtype=np.float64)
     if actions.ndim != 2 or actions.shape[1] < 6:
         raise ValueError(f"expected action schedule with shape [num_steps, >=6], received {actions.shape}")
@@ -498,13 +515,11 @@ def extract_trace_explanation_features(
         attack_mode=str(attack_mode),
     )
     feature_values.update(_bandwidth_feature_values(_SHARED_BW_PREFIX, shared_bw))
-    feature_values.update(_directional_bandwidth_feature_values("uplink_bw", uplink_bw))
-    feature_values.update(_directional_bandwidth_feature_values("downlink_bw", downlink_bw))
     feature_values.update(_loss_delay_feature_values("uplink_loss", uplink_loss))
     feature_values.update(_loss_delay_feature_values("downlink_loss", downlink_loss))
     feature_values.update(_loss_delay_feature_values("uplink_delay", uplink_delay))
     feature_values.update(_loss_delay_feature_values("downlink_delay", downlink_delay))
-    for window_steps in _SHARED_WINDOW_STEPS:
+    for window_steps in resolved_window_steps:
         feature_values.update(_window_feature_values(shared_bw, window_steps=int(window_steps)))
 
     diff_bw = np.abs(uplink_bw - downlink_bw)
@@ -527,7 +542,8 @@ def extract_trace_explanation_features(
         }
     )
 
-    missing = [feature for feature in FEATURE_COLUMNS if feature not in feature_values]
+    expected_feature_columns = trace_explanation_feature_columns(resolved_window_steps)
+    missing = [feature for feature in expected_feature_columns if feature not in feature_values]
     if missing:
         raise RuntimeError(f"missing trace explanation features: {missing}")
     return feature_values

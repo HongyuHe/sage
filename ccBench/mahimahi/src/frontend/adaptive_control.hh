@@ -10,6 +10,7 @@ namespace adaptive {
 
 constexpr uint64_t CONTROL_MAGIC = 0x5341474541445631ULL; /* SAGEADV1 */
 constexpr uint32_t CONTROL_VERSION = 2;
+constexpr uint32_t DIRECTION_FLAG_SHARED_BIN_LOSS = 1U << 0;
 
 enum class Direction : uint32_t
 {
@@ -51,6 +52,12 @@ struct DirectionTelemetry
     double applied_effective_after_abs_ms;
 };
 
+struct ControlSettings
+{
+    double shared_bin_loss_bin_ms;
+    double attack_interval_ms;
+};
+
 struct ControlBlock
 {
     uint64_t magic;
@@ -89,6 +96,7 @@ public:
     ControlBlockView & operator=( const ControlBlockView & other ) = delete;
 
     DirectionConfig read( const Direction direction ) const;
+    ControlSettings settings( void ) const;
     void update_telemetry( const Direction direction, const DirectionTelemetry & telemetry ) const;
 };
 

@@ -6,10 +6,12 @@ from typing import Final
 
 CONTROL_MAGIC: Final[int] = 0x5341474541445631
 CONTROL_VERSION: Final[int] = 2
+DIRECTION_FLAG_SHARED_BIN_LOSS: Final[int] = 1 << 0
 
 HEADER_STRUCT: Final[struct.Struct] = struct.Struct("<QIIQQQ")
 DIRECTION_CONFIG_STRUCT: Final[struct.Struct] = struct.Struct("<dddIIIIdd")
 DIRECTION_TELEMETRY_STRUCT: Final[struct.Struct] = struct.Struct("<dddIIQQQQQQQdddd")
+CONTROL_SETTINGS_STRUCT: Final[struct.Struct] = struct.Struct("<dd")
 
 HEADER_OFFSET: Final[int] = 0
 UPLINK_CONFIG_OFFSET: Final[int] = HEADER_OFFSET + HEADER_STRUCT.size
@@ -20,8 +22,21 @@ LABEL_OFFSET: Final[int] = DOWNLINK_TELEMETRY_OFFSET + DIRECTION_TELEMETRY_STRUC
 LABEL_SIZE: Final[int] = 64
 RESERVED_SIZE: Final[int] = 256
 CONTROL_BLOCK_SIZE: Final[int] = LABEL_OFFSET + LABEL_SIZE + RESERVED_SIZE
+CONTROL_SETTINGS_OFFSET: Final[int] = LABEL_OFFSET + LABEL_SIZE
 SEQUENCE_OFFSET: Final[int] = 16
 UPDATE_COUNTER_OFFSET: Final[int] = 24
+
+
+@dataclass(frozen=True)
+class ControlSettings:
+    shared_bin_loss_bin_ms: float = 0.0
+    attack_interval_ms: float = 0.0
+
+    def clamp(self) -> "ControlSettings":
+        return ControlSettings(
+            shared_bin_loss_bin_ms=max(float(self.shared_bin_loss_bin_ms), 0.0),
+            attack_interval_ms=max(float(self.attack_interval_ms), 0.0),
+        )
 
 
 @dataclass(frozen=True)
@@ -83,6 +98,23 @@ class ControlBlockSnapshot:
     uplink_telemetry: DirectionTelemetry
     downlink_telemetry: DirectionTelemetry
     label: str
+    settings: ControlSettings
+
+
+def pack_control_settings(settings: ControlSettings) -> bytes:
+    safe = settings.clamp()
+    return CONTROL_SETTINGS_STRUCT.pack(
+        float(safe.shared_bin_loss_bin_ms),
+        float(safe.attack_interval_ms),
+    )
+
+
+def unpack_control_settings(buf: bytes) -> ControlSettings:
+    values = CONTROL_SETTINGS_STRUCT.unpack(buf)
+    return ControlSettings(
+        shared_bin_loss_bin_ms=float(values[0]),
+        attack_interval_ms=float(values[1]),
+    )
 
 
 def pack_direction_config(config: DirectionConfig) -> bytes:
@@ -143,6 +175,7 @@ def build_control_block(
     uplink: DirectionConfig,
     downlink: DirectionConfig,
     created_ms: int,
+    settings: ControlSettings | None = None,
 ) -> bytes:
     block = bytearray(CONTROL_BLOCK_SIZE)
     HEADER_STRUCT.pack_into(
@@ -159,6 +192,9 @@ def build_control_block(
     block[DOWNLINK_CONFIG_OFFSET : DOWNLINK_CONFIG_OFFSET + DIRECTION_CONFIG_STRUCT.size] = pack_direction_config(downlink)
     label_bytes = label.encode("utf-8", errors="ignore")[: LABEL_SIZE - 1]
     block[LABEL_OFFSET : LABEL_OFFSET + len(label_bytes)] = label_bytes
+    block[
+        CONTROL_SETTINGS_OFFSET : CONTROL_SETTINGS_OFFSET + CONTROL_SETTINGS_STRUCT.size
+    ] = pack_control_settings(settings or ControlSettings())
     return bytes(block)
 
 
@@ -185,4 +221,7 @@ def unpack_control_block(buf: bytes) -> ControlBlockSnapshot:
             bytes(buf[DOWNLINK_TELEMETRY_OFFSET : DOWNLINK_TELEMETRY_OFFSET + DIRECTION_TELEMETRY_STRUCT.size])
         ),
         label=label_bytes.decode("utf-8", errors="ignore"),
+        settings=unpack_control_settings(
+            bytes(buf[CONTROL_SETTINGS_OFFSET : CONTROL_SETTINGS_OFFSET + CONTROL_SETTINGS_STRUCT.size])
+        ),
     )
