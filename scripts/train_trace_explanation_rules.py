@@ -3,16 +3,16 @@ Train trace-level explanation rules for difference, challenge, mechanism, baseli
 
 Example usage:
 time python scripts/train_trace_explanation_rules.py \
-  --dataset attacks/output/trace-explanations/gap-constrained-3baselines_300k/trace_explanation_dataset.csv \
-  --out-dir attacks/output/trace-explanations/gap-constrained-3baselines_300k/rules --backend sklearn
+  --dataset attacks/output/explanations/gap-constrained-all-loss_50ms_300k/trace_explanation_dataset.csv \
+  --out-dir attacks/output/explanations/gap-constrained-all-loss_50ms_300k/rules
 
 time python scripts/train_trace_explanation_rules.py \
-  --dataset attacks/output/trace-explanations/gap-constrained-1baseline_300k/trace_explanation_dataset.csv \
-  --out-dir attacks/output/trace-explanations/gap-constrained-1baseline_300k/rules --backend sklearn
+  --dataset attacks/output/explanations/gap-constrained-all-hard_50ms_300k/trace_explanation_dataset.csv \
+  --out-dir attacks/output/explanations/gap-constrained-all-hard_50ms_300k/rules
 
 time python scripts/train_trace_explanation_rules.py \
-  --dataset attacks/output/trace-explanations/hotnets19_300k/trace_explanation_dataset.csv \
-  --out-dir attacks/output/trace-explanations/hotnets19_300k/rules --backend sklearn
+  --dataset attacks/output/explanations/hotnets19-loss_50ms_300k/trace_explanation_dataset.csv \
+  --out-dir attacks/output/explanations/hotnets19-loss_50ms_300k/rules --backend h2o
 """
 
 from __future__ import annotations
@@ -35,10 +35,16 @@ else:
     from ._trace_attack_common import repo_root_from_script, resolve_repo_path, save_json, utc_now_iso
 
 from attacks.analysis import (
+    ATTRIBUTION_ACTION_AMPLIFIED,
+    ATTRIBUTION_ENV_DRIVEN,
+    ATTRIBUTION_LABELS,
+    ATTRIBUTION_POLICY_INDUCED,
     BASELINE_WINNER_CUBIC,
     BASELINE_WINNER_LABELS,
     BASELINE_WINNER_RENO,
     BASELINE_WINNER_BBR,
+    attribution_label_map,
+    attribution_scores,
     baseline_winner_label,
     challenge_label,
     difference_label,
@@ -121,12 +127,13 @@ def _prepare_sklearn_matrix(
     numeric_feature_columns: tuple[str, ...],
     categorical_feature_columns: tuple[str, ...],
 ) -> tuple[pd.DataFrame, list[_EncodedFeatureSpec]]:
-    numeric = pd.DataFrame(index=df.index)
     specs: list[_EncodedFeatureSpec] = []
+    numeric_data: dict[str, pd.Series] = {}
     for column in numeric_feature_columns:
         if column in df.columns:
-            numeric[str(column)] = pd.to_numeric(df[str(column)], errors="coerce").fillna(0.0).astype(float)
+            numeric_data[str(column)] = pd.to_numeric(df[str(column)], errors="coerce").fillna(0.0).astype(float)
             specs.append(_EncodedFeatureSpec(encoded_name=str(column), feature_name=str(column), kind="numeric"))
+    numeric = pd.DataFrame(numeric_data, index=df.index)
 
     categorical = df[[column for column in categorical_feature_columns if column in df.columns]].copy()
     categorical = categorical.fillna("missing").astype(str)
@@ -732,19 +739,392 @@ def _cluster_prototypes(
     return full_labels, {"num_clusters": int(num_clusters), "cluster_centers": kmeans.cluster_centers_.tolist()}
 
 
+def _parse_requested_backends(raw_value: str) -> tuple[str, ...]:
+    raw_items = [item.strip().lower() for item in str(raw_value).split(",") if item.strip()]
+    if not raw_items:
+        raw_items = ["sklearn", "h2o"]
+    if "both" in raw_items:
+        raw_items = [item for item in raw_items if item != "both"] + ["sklearn", "h2o"]
+    allowed = {"sklearn", "h2o"}
+    unknown = [item for item in raw_items if item not in allowed]
+    if unknown:
+        raise RuntimeError(f"unknown backend(s) requested: {unknown}")
+    resolved: list[str] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        if item in seen:
+            continue
+        seen.add(item)
+        resolved.append(item)
+    return tuple(resolved)
+
+
+def _train_outputs_for_backend(
+    *,
+    backend_name: str,
+    df: pd.DataFrame,
+    sklearn_matrix: pd.DataFrame,
+    h2o_matrix: pd.DataFrame,
+    encoded_specs: list[_EncodedFeatureSpec],
+    categorical_feature_columns: tuple[str, ...],
+    numeric_feature_columns: tuple[str, ...],
+    feature_columns: tuple[str, ...],
+    feature_descriptions: dict[str, str],
+    filter_stats: dict[str, Any],
+    requested_tasks: list[str],
+    args: argparse.Namespace,
+    repo_root: str,
+    dataset_path: str,
+) -> tuple[dict[str, Any], list[str]]:
+    feature_matrix = sklearn_matrix if str(backend_name) == "sklearn" else h2o_matrix
+    categorical_feature_names = set(categorical_feature_columns if str(backend_name) == "h2o" else ())
+    train_cfg = _TreeTrainingConfig(
+        backend=str(backend_name),
+        seed=int(args.seed),
+        max_depth=int(args.max_depth),
+        max_leaf_nodes=int(args.max_leaf_nodes),
+        min_samples_leaf=int(args.min_samples_leaf),
+        h2o_ntrees=int(args.h2o_ntrees),
+        h2o_max_depth=int(args.h2o_max_depth),
+        h2o_min_rows=int(args.h2o_min_rows),
+        h2o_sample_rate=float(args.h2o_sample_rate),
+        h2o_mtries=int(args.h2o_mtries) if args.h2o_mtries is not None else None,
+    )
+
+    outputs: dict[str, Any] = {
+        "created_at_utc": utc_now_iso(),
+        "repo_root": repo_root,
+        "dataset_path": dataset_path,
+        "backend": str(backend_name),
+        "feature_columns": list(feature_columns),
+        "categorical_feature_columns": list(categorical_feature_columns),
+        "numeric_feature_columns": list(numeric_feature_columns),
+        "feature_descriptions": feature_descriptions,
+        "dataset_filtering": filter_stats,
+        "tasks": {},
+    }
+    text_sections: list[str] = []
+
+    if "difference" in requested_tasks:
+        diff_y = np.asarray([difference_label(str(value)) for value in df["trace_type"].tolist()], dtype=np.int32)
+        diff_split = _stratified_split(diff_y, validation_fraction=float(args.validation_fraction), seed=int(args.seed))
+        diff_bundle = _binary_bundle(
+            task_name="difference_adv_like",
+            feature_df=feature_matrix,
+            y=diff_y,
+            split=diff_split,
+            backend=str(backend_name),
+            encoded_specs=encoded_specs,
+            categorical_feature_names=categorical_feature_names,
+            train_cfg=train_cfg,
+            leaf_purity=float(args.leaf_purity),
+        )
+        outputs["tasks"]["difference"] = diff_bundle
+        text_sections.append(_rules_to_text(heading="difference / adv_like", rules=list(diff_bundle["rules"])))
+
+    adv_mask = np.asarray(df["trace_type"].astype(str).str.lower() == "adv", dtype=bool)
+    if np.any(adv_mask) and any(task in requested_tasks for task in ("challenge", "mechanism", "baseline_winner", "attribution", "prototype")):
+        adv_df = df.loc[adv_mask].reset_index(drop=True)
+        adv_feature_matrix = feature_matrix.loc[adv_mask].reset_index(drop=True)
+        adv_sklearn_matrix = sklearn_matrix.loc[adv_mask].reset_index(drop=True)
+
+        challenge_y = np.asarray(
+            [
+                challenge_label(
+                    dict(row),
+                    gap_pct_threshold=float(args.challenge_gap_pct),
+                    baseline_score_floor=float(args.baseline_score_floor),
+                )
+                for row in adv_df.to_dict(orient="records")
+            ],
+            dtype=np.int32,
+        )
+        adv_split = _stratified_split(challenge_y, validation_fraction=float(args.validation_fraction), seed=int(args.seed))
+
+        if "challenge" in requested_tasks:
+            challenge_bundle = _binary_bundle(
+                task_name="challenge_high_gap",
+                feature_df=adv_feature_matrix,
+                y=challenge_y,
+                split=adv_split,
+                backend=str(backend_name),
+                encoded_specs=encoded_specs,
+                categorical_feature_names=categorical_feature_names,
+                train_cfg=train_cfg,
+                leaf_purity=float(args.leaf_purity),
+            )
+            outputs["tasks"]["challenge"] = challenge_bundle
+            text_sections.append(_rules_to_text(heading="challenge / high_gap", rules=list(challenge_bundle["rules"])))
+
+        if "mechanism" in requested_tasks:
+            mechanism_outputs: dict[str, Any] = {}
+            adv_rows = adv_df.to_dict(orient="records")
+            mechanism_labels = {
+                label: np.asarray(
+                    [
+                        mechanism_label_map(
+                            row,
+                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
+                            baseline_score_floor=float(args.baseline_score_floor),
+                            share_threshold=float(args.mechanism_share_threshold),
+                            min_strength=float(args.mechanism_min_strength),
+                        )[label]
+                        for row in adv_rows
+                    ],
+                    dtype=np.int32,
+                )
+                for label in ("throughput_harm", "rtt_harm", "loss_harm")
+            }
+            for label_name, label_values in mechanism_labels.items():
+                mechanism_split = _stratified_split(
+                    label_values,
+                    validation_fraction=float(args.validation_fraction),
+                    seed=int(args.seed),
+                )
+                bundle = _binary_bundle(
+                    task_name=str(label_name),
+                    feature_df=adv_feature_matrix,
+                    y=label_values,
+                    split=mechanism_split,
+                    backend=str(backend_name),
+                    encoded_specs=encoded_specs,
+                    categorical_feature_names=categorical_feature_names,
+                    train_cfg=train_cfg,
+                    leaf_purity=float(args.leaf_purity),
+                )
+                mechanism_outputs[str(label_name)] = bundle
+                text_sections.append(_rules_to_text(heading=f"mechanism / {label_name}", rules=list(bundle["rules"])))
+            outputs["tasks"]["mechanism"] = mechanism_outputs
+            outputs["mechanism_share_examples"] = {
+                str(label): float(np.mean([mechanism_shares(row).get(label, 0.0) for row in adv_rows]))
+                for label in ("throughput_harm", "rtt_harm", "loss_harm")
+            }
+
+        if "baseline_winner" in requested_tasks:
+            baseline_winner_outputs: dict[str, Any] = {}
+            adv_rows = adv_df.to_dict(orient="records")
+            baseline_winner_labels = {
+                BASELINE_WINNER_RENO: np.asarray(
+                    [
+                        baseline_winner_label(
+                            row,
+                            method="reno",
+                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
+                            baseline_score_floor=float(args.baseline_score_floor),
+                            min_fraction=float(args.baseline_winner_min_fraction),
+                        )
+                        for row in adv_rows
+                    ],
+                    dtype=np.int32,
+                ),
+                BASELINE_WINNER_BBR: np.asarray(
+                    [
+                        baseline_winner_label(
+                            row,
+                            method="bbr",
+                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
+                            baseline_score_floor=float(args.baseline_score_floor),
+                            min_fraction=float(args.baseline_winner_min_fraction),
+                        )
+                        for row in adv_rows
+                    ],
+                    dtype=np.int32,
+                ),
+                BASELINE_WINNER_CUBIC: np.asarray(
+                    [
+                        baseline_winner_label(
+                            row,
+                            method="cubic",
+                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
+                            baseline_score_floor=float(args.baseline_score_floor),
+                            min_fraction=float(args.baseline_winner_min_fraction),
+                        )
+                        for row in adv_rows
+                    ],
+                    dtype=np.int32,
+                ),
+            }
+            for label_name, label_values in baseline_winner_labels.items():
+                winner_split = _stratified_split(
+                    label_values,
+                    validation_fraction=float(args.validation_fraction),
+                    seed=int(args.seed),
+                )
+                bundle = _binary_bundle(
+                    task_name=str(label_name),
+                    feature_df=adv_feature_matrix,
+                    y=label_values,
+                    split=winner_split,
+                    backend=str(backend_name),
+                    encoded_specs=encoded_specs,
+                    categorical_feature_names=categorical_feature_names,
+                    train_cfg=train_cfg,
+                    leaf_purity=float(args.leaf_purity),
+                )
+                baseline_winner_outputs[str(label_name)] = bundle
+                text_sections.append(_rules_to_text(heading=f"baseline_winner / {label_name}", rules=list(bundle["rules"])))
+            outputs["tasks"]["baseline_winner"] = baseline_winner_outputs
+            outputs["baseline_winner_examples"] = {
+                label_name: float(
+                    np.mean(
+                        [
+                            max(
+                                float(
+                                    row.get(
+                                        f"best_baseline_fraction_{label_name[:-5] if label_name.endswith('_wins') else label_name}",
+                                        0.0,
+                                    )
+                                    or 0.0
+                                ),
+                                0.0,
+                            )
+                            for row in adv_rows
+                        ]
+                    )
+                )
+                for label_name in BASELINE_WINNER_LABELS
+            }
+
+        if "attribution" in requested_tasks:
+            attribution_outputs: dict[str, Any] = {}
+            adv_rows = adv_df.to_dict(orient="records")
+            availability_mean = float(
+                np.mean(
+                    [
+                        max(float(row.get("action_reference_available_fraction", 0.0) or 0.0), 0.0)
+                        for row in adv_rows
+                    ]
+                )
+            ) if adv_rows else 0.0
+            if availability_mean < float(args.attribution_availability_floor):
+                attribution_outputs["skipped"] = (
+                    "action-aware attribution labels require baseline action proxies; "
+                    "the dataset does not contain enough available action references."
+                )
+                text_sections.append("attribution / skipped (insufficient action-reference availability)\n")
+            else:
+                attribution_maps = [
+                    attribution_label_map(
+                        row,
+                        challenge_gap_pct_threshold=float(args.challenge_gap_pct),
+                        baseline_score_floor=float(args.baseline_score_floor),
+                        env_high_threshold=float(args.attribution_env_high_threshold),
+                        action_high_threshold=float(args.attribution_action_high_threshold),
+                        action_low_threshold=float(args.attribution_action_low_threshold),
+                        interaction_high_threshold=float(args.attribution_interaction_high_threshold),
+                        interaction_low_threshold=float(args.attribution_interaction_low_threshold),
+                        availability_floor=float(args.attribution_availability_floor),
+                    )
+                    for row in adv_rows
+                ]
+                attribution_labels = {
+                    ATTRIBUTION_ENV_DRIVEN: np.asarray(
+                        [label_map[ATTRIBUTION_ENV_DRIVEN] for label_map in attribution_maps],
+                        dtype=np.int32,
+                    ),
+                    ATTRIBUTION_ACTION_AMPLIFIED: np.asarray(
+                        [label_map[ATTRIBUTION_ACTION_AMPLIFIED] for label_map in attribution_maps],
+                        dtype=np.int32,
+                    ),
+                    ATTRIBUTION_POLICY_INDUCED: np.asarray(
+                        [label_map[ATTRIBUTION_POLICY_INDUCED] for label_map in attribution_maps],
+                        dtype=np.int32,
+                    ),
+                }
+                for label_name, label_values in attribution_labels.items():
+                    attribution_split = _stratified_split(
+                        label_values,
+                        validation_fraction=float(args.validation_fraction),
+                        seed=int(args.seed),
+                    )
+                    bundle = _binary_bundle(
+                        task_name=str(label_name),
+                        feature_df=adv_feature_matrix,
+                        y=label_values,
+                        split=attribution_split,
+                        backend=str(backend_name),
+                        encoded_specs=encoded_specs,
+                        categorical_feature_names=categorical_feature_names,
+                        train_cfg=train_cfg,
+                        leaf_purity=float(args.leaf_purity),
+                    )
+                    attribution_outputs[str(label_name)] = bundle
+                    text_sections.append(_rules_to_text(heading=f"attribution / {label_name}", rules=list(bundle["rules"])))
+                outputs["attribution_score_examples"] = {
+                    "env": float(np.mean([attribution_scores(row)["env"] for row in adv_rows])) if adv_rows else 0.0,
+                    "action": float(np.mean([attribution_scores(row)["action"] for row in adv_rows])) if adv_rows else 0.0,
+                    "interaction": float(np.mean([attribution_scores(row)["interaction"] for row in adv_rows])) if adv_rows else 0.0,
+                    "availability": availability_mean,
+                }
+            outputs["tasks"]["attribution"] = attribution_outputs
+
+        if "prototype" in requested_tasks:
+            prototype_split = _random_split(
+                int(adv_df.shape[0]),
+                validation_fraction=float(args.validation_fraction),
+                seed=int(args.seed),
+            )
+            prototype_labels, cluster_info = _cluster_prototypes(
+                adv_sklearn_matrix,
+                split=prototype_split,
+                prototype_clusters=int(args.prototype_clusters),
+                seed=int(args.seed),
+            )
+            prototype_outputs: dict[str, Any] = {"cluster_info": cluster_info, "clusters": {}}
+            for cluster_id in sorted(set(int(item) for item in prototype_labels.tolist())):
+                train_support = int(np.sum(prototype_labels[prototype_split.train_indices] == int(cluster_id)))
+                if train_support < int(args.prototype_min_train_support):
+                    continue
+                cluster_y = np.asarray(prototype_labels == int(cluster_id), dtype=np.int32)
+                bundle = _binary_bundle(
+                    task_name=f"prototype_{cluster_id:02d}",
+                    feature_df=adv_feature_matrix,
+                    y=cluster_y,
+                    split=prototype_split,
+                    backend=str(backend_name),
+                    encoded_specs=encoded_specs,
+                    categorical_feature_names=categorical_feature_names,
+                    train_cfg=train_cfg,
+                    leaf_purity=float(args.leaf_purity),
+                )
+                cluster_rows = adv_df.loc[cluster_y == 1].copy()
+                prototype_outputs["clusters"][f"prototype_{cluster_id:02d}"] = {
+                    **bundle,
+                    "train_support": int(train_support),
+                    "total_support": int(np.sum(cluster_y == 1)),
+                    "mean_hard_gap_percent": float(pd.to_numeric(cluster_rows.get("hard_gap_percent_mean", 0.0), errors="coerce").fillna(0.0).mean()),
+                    "mean_hard_gap_value": float(pd.to_numeric(cluster_rows.get("hard_gap_value_mean", 0.0), errors="coerce").fillna(0.0).mean()),
+                }
+                text_sections.append(_rules_to_text(heading=f"prototype / prototype_{cluster_id:02d}", rules=list(bundle["rules"])))
+            outputs["tasks"]["prototype"] = prototype_outputs
+
+    return outputs, text_sections
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train trace explanation rules for difference, challenge, mechanism, baseline winner, and prototype tasks.")
+    parser = argparse.ArgumentParser(description="Train trace explanation rules for difference, challenge, mechanism, baseline winner, attribution, and prototype tasks.")
     parser.add_argument("--repo-root", type=str, default=repo_root_from_script(__file__))
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--out-dir", required=True)
-    parser.add_argument("--backend", choices=["sklearn", "h2o"], default="h2o")
-    parser.add_argument("--tasks", type=str, default="difference,challenge,mechanism,baseline_winner,prototype")
+    parser.add_argument(
+        "--backend",
+        type=str,
+        default="sklearn,h2o",
+        help="Tree backend(s) to train: `sklearn`, `h2o`, `both`, or a comma-separated list.",
+    )
+    parser.add_argument("--tasks", type=str, default="difference,challenge,mechanism,baseline_winner,attribution,prototype")
     parser.add_argument("--validation-fraction", type=float, default=0.2)
     parser.add_argument("--challenge-gap-pct", type=float, default=10.0)
     parser.add_argument("--baseline-score-floor", type=float, default=0.3)
     parser.add_argument("--mechanism-share-threshold", type=float, default=0.45)
     parser.add_argument("--mechanism-min-strength", type=float, default=0.02)
     parser.add_argument("--baseline-winner-min-fraction", type=float, default=0.5)
+    parser.add_argument("--attribution-env-high-threshold", type=float, default=0.45)
+    parser.add_argument("--attribution-action-high-threshold", type=float, default=0.45)
+    parser.add_argument("--attribution-action-low-threshold", type=float, default=0.25)
+    parser.add_argument("--attribution-interaction-high-threshold", type=float, default=0.35)
+    parser.add_argument("--attribution-interaction-low-threshold", type=float, default=0.2)
+    parser.add_argument("--attribution-availability-floor", type=float, default=0.5)
     parser.add_argument("--prototype-clusters", type=int, default=4)
     parser.add_argument("--prototype-min-train-support", type=int, default=5)
     parser.add_argument("--seed", type=int, default=0)
@@ -785,10 +1165,11 @@ def main() -> None:
     args = parser.parse_args()
 
     requested_tasks = [item.strip() for item in str(args.tasks).split(",") if item.strip()]
-    allowed_tasks = {"difference", "challenge", "mechanism", "baseline_winner", "prototype"}
+    allowed_tasks = {"difference", "challenge", "mechanism", "baseline_winner", "attribution", "prototype"}
     unknown_tasks = [item for item in requested_tasks if item not in allowed_tasks]
     if unknown_tasks:
         raise RuntimeError(f"unknown tasks requested: {unknown_tasks}")
+    requested_backends = _parse_requested_backends(str(args.backend))
 
     repo_root = os.path.abspath(str(args.repo_root))
     dataset_path = resolve_repo_path(repo_root, str(args.dataset))
@@ -869,261 +1250,34 @@ def main() -> None:
         numeric_feature_columns=numeric_feature_columns,
         categorical_feature_columns=categorical_feature_columns,
     )
-    feature_matrix = sklearn_matrix if str(args.backend) == "sklearn" else h2o_matrix
-    categorical_feature_names = set(categorical_feature_columns if str(args.backend) == "h2o" else ())
-    train_cfg = _TreeTrainingConfig(
-        backend=str(args.backend),
-        seed=int(args.seed),
-        max_depth=int(args.max_depth),
-        max_leaf_nodes=int(args.max_leaf_nodes),
-        min_samples_leaf=int(args.min_samples_leaf),
-        h2o_ntrees=int(args.h2o_ntrees),
-        h2o_max_depth=int(args.h2o_max_depth),
-        h2o_min_rows=int(args.h2o_min_rows),
-        h2o_sample_rate=float(args.h2o_sample_rate),
-        h2o_mtries=int(args.h2o_mtries) if args.h2o_mtries is not None else None,
-    )
-
-    outputs: dict[str, Any] = {
-        "created_at_utc": utc_now_iso(),
-        "repo_root": repo_root,
-        "dataset_path": dataset_path,
-        "backend": str(args.backend),
-        "feature_columns": list(feature_columns),
-        "categorical_feature_columns": list(categorical_feature_columns),
-        "numeric_feature_columns": list(numeric_feature_columns),
-        "feature_descriptions": feature_descriptions,
-        "dataset_filtering": filter_stats,
-        "tasks": {},
-    }
-    text_sections: list[str] = []
-
-    if "difference" in requested_tasks:
-        diff_y = np.asarray([difference_label(str(value)) for value in df["trace_type"].tolist()], dtype=np.int32)
-        diff_split = _stratified_split(diff_y, validation_fraction=float(args.validation_fraction), seed=int(args.seed))
-        diff_bundle = _binary_bundle(
-            task_name="difference_adv_like",
-            feature_df=feature_matrix,
-            y=diff_y,
-            split=diff_split,
-            backend=str(args.backend),
+    written_json_paths: list[str] = []
+    for backend_name in requested_backends:
+        outputs, text_sections = _train_outputs_for_backend(
+            backend_name=str(backend_name),
+            df=df,
+            sklearn_matrix=sklearn_matrix,
+            h2o_matrix=h2o_matrix,
             encoded_specs=encoded_specs,
-            categorical_feature_names=categorical_feature_names,
-            train_cfg=train_cfg,
-            leaf_purity=float(args.leaf_purity),
+            categorical_feature_columns=categorical_feature_columns,
+            numeric_feature_columns=numeric_feature_columns,
+            feature_columns=feature_columns,
+            feature_descriptions=feature_descriptions,
+            filter_stats=filter_stats,
+            requested_tasks=requested_tasks,
+            args=args,
+            repo_root=repo_root,
+            dataset_path=dataset_path,
         )
-        outputs["tasks"]["difference"] = diff_bundle
-        text_sections.append(_rules_to_text(heading="difference / adv_like", rules=list(diff_bundle["rules"])))
+        backend_tag = str(backend_name).strip().lower()
+        json_path = os.path.join(out_dir, f"trace_explanation_rules_{backend_tag}.json")
+        txt_path = os.path.join(out_dir, f"trace_explanation_rules_{backend_tag}.txt")
+        save_json(json_path, outputs)
+        with open(txt_path, "w", encoding="utf-8") as file_obj:
+            file_obj.write("\n".join(text_sections).strip() + "\n")
+        written_json_paths.append(json_path)
 
-    adv_mask = np.asarray(df["trace_type"].astype(str).str.lower() == "adv", dtype=bool)
-    if np.any(adv_mask) and any(task in requested_tasks for task in ("challenge", "mechanism", "baseline_winner", "prototype")):
-        adv_df = df.loc[adv_mask].reset_index(drop=True)
-        adv_feature_matrix = feature_matrix.loc[adv_mask].reset_index(drop=True)
-        adv_sklearn_matrix = sklearn_matrix.loc[adv_mask].reset_index(drop=True)
-
-        challenge_y = np.asarray(
-            [
-                challenge_label(
-                    dict(row),
-                    gap_pct_threshold=float(args.challenge_gap_pct),
-                    baseline_score_floor=float(args.baseline_score_floor),
-                )
-                for row in adv_df.to_dict(orient="records")
-            ],
-            dtype=np.int32,
-        )
-        adv_split = _stratified_split(challenge_y, validation_fraction=float(args.validation_fraction), seed=int(args.seed))
-
-        if "challenge" in requested_tasks:
-            challenge_bundle = _binary_bundle(
-                task_name="challenge_high_gap",
-                feature_df=adv_feature_matrix,
-                y=challenge_y,
-                split=adv_split,
-                backend=str(args.backend),
-                encoded_specs=encoded_specs,
-                categorical_feature_names=categorical_feature_names,
-                train_cfg=train_cfg,
-                leaf_purity=float(args.leaf_purity),
-            )
-            outputs["tasks"]["challenge"] = challenge_bundle
-            text_sections.append(_rules_to_text(heading="challenge / high_gap", rules=list(challenge_bundle["rules"])))
-
-        if "mechanism" in requested_tasks:
-            mechanism_outputs: dict[str, Any] = {}
-            adv_rows = adv_df.to_dict(orient="records")
-            mechanism_labels = {
-                label: np.asarray(
-                    [
-                        mechanism_label_map(
-                            row,
-                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
-                            baseline_score_floor=float(args.baseline_score_floor),
-                            share_threshold=float(args.mechanism_share_threshold),
-                            min_strength=float(args.mechanism_min_strength),
-                        )[label]
-                        for row in adv_rows
-                    ],
-                    dtype=np.int32,
-                )
-                for label in ("throughput_harm", "rtt_harm", "loss_harm")
-            }
-            for label_name, label_values in mechanism_labels.items():
-                mechanism_split = _stratified_split(
-                    label_values,
-                    validation_fraction=float(args.validation_fraction),
-                    seed=int(args.seed),
-                )
-                bundle = _binary_bundle(
-                    task_name=str(label_name),
-                    feature_df=adv_feature_matrix,
-                    y=label_values,
-                    split=mechanism_split,
-                    backend=str(args.backend),
-                    encoded_specs=encoded_specs,
-                    categorical_feature_names=categorical_feature_names,
-                    train_cfg=train_cfg,
-                    leaf_purity=float(args.leaf_purity),
-                )
-                mechanism_outputs[str(label_name)] = bundle
-                text_sections.append(_rules_to_text(heading=f"mechanism / {label_name}", rules=list(bundle["rules"])))
-            outputs["tasks"]["mechanism"] = mechanism_outputs
-            outputs["mechanism_share_examples"] = {
-                str(label): float(np.mean([mechanism_shares(row).get(label, 0.0) for row in adv_rows])) for label in ("throughput_harm", "rtt_harm", "loss_harm")
-            }
-
-        if "baseline_winner" in requested_tasks:
-            baseline_winner_outputs: dict[str, Any] = {}
-            adv_rows = adv_df.to_dict(orient="records")
-            baseline_winner_labels = {
-                BASELINE_WINNER_RENO: np.asarray(
-                    [
-                        baseline_winner_label(
-                            row,
-                            method="reno",
-                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
-                            baseline_score_floor=float(args.baseline_score_floor),
-                            min_fraction=float(args.baseline_winner_min_fraction),
-                        )
-                        for row in adv_rows
-                    ],
-                    dtype=np.int32,
-                ),
-                BASELINE_WINNER_BBR: np.asarray(
-                    [
-                        baseline_winner_label(
-                            row,
-                            method="bbr",
-                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
-                            baseline_score_floor=float(args.baseline_score_floor),
-                            min_fraction=float(args.baseline_winner_min_fraction),
-                        )
-                        for row in adv_rows
-                    ],
-                    dtype=np.int32,
-                ),
-                BASELINE_WINNER_CUBIC: np.asarray(
-                    [
-                        baseline_winner_label(
-                            row,
-                            method="cubic",
-                            challenge_gap_pct_threshold=float(args.challenge_gap_pct),
-                            baseline_score_floor=float(args.baseline_score_floor),
-                            min_fraction=float(args.baseline_winner_min_fraction),
-                        )
-                        for row in adv_rows
-                    ],
-                    dtype=np.int32,
-                ),
-            }
-            for label_name, label_values in baseline_winner_labels.items():
-                winner_split = _stratified_split(
-                    label_values,
-                    validation_fraction=float(args.validation_fraction),
-                    seed=int(args.seed),
-                )
-                bundle = _binary_bundle(
-                    task_name=str(label_name),
-                    feature_df=adv_feature_matrix,
-                    y=label_values,
-                    split=winner_split,
-                    backend=str(args.backend),
-                    encoded_specs=encoded_specs,
-                    categorical_feature_names=categorical_feature_names,
-                    train_cfg=train_cfg,
-                    leaf_purity=float(args.leaf_purity),
-                )
-                baseline_winner_outputs[str(label_name)] = bundle
-                text_sections.append(_rules_to_text(heading=f"baseline_winner / {label_name}", rules=list(bundle["rules"])))
-            outputs["tasks"]["baseline_winner"] = baseline_winner_outputs
-            outputs["baseline_winner_examples"] = {
-                label_name: float(
-                    np.mean(
-                        [
-                            max(
-                                float(
-                                    row.get(
-                                        f"best_baseline_fraction_{label_name[:-5] if label_name.endswith('_wins') else label_name}",
-                                        0.0,
-                                    )
-                                    or 0.0
-                                ),
-                                0.0,
-                            )
-                            for row in adv_rows
-                        ]
-                    )
-                )
-                for label_name in BASELINE_WINNER_LABELS
-            }
-
-        if "prototype" in requested_tasks:
-            prototype_split = _random_split(
-                int(adv_df.shape[0]),
-                validation_fraction=float(args.validation_fraction),
-                seed=int(args.seed),
-            )
-            prototype_labels, cluster_info = _cluster_prototypes(
-                adv_sklearn_matrix,
-                split=prototype_split,
-                prototype_clusters=int(args.prototype_clusters),
-                seed=int(args.seed),
-            )
-            prototype_outputs: dict[str, Any] = {"cluster_info": cluster_info, "clusters": {}}
-            for cluster_id in sorted(set(int(item) for item in prototype_labels.tolist())):
-                train_support = int(np.sum(prototype_labels[prototype_split.train_indices] == int(cluster_id)))
-                if train_support < int(args.prototype_min_train_support):
-                    continue
-                cluster_y = np.asarray(prototype_labels == int(cluster_id), dtype=np.int32)
-                bundle = _binary_bundle(
-                    task_name=f"prototype_{cluster_id:02d}",
-                    feature_df=adv_feature_matrix,
-                    y=cluster_y,
-                    split=prototype_split,
-                    backend=str(args.backend),
-                    encoded_specs=encoded_specs,
-                    categorical_feature_names=categorical_feature_names,
-                    train_cfg=train_cfg,
-                    leaf_purity=float(args.leaf_purity),
-                )
-                cluster_rows = adv_df.loc[cluster_y == 1].copy()
-                prototype_outputs["clusters"][f"prototype_{cluster_id:02d}"] = {
-                    **bundle,
-                    "train_support": int(train_support),
-                    "total_support": int(np.sum(cluster_y == 1)),
-                    "mean_hard_gap_percent": float(pd.to_numeric(cluster_rows.get("hard_gap_percent_mean", 0.0), errors="coerce").fillna(0.0).mean()),
-                    "mean_hard_gap_value": float(pd.to_numeric(cluster_rows.get("hard_gap_value_mean", 0.0), errors="coerce").fillna(0.0).mean()),
-                }
-                text_sections.append(_rules_to_text(heading=f"prototype / prototype_{cluster_id:02d}", rules=list(bundle["rules"])))
-            outputs["tasks"]["prototype"] = prototype_outputs
-
-    backend_tag = str(args.backend).strip().lower()
-    json_path = os.path.join(out_dir, f"trace_explanation_rules_{backend_tag}.json")
-    txt_path = os.path.join(out_dir, f"trace_explanation_rules_{backend_tag}.txt")
-    save_json(json_path, outputs)
-    with open(txt_path, "w", encoding="utf-8") as file_obj:
-        file_obj.write("\n".join(text_sections).strip() + "\n")
-    print(json_path)
+    for json_path in written_json_paths:
+        print(json_path)
 
 
 if __name__ == "__main__":

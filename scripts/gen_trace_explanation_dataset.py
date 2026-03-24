@@ -3,24 +3,24 @@ Generate a per-trace explanation dataset for clean and adversarial schedules.
 
 Example usage:
 time python scripts/gen_trace_explanation_dataset.py \
-  --generated-manifest attacks/adv_traces/gap-constrained-3baselines_300k/generated_manifest.json \
   --clean-manifest attacks/train/manifest.json \
-  --out-dir attacks/output/trace-explanations/gap-constrained-3baselines_300k
+  --generated-manifest attacks/adv_traces/gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/explanations/gap-constrained-all-loss_50ms_300k
 
 time python scripts/gen_trace_explanation_dataset.py \
   --generated-manifest attacks/adv_traces/gap-constrained-1baseline_300k/generated_manifest.json \
   --clean-manifest attacks/train/manifest.json \
-  --out-dir attacks/output/trace-explanations/gap-constrained-1baseline_300k
+  --out-dir attacks/output/explanations/gap-constrained-1baseline_300k
   
 time python scripts/gen_trace_explanation_dataset.py \
   --generated-manifest attacks/adv_traces/gap-unconstrained_300k/generated_manifest.json \
   --clean-manifest attacks/train/manifest.json \
-  --out-dir attacks/output/trace-explanations/gap-unconstrained_300k
+  --out-dir attacks/output/explanations/gap-unconstrained_300k
   
 time python scripts/gen_trace_explanation_dataset.py \
-  --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
+  --generated-manifest attacks/adv_traces/hotnets19_50ms_300k/generated_manifest.json \
   --clean-manifest attacks/train/manifest.json \
-  --out-dir attacks/output/trace-explanations/hotnets19-loss_50ms_300k
+  --out-dir attacks/output/explanations/hotnets19_50ms_300k
 """
 
 from __future__ import annotations
@@ -156,6 +156,15 @@ def _replay_trace_summary(
 ) -> dict[str, Any]:
     _observation, _info = env.reset()
     per_metric: dict[str, list[float]] = {key: [] for key in _SUMMARY_METRIC_KEYS}
+    replay_series: dict[str, list[float]] = {
+        "sage_action": [],
+        "best_baseline_action": [],
+        "hard_gap_percent": [],
+        "best_minus_sage_rate_contrib": [],
+        "best_minus_sage_rtt_contrib": [],
+        "sage_minus_best_loss_penalty": [],
+        "sage_rtt_ms": [],
+    }
     best_method_counts = {method: 0 for method in baseline_methods}
     env_error_steps = 0
     terminated_early = 0
@@ -167,13 +176,17 @@ def _replay_trace_summary(
         smoothed_gap_value = float(info.get("gap/value", 0.0))
         smoothed_baseline_score = float(info.get("gap/baseline_score", 0.0))
         per_metric["hard_gap_value"].append(hard_gap_value)
-        per_metric["hard_gap_percent"].append(100.0 * hard_gap_value / max(hard_baseline_score, 1e-6))
+        hard_gap_percent = 100.0 * hard_gap_value / max(hard_baseline_score, 1e-6)
+        per_metric["hard_gap_percent"].append(hard_gap_percent)
         per_metric["hard_baseline_score"].append(hard_baseline_score)
         per_metric["smoothed_gap_value"].append(smoothed_gap_value)
         per_metric["smoothed_gap_percent"].append(100.0 * smoothed_gap_value / max(smoothed_baseline_score, 1e-6))
         per_metric["smoothed_baseline_score"].append(smoothed_baseline_score)
         per_metric["sage_score"].append(float(info.get("gap/score_sage", 0.0)))
         per_metric["attacker_reward"].append(float(info.get("attacker/reward", reward)))
+        replay_series["sage_action"].append(float(info.get("sage/previous_action", 0.0)))
+        replay_series["hard_gap_percent"].append(float(hard_gap_percent))
+        replay_series["sage_rtt_ms"].append(float(info.get("sage/current_rtt_ms", 0.0)))
 
         best_method = _best_method_for_step(info, baseline_methods=baseline_methods)
         if best_method is not None:
@@ -181,13 +194,22 @@ def _replay_trace_summary(
             best_rate = float(info.get(f"gap/score_{best_method}_rate_contrib", 0.0))
             best_rtt = float(info.get(f"gap/score_{best_method}_rtt_contrib", 0.0))
             best_loss = float(info.get(f"gap/score_{best_method}_loss_penalty", 0.0))
+            best_action = float(info.get(f"baseline/{best_method}_previous_action", 0.0))
         else:
             best_rate = 0.0
             best_rtt = 0.0
             best_loss = 0.0
-        per_metric["best_minus_sage_rate_contrib"].append(best_rate - float(info.get("gap/score_sage_rate_contrib", 0.0)))
-        per_metric["best_minus_sage_rtt_contrib"].append(best_rtt - float(info.get("gap/score_sage_rtt_contrib", 0.0)))
-        per_metric["sage_minus_best_loss_penalty"].append(float(info.get("gap/score_sage_loss_penalty", 0.0)) - best_loss)
+            best_action = 0.0
+        rate_deficit = best_rate - float(info.get("gap/score_sage_rate_contrib", 0.0))
+        rtt_deficit = best_rtt - float(info.get("gap/score_sage_rtt_contrib", 0.0))
+        loss_excess = float(info.get("gap/score_sage_loss_penalty", 0.0)) - best_loss
+        per_metric["best_minus_sage_rate_contrib"].append(rate_deficit)
+        per_metric["best_minus_sage_rtt_contrib"].append(rtt_deficit)
+        per_metric["sage_minus_best_loss_penalty"].append(loss_excess)
+        replay_series["best_baseline_action"].append(float(best_action))
+        replay_series["best_minus_sage_rate_contrib"].append(float(rate_deficit))
+        replay_series["best_minus_sage_rtt_contrib"].append(float(rtt_deficit))
+        replay_series["sage_minus_best_loss_penalty"].append(float(loss_excess))
 
         if "env/error" in info:
             env_error_steps += 1
@@ -219,13 +241,15 @@ def _replay_trace_summary(
     for method in baseline_methods:
         summary[f"best_baseline_fraction_{method}"] = float(best_method_counts.get(method, 0)) / float(total_best_counts)
 
+    replay_steps = max(int(len(per_metric["hard_gap_value"])), 1)
     summary.update(
         extract_trace_explanation_features(
-            action_schedule,
+            action_schedule[:replay_steps],
             attack_interval_ms=float(attack_interval_ms),
             baseline_methods_key=str(baseline_methods_key),
             attack_mode=str(attack_mode),
             shared_window_steps=shared_window_steps,
+            replay_series=replay_series,
         )
     )
     return summary
@@ -330,7 +354,7 @@ def main() -> None:
         runtime_dir=str(args.runtime_dir),
         actor_id=int(config_payload.get("actor_id", 900)),
         port=int(config_payload.get("port", 5101)),
-        label=f"trace-explanations-{trace_set_name}",
+        label=f"explanations-{trace_set_name}",
         ports_per_run=len(baseline_methods) + 1,
     )
     resolved_runtime_dir = run_namespace.runtime_dir

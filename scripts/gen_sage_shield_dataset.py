@@ -3,14 +3,14 @@ Generate a per-step Sage shield-learning dataset from clean and adversarial repl
 
 Example usage:
 time python scripts/gen_sage_shield_dataset.py \
-  --generated-manifest attacks/adv_traces/gap-constrained-3baselines_300k/generated_manifest.json \
   --clean-manifest attacks/train/manifest.json \
-  --out-dir attacks/output/shield-dataset/gap-constrained-3baselines_300k
+  --generated-manifest attacks/adv_traces/gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k
 
 time python scripts/gen_sage_shield_dataset.py \
-  --generated-manifest attacks/adv_traces/bugged/rl-constrained-300k/generated_manifest.json \
-  --out-dir attacks/output/shield-dataset/rl-constrained-300k \
-  --adv-only-rollout
+  --clean-manifest attacks/train/manifest.json \
+  --generated-manifest attacks/adv_traces/hotnets19_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/shield-dataset/hotnets19_50ms_300k
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ import sys
 from typing import Any, Iterable
 
 import numpy as np
+import pandas as pd
 
 from attacks.envs import ParallelGapAttackEnv, baseline_methods_from_config
 from attacks.online import SageLaunchConfig, acquire_run_namespace
@@ -372,6 +373,67 @@ def _max_bandwidth_from_schedules(schedules: Iterable[list[np.ndarray]]) -> floa
     return float(maximum)
 
 
+def _threshold_percentiles(values: np.ndarray, percentiles: list[int]) -> dict[str, float]:
+    clean_values = np.asarray(values, dtype=np.float64)
+    clean_values = clean_values[np.isfinite(clean_values)]
+    if clean_values.size == 0:
+        return {f"p{int(percentile)}": float("nan") for percentile in percentiles}
+    return {
+        f"p{int(percentile)}": float(np.percentile(clean_values, int(percentile)))
+        for percentile in percentiles
+    }
+
+
+def compute_clean_feature_threshold_rows(
+    dataset_df: pd.DataFrame,
+    *,
+    percentiles: list[int],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    trace_type_counts = (
+        dataset_df["trace_type"].value_counts(dropna=False).to_dict() if "trace_type" in dataset_df.columns else {}
+    )
+    clean_df = dataset_df[(dataset_df["trace_type"] == "clean") & (dataset_df.get("has_env_error", 0) == 0)]
+    if clean_df.empty:
+        raise RuntimeError(
+            "no clean, error-free rows found in shield dataset; "
+            f"trace_type counts: {trace_type_counts}. "
+            "Generate the shield dataset with clean rollout enabled before deriving clean thresholds."
+        )
+
+    rows: list[dict[str, Any]] = []
+    for feature_name in FEATURE_COLUMNS:
+        if feature_name not in clean_df.columns:
+            continue
+        row = {"feature": str(feature_name)}
+        row.update(_threshold_percentiles(clean_df[feature_name].to_numpy(dtype=np.float64, copy=False), percentiles))
+        rows.append(row)
+    metadata = {
+        "trace_type_counts": {str(label): int(count) for label, count in trace_type_counts.items()},
+        "num_clean_error_free_rows": int(clean_df.shape[0]),
+        "num_threshold_rows": int(len(rows)),
+        "percentiles": [int(item) for item in percentiles],
+    }
+    return rows, metadata
+
+
+def write_clean_feature_thresholds_from_dataset(
+    *,
+    dataset_path: str,
+    out_path: str,
+    percentiles: list[int],
+) -> dict[str, Any]:
+    dataset_df = pd.read_csv(dataset_path)
+    rows, metadata = compute_clean_feature_threshold_rows(dataset_df, percentiles=percentiles)
+    out_df = pd.DataFrame(rows)
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+    out_df.to_csv(out_path, index=False)
+    return {
+        **metadata,
+        "dataset_path": str(dataset_path),
+        "thresholds_path": str(out_path),
+    }
+
+
 def _collect_episode_rows(
     *,
     env: ParallelGapAttackEnv,
@@ -468,11 +530,30 @@ def main() -> None:
     )
     parser.add_argument("--clean-only-rollout", action="store_true")
     parser.add_argument("--feature-history-len", type=int, default=4)
+    parser.add_argument(
+        "--threshold-percentiles",
+        type=str,
+        default="10,25,90,95",
+        help="Comma-separated clean-feature percentiles to export after dataset generation.",
+    )
+    parser.add_argument(
+        "--threshold-out",
+        type=str,
+        default=None,
+        help="Optional explicit output path for clean-feature thresholds. Defaults to <out-dir>/clean_feature_thresholds.csv.",
+    )
+    parser.add_argument(
+        "--skip-thresholds",
+        action="store_true",
+        help="Skip clean-feature threshold generation after writing the shield dataset.",
+    )
     args = parser.parse_args()
 
     skip_clean_rollout = bool(args.skip_clean_rollout) or bool(args.adv_only_rollout)
     if skip_clean_rollout and bool(args.clean_only_rollout):
         raise ValueError("cannot combine clean-only rollout with skip-clean/adv-only rollout")
+    if skip_clean_rollout and not bool(args.skip_thresholds):
+        raise ValueError("cannot derive clean thresholds when clean rollout is skipped; pass --skip-thresholds to disable threshold generation")
 
     repo_root = os.path.abspath(str(args.repo_root))
     out_dir = resolve_repo_path(repo_root, str(args.out_dir))
@@ -603,6 +684,7 @@ def main() -> None:
     }
 
     total_rows = 0
+    generated_threshold_path: str | None = None
     env = ParallelGapAttackEnv(
         repo_root=repo_root,
         launch_config=launch_config,
@@ -645,8 +727,26 @@ def main() -> None:
         env.close()
 
     summary_payload["num_rows"] = int(total_rows)
+    if not bool(args.skip_thresholds):
+        threshold_out = (
+            resolve_repo_path(repo_root, str(args.threshold_out))
+            if args.threshold_out
+            else os.path.join(out_dir, "clean_feature_thresholds.csv")
+        )
+        threshold_percentiles = [int(item.strip()) for item in str(args.threshold_percentiles).split(",") if item.strip()]
+        threshold_metadata = write_clean_feature_thresholds_from_dataset(
+            dataset_path=csv_path,
+            out_path=threshold_out,
+            percentiles=threshold_percentiles,
+        )
+        summary_payload["thresholds_path"] = os.path.relpath(threshold_out, repo_root)
+        summary_payload["threshold_percentiles"] = [int(item) for item in threshold_percentiles]
+        summary_payload["threshold_metadata"] = threshold_metadata
+        generated_threshold_path = threshold_out
     save_json(os.path.join(out_dir, "sage_shield_dataset_meta.json"), summary_payload)
     print(csv_path)
+    if generated_threshold_path is not None:
+        print(generated_threshold_path)
 
 
 if __name__ == "__main__":

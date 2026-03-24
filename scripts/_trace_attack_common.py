@@ -1407,6 +1407,7 @@ def _plain_step_record(
         "sage/max_windowed_delivery_rate_mbps": "sage_max_windowed_rate_mbps",
         "sage/current_loss_mbps": "sage_loss_mbps",
         "sage/current_min_rtt_ratio": "sage_min_rtt_ratio",
+        "sage/previous_action": "sage_previous_action",
         "gap/score_sage_rate_norm": "gap_score_sage_rate_norm",
         "gap/score_sage_rtt_norm": "gap_score_sage_rtt_norm",
         "gap/score_sage_loss_norm": "gap_score_sage_loss_norm",
@@ -1441,8 +1442,11 @@ def _plain_step_record(
         "gap/score_cubic": "gap_score_cubic",
         "gap/score_bbr": "gap_score_bbr",
         "gap/baseline_score": "gap_baseline_score",
+        "gap/best_baseline_score": "gap_best_baseline_score",
+        "gap/best_baseline_gap": "gap_best_baseline_gap",
         "gap/value": "gap_value",
         "gap/reward": "gap_reward",
+        "baseline/best_previous_action": "baseline_best_previous_action",
         "baseline/cubic_rtt_ms": "baseline_cubic_rtt_ms",
         "baseline/bbr_rtt_ms": "baseline_bbr_rtt_ms",
         "baseline/cubic_rate_mbps": "baseline_cubic_rate_mbps",
@@ -1454,6 +1458,9 @@ def _plain_step_record(
         if isinstance(value, (int, float, np.floating, np.integer)):
             record[target_key] = float(value)
     for key, value in info.items():
+        if isinstance(value, str) and str(key) == "gap/best_baseline_method_name":
+            record["gap_best_baseline_method_name"] = str(value)
+            continue
         if not isinstance(value, (int, float, np.floating, np.integer)):
             continue
         sanitized = str(key).replace("/", "_")

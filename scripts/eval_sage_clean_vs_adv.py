@@ -2,57 +2,79 @@
 Run this after `scripts/generate_online_adv_traces.py`.
 
 Example usage:
-Baseline methods are inferred from the saved training config / generated manifest.
+Evaluation always uses all three reference baselines (Reno, BBR, CUBIC) for gap-mode rollouts,
+regardless of which baselines were enabled during training.
 
 time python scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
-  --out-dir attacks/output/eval-300k \
+  --generated-manifest attacks/adv_traces/hotnets19_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
   --skip-clean-rollout \
-  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
+
+python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/gap-constrained-bbr_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/gap-constrained-1baseline_300k/generated_manifest.json \
-  --out-dir attacks/output/eval-300k \
+  --generated-manifest attacks/adv_traces/gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
   --skip-clean-rollout \
-  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/gap-constrained-2baselines_300k/generated_manifest.json \
-  --out-dir attacks/output/eval-300k \
+  --generated-manifest attacks/adv_traces/gap-constrained-all-hard_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
   --skip-clean-rollout \
-  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/gap-constrained-all-hard_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-hard_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
   
 time python scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/gap-constrained-3baselines_300k/generated_manifest.json \
-  --out-dir attacks/output/eval-300k \
+  --generated-manifest attacks/adv_traces/gap-constrained-all_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
   --skip-clean-rollout \
-  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
-  
-time python scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/gap-constrained-3b-hard_200k/generated_manifest.json \
-  --out-dir attacks/output/eval-300k \
-  --skip-clean-rollout \
-  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/gap-unconstrained_300k/generated_manifest.json \
-  --out-dir attacks/output/eval-300k \
+  --generated-manifest attacks/adv_traces/gap-unconstrained-all_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
   --skip-clean-rollout \
-  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/gap-unconstrained-bbr_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
   --test-manifest attacks/test/manifest.json \
-  --config-path attacks/models/gap_adv_20260321_gap-constrained-bbr_300k_50ms.config.json \
-  --out-dir attacks/output/eval-300k \
+  --config-path attacks/models/gap_adv_20260320_gap-constrained-all_50ms_300k.config.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
   --clean-only-rollout \
-  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/gap-constrained-3baselines_300k/generated_manifest.json \
-  --out-dir attacks/output/eval-300k \
-  --skip-clean-rollout \
-  --shield-rules-file attacks/output/shield-rules/gap-constrained-3baselines_300k/sage_directional_shield_rules.json \
-  --wandb --wandb-tags v4 --wandb-project sage-gap-eval
+  --test-manifest attacks/test/manifest.json \
+  --config-path attacks/models/gap_adv_20260320_gap-constrained-all_50ms_300k.config.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --clean-only-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
 """
 
 from __future__ import annotations
@@ -60,6 +82,7 @@ from __future__ import annotations
 import argparse
 import csv
 from dataclasses import replace
+import difflib
 import json
 import os
 import sys
@@ -67,7 +90,7 @@ from typing import Any
 
 import numpy as np
 
-from attacks.envs import ParallelGapAttackEnv, baseline_methods_from_config
+from attacks.envs import DEFAULT_BASELINE_METHODS, ParallelGapAttackEnv, baseline_methods_from_config
 from attacks.online import SageLaunchConfig, acquire_run_namespace
 
 
@@ -123,7 +146,29 @@ def _ensure_test_manifest(repo_root: str, manifest_path: str) -> str:
 
 
 def _load_json(path: str) -> dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as file_obj:
+    resolved = os.path.abspath(path)
+    if not os.path.exists(resolved):
+        suggestions: list[str] = []
+        parent_dir = os.path.dirname(resolved)
+        basename = os.path.basename(resolved)
+        if os.path.isdir(parent_dir):
+            for candidate_name in difflib.get_close_matches(basename, os.listdir(parent_dir), n=3, cutoff=0.6):
+                candidate_path = os.path.join(parent_dir, candidate_name)
+                if os.path.exists(candidate_path):
+                    suggestions.append(candidate_path)
+        else:
+            grandparent_dir = os.path.dirname(parent_dir)
+            parent_name = os.path.basename(parent_dir)
+            if os.path.isdir(grandparent_dir):
+                for candidate_dir in difflib.get_close_matches(parent_name, os.listdir(grandparent_dir), n=3, cutoff=0.6):
+                    candidate_path = os.path.join(grandparent_dir, candidate_dir, basename)
+                    if os.path.exists(candidate_path):
+                        suggestions.append(candidate_path)
+        message = f"missing JSON file: {resolved}"
+        if suggestions:
+            message += f". Did you mean: {suggestions[0]}"
+        raise FileNotFoundError(message)
+    with open(resolved, "r", encoding="utf-8") as file_obj:
         return dict(json.load(file_obj))
 
 
@@ -174,6 +219,85 @@ def _result_trace_label(base_name: str, *, shield_enabled: bool) -> str:
 
 
 _CONTROLLER_TIMING_LOG_FILENAME = "sage-controller-timing.jsonl"
+_WANDB_DECISION_SERIES: tuple[tuple[str, str, str], ...] = (
+    ("Sage", "sage", "sage_previous_action"),
+    ("Reno", "reno", "baseline_reno_previous_action"),
+    ("CUBIC", "cubic", "baseline_cubic_previous_action"),
+    ("BBR", "bbr", "baseline_bbr_previous_action"),
+    ("Reference Policy", "reference_policy", "baseline_best_previous_action"),
+)
+
+
+def _wandb_safe_series_key(value: str) -> str:
+    text = str(value).strip()
+    if not text:
+        return "episode"
+    sanitized = "".join(character if character.isalnum() else "_" for character in text)
+    while "__" in sanitized:
+        sanitized = sanitized.replace("__", "_")
+    sanitized = sanitized.strip("_")
+    return sanitized or "episode"
+
+
+def _wandb_decision_payload(record: dict[str, Any]) -> dict[str, float | str]:
+    payload: dict[str, float | str] = {}
+    for _display_label, metric_suffix, source_key in _WANDB_DECISION_SERIES:
+        value = record.get(source_key)
+        if isinstance(value, (int, float, np.floating, np.integer)):
+            payload[f"decisions/{metric_suffix}"] = float(value)
+    method_name = record.get("gap_best_baseline_method_name")
+    if isinstance(method_name, str) and method_name.strip():
+        payload["decision_meta/reference_policy_method"] = str(method_name)
+    return payload
+
+
+def _log_episode_decision_chart_to_wandb(
+    wandb,
+    run,
+    *,
+    trace_type: str,
+    trace_index: int,
+    episode_id: str,
+    result,
+    log_step: int,
+) -> None:
+    if wandb is None or run is None or not result.step_records:
+        return
+
+    xs = [float(record.get("step", index)) for index, record in enumerate(result.step_records)]
+    ys: list[list[float]] = []
+    keys: list[str] = []
+    for display_label, _metric_suffix, source_key in _WANDB_DECISION_SERIES:
+        series_values: list[float] = []
+        has_numeric_value = False
+        for record in result.step_records:
+            value = record.get(source_key)
+            if isinstance(value, (int, float, np.floating, np.integer)):
+                series_values.append(float(value))
+                has_numeric_value = True
+            else:
+                series_values.append(float("nan"))
+        if not has_numeric_value:
+            continue
+        ys.append(series_values)
+        keys.append(display_label)
+    if not ys:
+        return
+
+    chart_key = f"decision_traces/{trace_index:04d}_{_wandb_safe_series_key(episode_id)}"
+    chart_title = f"Controller Decisions: {trace_type} / {episode_id}"
+    run.log(
+        {
+            chart_key: wandb.plot.line_series(
+                xs=xs,
+                ys=ys,
+                keys=keys,
+                title=chart_title,
+                xname="episode_step",
+            )
+        },
+        step=max(int(log_step), 0),
+    )
 
 
 def _expand_legacy_saved_action(action: np.ndarray, config_payload: dict[str, Any]) -> np.ndarray:
@@ -745,12 +869,12 @@ def _annotate_replay_bandwidth_metrics(result, *, expected_max_bw_mbps: float) -
 
 def _assert_replay_applied_bandwidth_sane(
     *,
-    trace_type: str,
+    is_clean_rollout: bool,
     episode_id: str,
     result,
     tolerance_mbps: float = 1e-3,
 ) -> None:
-    if trace_type == "clean":
+    if bool(is_clean_rollout):
         return
     expected_max = float(result.metrics.get("replay_expected_max_bw_mbps", 0.0))
     applied_max = float(result.metrics.get("replay_applied_max_bw_mbps", 0.0))
@@ -768,6 +892,12 @@ def _assert_replay_applied_bandwidth_sane(
 def _uses_parallel_gap_eval(config_payload: dict[str, Any]) -> bool:
     attack_mode = str(config_payload.get("attack_mode", "independent"))
     return attack_mode in {"independent", "independent_gap"}
+
+
+def _evaluation_baseline_methods(config_payload: dict[str, Any]) -> tuple[str, ...]:
+    if _uses_parallel_gap_eval(config_payload):
+        return tuple(DEFAULT_BASELINE_METHODS)
+    return baseline_methods_from_config(config_payload)
 
 
 def _default_attack_delay_ms(config_payload: dict[str, Any], *, direction: str) -> float:
@@ -800,6 +930,66 @@ def _load_existing_eval_summary(path: str) -> tuple[list[dict[str, Any]], list[d
     return per_episode, evaluation_runs, created_at_utc
 
 
+def _write_eval_summary_bundle(
+    *,
+    root_out_dir: str,
+    trace_label: str,
+    per_episode_rows: list[dict[str, float | str]],
+    generated_manifest_path: str,
+    test_manifest_path: str,
+    baseline_methods: tuple[str, ...],
+    skip_clean_rollout: bool,
+    clean_only_rollout: bool,
+    is_clean_setup: bool,
+) -> tuple[str, str, str | None]:
+    setup_out_dir = os.path.join(root_out_dir, str(trace_label))
+    os.makedirs(setup_out_dir, exist_ok=True)
+    summary_json_path = os.path.join(setup_out_dir, "eval_summary.json")
+    summary_csv_path = os.path.join(setup_out_dir, "eval_summary.csv")
+    episodes_csv_path = os.path.join(setup_out_dir, "eval_episode_metrics.csv")
+    existing_per_episode_rows, evaluation_runs, created_at_utc = _load_existing_eval_summary(summary_json_path)
+    current_eval_run = {
+        "created_at_utc": utc_now_iso(),
+        "generated_manifest_path": generated_manifest_path,
+        "test_manifest_path": test_manifest_path,
+        "trace_set_name": str(trace_label),
+        "baseline_methods": list(baseline_methods),
+        "skip_clean_rollout": bool(skip_clean_rollout),
+        "clean_only_rollout": bool(clean_only_rollout),
+        "clean_episode_count": int(len(per_episode_rows)) if bool(is_clean_setup) else 0,
+        "adv_episode_count": 0 if bool(is_clean_setup) else int(len(per_episode_rows)),
+    }
+    combined_per_episode_rows = list(existing_per_episode_rows) + list(per_episode_rows)
+    combined_summary_rows = _summary_rows(combined_per_episode_rows)
+
+    save_json(
+        summary_json_path,
+        {
+            "created_at_utc": created_at_utc or current_eval_run["created_at_utc"],
+            "updated_at_utc": current_eval_run["created_at_utc"],
+            "generated_manifest_path": generated_manifest_path,
+            "test_manifest_path": test_manifest_path,
+            "trace_set_name": str(trace_label),
+            "baseline_methods": list(baseline_methods),
+            "evaluation_runs": evaluation_runs + [current_eval_run],
+            "per_episode": combined_per_episode_rows,
+            "summary": combined_summary_rows,
+        },
+    )
+    _write_csv(
+        summary_csv_path,
+        combined_summary_rows,
+        fieldnames=["trace_type", "metric", "avg", "p50", "p95"],
+    )
+    episode_fieldnames = sorted({key for row in combined_per_episode_rows for key in row.keys()})
+    _write_csv(episodes_csv_path, combined_per_episode_rows, fieldnames=episode_fieldnames)
+    controller_timing_plot_path = _write_controller_decision_time_plot(
+        per_episode_rows=combined_per_episode_rows,
+        out_dir=setup_out_dir,
+    )
+    return summary_json_path, summary_csv_path, controller_timing_plot_path
+
+
 def _log_episode_to_wandb(
     wandb,
     run,
@@ -812,6 +1002,7 @@ def _log_episode_to_wandb(
 ) -> int:
     for record in result.step_records:
         payload = {key: float(value) for key, value in record.items() if isinstance(value, (int, float)) and key != "step"}
+        payload.update(_wandb_decision_payload(record))
         payload["trace_index"] = float(trace_index)
         payload["episode_step"] = float(record.get("step", 0))
         payload["trace_type"] = trace_type
@@ -828,6 +1019,15 @@ def _log_episode_to_wandb(
     episode_payload["episode_num_steps"] = float(result.num_steps)
     episode_payload["trace_type"] = trace_type
     run.log(episode_payload, step=max(global_step - 1, 0))
+    _log_episode_decision_chart_to_wandb(
+        wandb,
+        run,
+        trace_type=trace_type,
+        trace_index=trace_index,
+        episode_id=episode_id,
+        result=result,
+        log_step=max(global_step - 1, 0),
+    )
     run.summary[f"episodes/{episode_id}"] = float(result.total_reward)
     return global_step
 
@@ -835,6 +1035,7 @@ def _log_episode_to_wandb(
 def _evaluate_trace_set(
     *,
     trace_type: str,
+    is_clean_rollout: bool,
     repo_root: str,
     runtime_dir: str,
     config_payload: dict[str, Any],
@@ -845,7 +1046,7 @@ def _evaluate_trace_set(
     wandb_run,
 ) -> list[Any]:
     if _uses_parallel_gap_eval(config_payload):
-        baseline_methods = baseline_methods_from_config(config_payload)
+        baseline_methods = _evaluation_baseline_methods(config_payload)
         env = ParallelGapAttackEnv(
             repo_root=repo_root,
             launch_config=launch_config,
@@ -901,7 +1102,7 @@ def _evaluate_trace_set(
         for trace_index, (episode_id, action_schedule) in enumerate(schedules):
             if not action_schedule:
                 continue
-            if trace_type != "clean":
+            if not bool(is_clean_rollout):
                 _validate_adversarial_schedule_bounds(
                     episode_id=episode_id,
                     action_schedule=action_schedule,
@@ -929,7 +1130,7 @@ def _evaluate_trace_set(
             )
             result = _rename_eval_bandwidth_metrics(result)
             _assert_replay_applied_bandwidth_sane(
-                trace_type=trace_type,
+                is_clean_rollout=bool(is_clean_rollout),
                 episode_id=episode_id,
                 result=result,
             )
@@ -982,6 +1183,9 @@ def _init_wandb_run(
         },
         reinit=True,
     )
+    if hasattr(run, "define_metric"):
+        run.define_metric("episode_step")
+        run.define_metric("decisions/*", step_metric="episode_step")
     print_wandb_run_links(
         run,
         entity=args.wandb_entity,
@@ -1030,6 +1234,8 @@ def main() -> None:
         raise ValueError("--config-path is required when running --clean-only-rollout without --generated-manifest")
 
     repo_root = os.path.abspath(os.path.expanduser(args.repo_root))
+    if args.shield_rules_file is not None:
+        _ = _load_json(resolve_repo_path(repo_root, str(args.shield_rules_file)))
     if args.generated_manifest is not None:
         generated_manifest_path = resolve_repo_path(repo_root, str(args.generated_manifest))
         generated_manifest = _load_json(generated_manifest_path)
@@ -1040,9 +1246,13 @@ def main() -> None:
         generated_manifest = {}
         config_payload = _load_json(resolve_repo_path(repo_root, str(args.config_path)))
         trace_set_name = _trace_set_name_from_config_path(args.config_path)
+    wandb_trace_name = str(args.wandb_name).strip() if args.wandb_name is not None else ""
+    if wandb_trace_name:
+        trace_set_name = wandb_trace_name
     shield_enabled = bool(args.shield_rules_file)
     clean_trace_label = _result_trace_label("clean", shield_enabled=shield_enabled)
     adv_trace_label = _result_trace_label(trace_set_name, shield_enabled=shield_enabled)
+    setup_trace_label = clean_trace_label if bool(args.clean_only_rollout) else adv_trace_label
     run_clean_rollout = not bool(args.skip_clean_rollout)
     run_adv_rollout = not bool(args.clean_only_rollout)
     test_manifest_path = (
@@ -1053,7 +1263,7 @@ def main() -> None:
     test_entries = load_trace_entries(test_manifest_path) if run_clean_rollout else []
     generated_entries = list(generated_manifest.get("generated_entries", [])) if run_adv_rollout else []
     use_parallel_gap_eval = _uses_parallel_gap_eval(config_payload)
-    baseline_methods = baseline_methods_from_config(config_payload)
+    baseline_methods = _evaluation_baseline_methods(config_payload)
     clean_uplink_delay_ms = _default_attack_delay_ms(config_payload, direction="uplink")
     clean_downlink_delay_ms = _default_attack_delay_ms(config_payload, direction="downlink")
 
@@ -1110,7 +1320,7 @@ def main() -> None:
         runtime_dir=str(args.runtime_dir),
         actor_id=int(config_payload.get("actor_id", 900)),
         port=int(config_payload.get("port", 5101)),
-        label=str(args.wandb_name or f"eval-{trace_set_name}"),
+        label=str(args.wandb_name or f"eval-{setup_trace_label}"),
         ports_per_run=(len(baseline_methods) + 1) if use_parallel_gap_eval else 1,
     )
     launch_config = replace(
@@ -1133,7 +1343,7 @@ def main() -> None:
         if wandb is None:
             raise RuntimeError("--wandb was set but the wandb package is unavailable")
 
-    group_name = str(args.wandb_name or trace_set_name)
+    group_name = str(args.wandb_name or setup_trace_label)
     clean_run = None
     clean_results: list[Any] = []
     if clean_schedules:
@@ -1149,6 +1359,7 @@ def main() -> None:
         )
         clean_results = _evaluate_trace_set(
             trace_type=clean_trace_label,
+            is_clean_rollout=True,
             repo_root=repo_root,
             runtime_dir=os.path.join(run_namespace.runtime_dir, clean_trace_label),
             config_payload=config_payload,
@@ -1185,6 +1396,7 @@ def main() -> None:
         )
         adv_results = _evaluate_trace_set(
             trace_type=adv_trace_label,
+            is_clean_rollout=False,
             repo_root=repo_root,
             runtime_dir=os.path.join(run_namespace.runtime_dir, adv_trace_label),
             config_payload=config_payload,
@@ -1206,72 +1418,58 @@ def main() -> None:
     if run_clean_rollout and clean_schedules and not clean_results:
         raise RuntimeError("evaluation did not produce clean results")
 
-    per_episode_rows = []
-    per_episode_rows.extend(
-        _episode_row(clean_trace_label, episode_id, result)
-        for episode_id, result in zip([item[0] for item in clean_schedules], clean_results)
-    )
-    per_episode_rows.extend(
-        _episode_row(adv_trace_label, episode_id, result)
-        for episode_id, result in zip([item[0] for item in adv_schedules], adv_results)
-    )
-    summary_rows = _summary_rows(per_episode_rows)
-
     out_dir = resolve_repo_path(repo_root, str(args.out_dir))
     os.makedirs(out_dir, exist_ok=True)
-    summary_json_path = os.path.join(out_dir, "clean_vs_adv_summary.json")
-    summary_csv_path = os.path.join(out_dir, "clean_vs_adv_summary.csv")
-    episodes_csv_path = os.path.join(out_dir, "clean_vs_adv_episode_metrics.csv")
-    existing_per_episode_rows, evaluation_runs, created_at_utc = _load_existing_eval_summary(summary_json_path)
-    current_eval_run = {
-        "created_at_utc": utc_now_iso(),
-        "generated_manifest_path": generated_manifest_path,
-        "test_manifest_path": test_manifest_path,
-        "trace_set_name": adv_trace_label,
-        "baseline_methods": list(baseline_methods),
-        "skip_clean_rollout": bool(args.skip_clean_rollout),
-        "clean_only_rollout": bool(args.clean_only_rollout),
-        "clean_episode_count": int(len(clean_results)),
-        "adv_episode_count": int(len(adv_results)),
-    }
-    combined_per_episode_rows = list(existing_per_episode_rows) + list(per_episode_rows)
-    combined_summary_rows = _summary_rows(combined_per_episode_rows)
+    output_summary_csv_paths: list[str] = []
+    adv_summary_rows: list[dict[str, float | str]] = []
+    adv_controller_timing_plot_path: str | None = None
 
-    save_json(
-        summary_json_path,
-        {
-            "created_at_utc": created_at_utc or current_eval_run["created_at_utc"],
-            "updated_at_utc": current_eval_run["created_at_utc"],
-            "generated_manifest_path": generated_manifest_path,
-            "test_manifest_path": test_manifest_path,
-            "trace_set_name": adv_trace_label,
-            "baseline_methods": list(baseline_methods),
-            "evaluation_runs": evaluation_runs + [current_eval_run],
-            "per_episode": combined_per_episode_rows,
-            "summary": combined_summary_rows,
-        },
-    )
-    _write_csv(
-        summary_csv_path,
-        combined_summary_rows,
-        fieldnames=["trace_type", "metric", "avg", "p50", "p95"],
-    )
+    if clean_results:
+        clean_per_episode_rows = [
+            _episode_row(clean_trace_label, episode_id, result)
+            for episode_id, result in zip([item[0] for item in clean_schedules], clean_results)
+        ]
+        _clean_summary_json_path, clean_summary_csv_path, _clean_controller_timing_plot_path = _write_eval_summary_bundle(
+            root_out_dir=out_dir,
+            trace_label=clean_trace_label,
+            per_episode_rows=clean_per_episode_rows,
+            generated_manifest_path=generated_manifest_path,
+            test_manifest_path=test_manifest_path,
+            baseline_methods=baseline_methods,
+            skip_clean_rollout=bool(args.skip_clean_rollout),
+            clean_only_rollout=bool(args.clean_only_rollout),
+            is_clean_setup=True,
+        )
+        output_summary_csv_paths.append(clean_summary_csv_path)
 
-    episode_fieldnames = sorted({key for row in combined_per_episode_rows for key in row.keys()})
-    _write_csv(episodes_csv_path, combined_per_episode_rows, fieldnames=episode_fieldnames)
-    controller_timing_plot_path = _write_controller_decision_time_plot(
-        per_episode_rows=combined_per_episode_rows,
-        out_dir=out_dir,
-    )
+    if adv_results:
+        adv_per_episode_rows = [
+            _episode_row(adv_trace_label, episode_id, result)
+            for episode_id, result in zip([item[0] for item in adv_schedules], adv_results)
+        ]
+        adv_summary_rows = _summary_rows(adv_per_episode_rows)
+        _adv_summary_json_path, adv_summary_csv_path, adv_controller_timing_plot_path = _write_eval_summary_bundle(
+            root_out_dir=out_dir,
+            trace_label=adv_trace_label,
+            per_episode_rows=adv_per_episode_rows,
+            generated_manifest_path=generated_manifest_path,
+            test_manifest_path=test_manifest_path,
+            baseline_methods=baseline_methods,
+            skip_clean_rollout=bool(args.skip_clean_rollout),
+            clean_only_rollout=bool(args.clean_only_rollout),
+            is_clean_setup=False,
+        )
+        output_summary_csv_paths.append(adv_summary_csv_path)
 
     if adv_run is not None:
-        adv_run.summary.update(_summary_payload_for_trace_type(summary_rows, adv_trace_label))
+        adv_run.summary.update(_summary_payload_for_trace_type(adv_summary_rows, adv_trace_label))
         adv_run.summary["trace_count"] = float(len(adv_results))
-        if controller_timing_plot_path is not None:
-            adv_run.summary["controller_timing_plot_path"] = str(controller_timing_plot_path)
+        if adv_controller_timing_plot_path is not None:
+            adv_run.summary["controller_timing_plot_path"] = str(adv_controller_timing_plot_path)
         adv_run.finish()
 
-    print(summary_csv_path)
+    for path in output_summary_csv_paths:
+        print(path)
 
 
 if __name__ == "__main__":  # pragma: no cover

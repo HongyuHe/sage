@@ -91,6 +91,22 @@ time python scripts/train_online_attacker.py \
   --baseline-hard-max \
   --wandb --wandb-tags 300k-50ms --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-all-hard
   
+
+time python scripts/train_online_attacker.py \
+  --attack-mode independent_gap \
+  --baseline-methods reno,bbr,cubic \
+  --smooth-penalty-scale 0.05 \
+  --attack-shared-bw-min-mbps 5 --attack-shared-bw-max-mbps 150 \
+  --attack-shared-bin-loss-min-rate 0.0 --attack-shared-bin-loss-max-rate 0.02 \
+  --shared-bin-loss-bin-ms 1 \
+  --total-steps 300000 \
+  --attack-interval-ms 50 \
+  --port 5299 \
+  --out-dir attacks/output/models \
+  --ppo-ent-coef 0.01 \
+  --baseline-hard-max \
+  --wandb --wandb-tags 300k-50ms,loss --wandb-project sage-gap-train-v3 --wandb-name gap-constrained-all-hard-loss
+  
 time python scripts/train_online_attacker.py \
   --attack-mode independent_gap \
   --baseline-methods bbr \

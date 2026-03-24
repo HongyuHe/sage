@@ -854,6 +854,7 @@ class ParallelGapAttackEnv(gym.Env):
         baseline_score, baseline_weights = self._smoothed_baseline_score(
             baseline_scores=baseline_scores,
         )
+        best_baseline_method = max(baseline_scores, key=baseline_scores.get)
         best_baseline_score = float(max(baseline_scores.values()))
         best_baseline_gap = float(best_baseline_score - score_sage)
         best_baseline_wins = 1.0 if best_baseline_gap > 0.0 else 0.0
@@ -930,10 +931,12 @@ class ParallelGapAttackEnv(gym.Env):
                 "gap/score_sage_loss_penalty": float(sage_score_terms["loss_penalty"]),
                 "gap/baseline_score": float(baseline_score),
                 "gap/best_baseline_score": float(best_baseline_score),
+                "gap/best_baseline_method_name": str(best_baseline_method),
                 "gap/best_baseline_gap": float(best_baseline_gap),
                 "gap/best_baseline_wins": float(best_baseline_wins),
                 "gap/value": float(gap_value),
                 "gap/reward": float(reward),
+                "baseline/best_previous_action": float(results[best_baseline_method][4].get("sage/previous_action", 0.0)),
                 **baseline_info_payload,
                 "episode/progress": float(self._episode_step) / float(max(self._max_episode_steps, 1)),
             }

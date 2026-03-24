@@ -3,9 +3,14 @@ Train threshold-predicate decision trees for a Sage risk classifier + directiona
 
 Example usage:
 time python scripts/train_sage_shield_dt.py \
-  --dataset attacks/output/shield-dataset/gap-constrained-3baselines_300k/sage_shield_dataset.csv \
-  --thresholds attacks/output/shield-dataset/gap-constrained-3baselines_300k/clean_feature_thresholds.csv \
-  --out-dir attacks/output/shield-rules/gap-constrained-3baselines_300k
+  --dataset attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k/sage_shield_dataset.csv \
+  --thresholds attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k/clean_feature_thresholds.csv \
+  --out-dir attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k
+
+time python scripts/train_sage_shield_dt.py \
+  --dataset attacks/output/shield-dataset/hotnets19-loss_50ms_300k/sage_shield_dataset.csv \
+  --thresholds attacks/output/shield-dataset/hotnets19-loss_50ms_300k/clean_feature_thresholds.csv \
+  --out-dir attacks/output/shield-rules/hotnets19-loss_50ms_300k
 """
 
 from __future__ import annotations
@@ -665,7 +670,7 @@ def main() -> None:
     parser.add_argument("--risk-gap-pct", type=float, default=20.0)
     parser.add_argument("--baseline-score-floor", type=float, default=0.3)
     parser.add_argument("--action-margin", type=float, default=0.15)
-    parser.add_argument("--threshold-cols", type=str, default="p90,p95")
+    parser.add_argument("--threshold-cols", type=str, default="p10,p25,p90,p95")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--max-depth", type=int, default=200)
     parser.add_argument("--max-leaf-nodes", type=int, default=200)

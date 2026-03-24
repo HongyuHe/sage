@@ -3,45 +3,51 @@ Run this after `scripts/train_online_attacker.py`.
 
 Example usage:
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/online_adv_20260321_hotnets19_300k_50ms.zip \
+  --model-path attacks/models/online_adv_20260321_hotnets19_50ms_300k.zip \
   --test-manifest attacks/test/manifest.json \
   --out-dir attacks/adv_traces/hotnets19_50ms_300k \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/online_adv_20260321_hotnets19-loss_300k_50ms.zip \
+  --model-path attacks/models/online_adv_20260321_hotnets19-loss_50ms_300k.zip \
   --test-manifest attacks/test/manifest.json \
   --out-dir attacks/adv_traces/hotnets19-loss_50ms_300k \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260317_gap-constrained-1baseline_300k.zip \
+  --model-path attacks/models/gap_adv_20260321_gap-constrained-bbr_50ms_300k.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/gap-constrained-1baseline_300k \
+  --out-dir attacks/adv_traces/gap-constrained-bbr_50ms_300k \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260321_gap-constrained-bbr_300k_50ms.zip \
+  --model-path attacks/models/gap_adv_20260321_gap-constrained-all-hard_50ms_300k.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/gap-constrained-bbr_300k_50ms \
+  --out-dir attacks/adv_traces/gap-constrained-all-hard_50ms_300k \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260316_gap-constrained-3baselines_300k.zip \
+  --model-path attacks/models/gap_adv_20260320_gap-constrained-all_50ms_300k.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/gap-constrained-3baselines_300k \
+  --out-dir attacks/adv_traces/gap-constrained-all_50ms_300k \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260318_gap-constrained-3b-hard_200k.zip \
+  --model-path attacks/models/gap_adv_20260321_gap-constrained-all-loss_50ms_300k.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/gap_adv_20260318_gap-constrained-3b-hard_200k \
+  --out-dir attacks/adv_traces/gap-constrained-all-loss_50ms_300k \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260315_gap-unconstrained_300k.zip \
+  --model-path attacks/models/gap_adv_20260321_gap-unconstrained-all_300k_50ms.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/gap-unconstrained_300k \
+  --out-dir attacks/adv_traces/gap-unconstrained-all_300k_50ms \
+  --wandb
+
+time python scripts/generate_online_adv_traces.py \
+  --model-path attacks/models/gap_adv_20260322_gap-constrained-all-hard_50ms_300k.zip \
+  --test-manifest attacks/test/manifest.json \
+  --out-dir attacks/adv_traces/gap-constrained-all-hard_50ms_300k \
   --wandb
 
 Older two-baseline artifacts still replay with cubic,bbr if the saved config predates
