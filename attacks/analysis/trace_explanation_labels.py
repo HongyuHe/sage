@@ -16,6 +16,10 @@ MECHANISM_LOSS = "loss_harm"
 BASELINE_WINNER_RENO = "reno_wins"
 BASELINE_WINNER_BBR = "bbr_wins"
 BASELINE_WINNER_CUBIC = "cubic_wins"
+ATTRIBUTION_ENV_DRIVEN = "env_driven_gap"
+ATTRIBUTION_ACTION_AMPLIFIED = "action_amplified_gap"
+ATTRIBUTION_POLICY_INDUCED = "policy_induced_gap"
+
 BASELINE_WINNER_LABELS: tuple[str, ...] = (
     BASELINE_WINNER_RENO,
     BASELINE_WINNER_BBR,
@@ -26,6 +30,11 @@ MECHANISM_LABELS: tuple[str, ...] = (
     MECHANISM_RTT,
     MECHANISM_LOSS,
 )
+ATTRIBUTION_LABELS: tuple[str, ...] = (
+    ATTRIBUTION_ENV_DRIVEN,
+    ATTRIBUTION_ACTION_AMPLIFIED,
+    ATTRIBUTION_POLICY_INDUCED,
+)
 
 RATE_DEFICIT_COL = "best_minus_sage_rate_contrib_mean"
 RTT_DEFICIT_COL = "best_minus_sage_rtt_contrib_mean"
@@ -33,6 +42,10 @@ LOSS_EXCESS_COL = "sage_minus_best_loss_penalty_mean"
 HARD_GAP_PCT_MEAN_COL = "hard_gap_percent_mean"
 HARD_BASELINE_SCORE_MEAN_COL = "hard_baseline_score_mean"
 DOMINANT_BEST_BASELINE_METHOD_COL = "dominant_best_baseline_method"
+ACTION_REFERENCE_AVAILABILITY_COL = "action_reference_available_fraction"
+ENV_STRESS_SCORE_COL = "env_stress_score"
+ACTION_MISMATCH_SCORE_COL = "action_mismatch_score"
+INTERACTION_AMPLIFICATION_SCORE_COL = "interaction_amplification_score"
 
 
 def _to_float(value: Any) -> float:
@@ -124,3 +137,56 @@ def baseline_winner_label(
     dominant_method = str(row.get(DOMINANT_BEST_BASELINE_METHOD_COL, "")).strip().lower()
     winner_fraction = max(_to_float(row.get(f"best_baseline_fraction_{target_method}", 0.0)), 0.0)
     return int(dominant_method == target_method and winner_fraction >= float(min_fraction))
+
+
+def attribution_scores(row: dict[str, Any]) -> dict[str, float]:
+    return {
+        "env": max(_to_float(row.get(ENV_STRESS_SCORE_COL, 0.0)), 0.0),
+        "action": max(_to_float(row.get(ACTION_MISMATCH_SCORE_COL, 0.0)), 0.0),
+        "interaction": max(_to_float(row.get(INTERACTION_AMPLIFICATION_SCORE_COL, 0.0)), 0.0),
+        "availability": max(_to_float(row.get(ACTION_REFERENCE_AVAILABILITY_COL, 0.0)), 0.0),
+    }
+
+
+def attribution_label_map(
+    row: dict[str, Any],
+    *,
+    challenge_gap_pct_threshold: float,
+    baseline_score_floor: float,
+    env_high_threshold: float,
+    action_high_threshold: float,
+    action_low_threshold: float,
+    interaction_high_threshold: float,
+    interaction_low_threshold: float,
+    availability_floor: float,
+) -> dict[str, int]:
+    if challenge_label(
+        row,
+        gap_pct_threshold=float(challenge_gap_pct_threshold),
+        baseline_score_floor=float(baseline_score_floor),
+    ) != int(CHALLENGE_LABEL_POSITIVE):
+        return {label: 0 for label in ATTRIBUTION_LABELS}
+
+    scores = attribution_scores(row)
+    if scores["availability"] < float(availability_floor):
+        return {label: 0 for label in ATTRIBUTION_LABELS}
+
+    env_score = float(scores["env"])
+    action_score = float(scores["action"])
+    interaction_score = float(scores["interaction"])
+    output = {label: 0 for label in ATTRIBUTION_LABELS}
+    if (
+        env_score >= float(env_high_threshold)
+        and action_score <= float(action_low_threshold)
+        and interaction_score <= float(interaction_low_threshold)
+    ):
+        output[ATTRIBUTION_ENV_DRIVEN] = 1
+    if env_score >= float(env_high_threshold) and (
+        action_score >= float(action_high_threshold) or interaction_score >= float(interaction_high_threshold)
+    ):
+        output[ATTRIBUTION_ACTION_AMPLIFIED] = 1
+    if env_score < float(env_high_threshold) and (
+        action_score >= float(action_high_threshold) or interaction_score >= float(interaction_high_threshold)
+    ):
+        output[ATTRIBUTION_POLICY_INDUCED] = 1
+    return output
