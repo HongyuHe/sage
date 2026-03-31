@@ -8,9 +8,9 @@ time python scripts/gen_trace_explanation_dataset.py \
   --out-dir attacks/output/explanations/gap-constrained-all-loss_50ms_300k
 
 time python scripts/gen_trace_explanation_dataset.py \
-  --generated-manifest attacks/adv_traces/gap-constrained-1baseline_300k/generated_manifest.json \
   --clean-manifest attacks/train/manifest.json \
-  --out-dir attacks/output/explanations/gap-constrained-1baseline_300k
+  --generated-manifest attacks/adv_traces/gap-constrained-all-hard-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/explanations/gap-constrained-all-hard-loss_50ms_300k
   
 time python scripts/gen_trace_explanation_dataset.py \
   --generated-manifest attacks/adv_traces/gap-unconstrained_300k/generated_manifest.json \

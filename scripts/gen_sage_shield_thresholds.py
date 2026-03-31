@@ -1,5 +1,5 @@
 """
-Derive clean-trace percentile thresholds for Sage shield feature predicates.
+Derive clean-trace percentile thresholds for the legacy two-stage Sage shield pipeline.
 
 Example usage:
 python scripts/gen_sage_shield_thresholds.py \
@@ -28,7 +28,7 @@ else:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Compute clean-trace percentile thresholds for Sage shield features.")
+    parser = argparse.ArgumentParser(description="Compute clean-trace percentile thresholds for the legacy two-stage Sage shield pipeline.")
     parser.add_argument("--repo-root", type=str, default=repo_root_from_script(__file__))
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--out", required=True)

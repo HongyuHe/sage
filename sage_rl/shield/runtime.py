@@ -49,9 +49,12 @@ class RuleSet:
 
 @dataclass(frozen=True)
 class RuleBundle:
+    version: int
+    mode: str
     feature_names: tuple[str, ...]
     history_len: int
     risk: RuleSet
+    noop: RuleSet
     backoff: RuleSet
     push: RuleSet
     metadata: dict[str, Any]
@@ -76,14 +79,35 @@ def _rule_atom_satisfied(*, values: Mapping[str, float], atom: RuleAtom) -> bool
 def load_rule_bundle(path: str) -> RuleBundle:
     with open(path, "r", encoding="utf-8") as file_obj:
         payload = dict(json.load(file_obj))
+    actions_payload = dict(payload.get("actions", {}))
+    version = int(payload.get("version", 1))
+    mode = str(payload.get("mode") or ("one_stage" if actions_payload else "two_stage"))
     return RuleBundle(
+        version=int(version),
+        mode=str(mode),
         feature_names=tuple(str(item) for item in payload.get("feature_names", [])),
         history_len=max(int(payload.get("history_len", 4)), 1),
         risk=RuleSet.from_payload(payload.get("risk")),
-        backoff=RuleSet.from_payload(payload.get("backoff")),
-        push=RuleSet.from_payload(payload.get("push")),
+        noop=RuleSet.from_payload(actions_payload.get("noop")),
+        backoff=RuleSet.from_payload(actions_payload.get("back_off") or payload.get("backoff")),
+        push=RuleSet.from_payload(actions_payload.get("push_harder") or payload.get("push")),
         metadata=dict(payload.get("metadata", {})),
     )
+
+
+def _select_one_stage_label(*, noop_matches: int, backoff_matches: int, push_matches: int) -> str:
+    scores = {
+        "noop": int(noop_matches),
+        "back_off": int(backoff_matches),
+        "push_harder": int(push_matches),
+    }
+    best_score = max(scores.values())
+    if best_score <= 0:
+        return "noop"
+    winners = [label for label, score in scores.items() if int(score) == int(best_score)]
+    if len(winners) != 1:
+        return "noop"
+    return str(winners[0])
 
 
 class DirectionalShield:
@@ -134,7 +158,26 @@ class DirectionalShield:
     ) -> tuple[np.ndarray, dict[str, float]]:
         features = self._tracker.update_from_observation(observation, obs_cols=self._obs_cols)
         risk_matches = int(self._rule_bundle.risk.match_count(features))
-        risky = risk_matches > 0
+        noop_matches = 0
+        backoff_matches = int(self._rule_bundle.backoff.match_count(features))
+        push_matches = int(self._rule_bundle.push.match_count(features))
+        predicted_label = "noop"
+        risky = False
+        if str(self._rule_bundle.mode) == "one_stage":
+            noop_matches = int(self._rule_bundle.noop.match_count(features))
+            predicted_label = _select_one_stage_label(
+                noop_matches=int(noop_matches),
+                backoff_matches=int(backoff_matches),
+                push_matches=int(push_matches),
+            )
+            risky = str(predicted_label) != "noop"
+            risk_matches = int(backoff_matches + push_matches)
+        else:
+            risky = risk_matches > 0
+            if risky and backoff_matches > 0 and push_matches == 0:
+                predicted_label = "back_off"
+            elif risky and push_matches > 0 and backoff_matches == 0:
+                predicted_label = "push_harder"
         if risky:
             self._risk_streak += 1
         else:
@@ -142,11 +185,14 @@ class DirectionalShield:
         if self._cooldown_remaining > 0:
             self._cooldown_remaining -= 1
 
-        backoff_matches = int(self._rule_bundle.backoff.match_count(features))
-        push_matches = int(self._rule_bundle.push.match_count(features))
         direction = "hold"
         if risky and self._risk_streak >= self._consecutive_risk and self._cooldown_remaining <= 0:
-            if backoff_matches > 0 and push_matches == 0:
+            if str(self._rule_bundle.mode) == "one_stage":
+                if str(predicted_label) == "back_off":
+                    direction = "back_off"
+                elif str(predicted_label) == "push_harder":
+                    direction = "push_harder"
+            elif backoff_matches > 0 and push_matches == 0:
                 direction = "back_off"
             elif push_matches > 0 and backoff_matches == 0:
                 direction = "push_harder"
@@ -167,12 +213,16 @@ class DirectionalShield:
             "shield/applied": 0.0 if direction == "hold" else 1.0,
             "shield/risky": 1.0 if risky else 0.0,
             "shield/risk_matches": float(risk_matches),
+            "shield/noop_matches": float(noop_matches),
             "shield/backoff_matches": float(backoff_matches),
             "shield/push_matches": float(push_matches),
             "shield/risk_streak": float(self._risk_streak),
             "shield/cooldown_remaining": float(self._cooldown_remaining),
             "shield/action_before": float(before),
             "shield/action_after": float(after),
+            "shield/predicted_noop": 1.0 if str(predicted_label) == "noop" else 0.0,
+            "shield/predicted_backoff": 1.0 if str(predicted_label) == "back_off" else 0.0,
+            "shield/predicted_push": 1.0 if str(predicted_label) == "push_harder" else 0.0,
             "shield/direction_backoff": 1.0 if direction == "back_off" else 0.0,
             "shield/direction_push": 1.0 if direction == "push_harder" else 0.0,
             "shield/direction_hold": 1.0 if direction == "hold" else 0.0,
@@ -180,6 +230,8 @@ class DirectionalShield:
         self._append_log(
             {
                 "decision_index": int(self._decision_index),
+                "mode": str(self._rule_bundle.mode),
+                "predicted_label": str(predicted_label),
                 "direction": str(direction),
                 "features": {key: float(value) for key, value in features.items()},
                 **{key: float(value) for key, value in stats.items()},

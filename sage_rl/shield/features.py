@@ -43,6 +43,41 @@ FEATURE_COLUMNS: tuple[str, ...] = CURRENT_VALUE_COLUMNS + DERIVED_VALUE_COLUMNS
     for suffix in ("avg", "min", "max", "delta")
 )
 
+_CURRENT_VALUE_DESCRIPTIONS: dict[str, str] = {
+    "current_rtt_ms": "Current Sage RTT estimate in milliseconds.",
+    "current_rttvar_ms": "Current Sage RTT variation estimate in milliseconds.",
+    "current_delivery_rate_mbps": "Current Sage delivery-rate estimate in Mbps.",
+    "windowed_delivery_rate_mbps": "Windowed Sage delivery-rate estimate in Mbps.",
+    "max_windowed_delivery_rate_mbps": "Maximum recent windowed Sage delivery-rate estimate in Mbps.",
+    "current_loss_mbps": "Current Sage loss estimate, expressed as an equivalent Mbps loss signal.",
+    "current_min_rtt_ratio": "Current ratio between min RTT and current RTT; lower values imply stronger inflation.",
+    "previous_action": "Most recent Sage control action before the current decision.",
+    "time_delta_ms": "Elapsed time in milliseconds since the previous Sage observation update.",
+    "delivery_growth_ratio": "Ratio of current delivery rate to the previous delivery rate.",
+    "max_delivery_growth_ratio": "Maximum recent delivery-growth ratio observed by Sage.",
+}
+
+_DERIVED_VALUE_DESCRIPTIONS: dict[str, str] = {
+    "rtt_inflation": "Reciprocal of current_min_rtt_ratio, summarizing RTT inflation relative to the minimum RTT.",
+    "windowed_vs_max_rate_ratio": "Ratio of windowed delivery rate to the recent maximum windowed delivery rate.",
+    "loss_to_windowed_rate_ratio": "Ratio of current loss signal to the current windowed delivery rate.",
+}
+
+_HISTORY_BASE_DESCRIPTIONS: dict[str, str] = {
+    "current_rtt_ms": "current Sage RTT estimate",
+    "windowed_delivery_rate_mbps": "windowed Sage delivery-rate estimate",
+    "current_loss_mbps": "current Sage loss signal",
+    "current_min_rtt_ratio": "current min-RTT ratio",
+    "previous_action": "previous Sage action",
+}
+
+_HISTORY_SUFFIX_DESCRIPTIONS: dict[str, str] = {
+    "avg": "Rolling average of the {base} over the retained shield history.",
+    "min": "Rolling minimum of the {base} over the retained shield history.",
+    "max": "Rolling maximum of the {base} over the retained shield history.",
+    "delta": "Difference between the newest and oldest retained values of the {base}.",
+}
+
 _OBS_RAW_INDEX_TO_NAME: dict[int, str] = {
     2: "current_rtt_ms",
     3: "current_rttvar_ms",
@@ -78,6 +113,27 @@ def _sanitize_float(value: object, *, default: float = 0.0) -> float:
     if not np.isfinite(numeric):
         return float(default)
     return float(numeric)
+
+
+def shield_feature_descriptions(columns: Sequence[str] | None = None) -> dict[str, str]:
+    descriptions: dict[str, str] = {
+        **_CURRENT_VALUE_DESCRIPTIONS,
+        **_DERIVED_VALUE_DESCRIPTIONS,
+    }
+    for history_name in HISTORY_VALUE_COLUMNS:
+        base_description = _HISTORY_BASE_DESCRIPTIONS.get(str(history_name), str(history_name))
+        for suffix, template in _HISTORY_SUFFIX_DESCRIPTIONS.items():
+            descriptions[f"{history_name}_{suffix}"] = str(template).format(base=base_description)
+
+    selected_columns = FEATURE_COLUMNS if columns is None else tuple(str(column) for column in columns)
+    return {
+        str(column): str(descriptions[column])
+        for column in selected_columns
+        if str(column) in descriptions
+    }
+
+
+FEATURE_DESCRIPTIONS: dict[str, str] = shield_feature_descriptions()
 
 
 def current_values_from_observation(

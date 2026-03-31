@@ -1,13 +1,35 @@
 """
-Train threshold-predicate decision trees for a Sage risk classifier + directional shield.
+Train one-stage or legacy two-stage decision-tree rules for Sage shielding.
 
 Example usage:
 time python scripts/train_sage_shield_dt.py \
   --dataset attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k/sage_shield_dataset.csv \
-  --thresholds attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k/clean_feature_thresholds.csv \
   --out-dir attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k
 
 time python scripts/train_sage_shield_dt.py \
+  --pipeline-mode two_stage --risk-feature-mode predicate \
+  --dataset attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k-2stage/sage_shield_dataset.csv \
+  --thresholds attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k-2stage/clean_feature_thresholds.csv \
+  --out-dir attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k
+
+time python scripts/train_sage_shield_dt.py \
+  --pipeline-mode two_stage --risk-feature-mode predicate \
+  --dataset attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k-50len/sage_shield_dataset.csv \
+  --thresholds attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k-50len/clean_feature_thresholds.csv \
+  --out-dir attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k-50len
+
+time python scripts/train_sage_shield_dt.py \
+  --pipeline-mode two_stage --risk-feature-mode predicate \
+  --dataset attacks/output/shield-dataset/random_gap-constrained-all-loss_50ms_300k/sage_shield_dataset.csv \
+  --thresholds attacks/output/shield-dataset/random_gap-constrained-all-loss_50ms_300k/clean_feature_thresholds.csv \
+  --out-dir attacks/output/shield-rules/random_gap-constrained-all-loss_50ms_300k
+
+time python scripts/train_sage_shield_dt.py \
+  --dataset attacks/output/shield-dataset/hotnets19-loss_50ms_300k/sage_shield_dataset.csv \
+  --out-dir attacks/output/shield-rules/hotnets19-loss_50ms_300k
+
+time python scripts/train_sage_shield_dt.py \
+  --pipeline-mode two_stage --risk-feature-mode predicate \
   --dataset attacks/output/shield-dataset/hotnets19-loss_50ms_300k/sage_shield_dataset.csv \
   --thresholds attacks/output/shield-dataset/hotnets19-loss_50ms_300k/clean_feature_thresholds.csv \
   --out-dir attacks/output/shield-rules/hotnets19-loss_50ms_300k
@@ -33,8 +55,18 @@ if __package__ in (None, ""):
 else:
     from ._trace_attack_common import repo_root_from_script, resolve_repo_path, save_json, utc_now_iso
 
-from sage_rl.shield.features import FEATURE_COLUMNS
-from sage_rl.shield.labels import ACTIVE_LABEL, INACTIVE_LABEL, RISKY_LABEL, SAFE_LABEL, weak_direction_labels
+from sage_rl.shield.features import FEATURE_COLUMNS, FEATURE_DESCRIPTIONS
+from sage_rl.shield.labels import (
+    ACTIVE_LABEL,
+    BACKOFF_LABEL,
+    INACTIVE_LABEL,
+    NOOP_LABEL,
+    PUSH_HARDER_LABEL,
+    RISKY_LABEL,
+    SAFE_LABEL,
+    unified_action_label,
+    weak_direction_labels,
+)
 
 _RAW_CATEGORICAL_FEATURES: tuple[str, ...] = ()
 
@@ -163,6 +195,41 @@ def _label_direction(df: pd.DataFrame, *, risky_mask: np.ndarray, action_margin:
     return backoff, push
 
 
+def _label_one_stage(
+    df: pd.DataFrame,
+    *,
+    risk_gap_pct: float,
+    baseline_score_floor: float,
+    action_margin: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    gap_pct = df["hard_gap_percent"].astype(float).to_numpy(dtype=np.float64, copy=False)
+    baseline_score = df["hard_baseline_score"].astype(float).to_numpy(dtype=np.float64, copy=False)
+    sage_previous_action = df["sage_previous_action"].astype(float).to_numpy(dtype=np.float64, copy=False)
+    best_previous_action = df["best_baseline_previous_action"].astype(float).to_numpy(dtype=np.float64, copy=False)
+    labels = np.full(df.shape[0], int(NOOP_LABEL), dtype=np.int32)
+    valid = np.zeros(df.shape[0], dtype=bool)
+    risky = np.zeros(df.shape[0], dtype=bool)
+    for index in range(df.shape[0]):
+        label, _label_name, _reason, label_valid = unified_action_label(
+            hard_gap_percent_value=float(gap_pct[index]),
+            hard_baseline_score=float(baseline_score[index]),
+            risk_gap_pct=float(risk_gap_pct),
+            baseline_score_floor=float(baseline_score_floor),
+            sage_previous_action=float(sage_previous_action[index]),
+            best_baseline_previous_action=float(best_previous_action[index]),
+            action_margin=float(action_margin),
+        )
+        labels[index] = int(label)
+        valid[index] = bool(label_valid)
+        risky[index] = bool(
+            np.isfinite(float(gap_pct[index]))
+            and np.isfinite(float(baseline_score[index]))
+            and float(baseline_score[index]) >= float(baseline_score_floor)
+            and float(gap_pct[index]) >= float(risk_gap_pct)
+        )
+    return labels, valid, risky
+
+
 def _train_sklearn_tree(
     x: pd.DataFrame,
     y: np.ndarray,
@@ -255,8 +322,18 @@ def _train_h2o_tree(
 
 def _rule_atoms_from_predicate(predicate: _Predicate, *, is_true_branch: bool) -> dict[str, Any]:
     if is_true_branch:
-        return {"feature": str(predicate.feature), "op": "gt", "value": float(predicate.threshold_value)}
-    return {"feature": str(predicate.feature), "op": "le", "value": float(predicate.threshold_value)}
+        return {
+            "feature": str(predicate.feature),
+            "op": "gt",
+            "value": float(predicate.threshold_value),
+            "threshold_col": str(predicate.threshold_col),
+        }
+    return {
+        "feature": str(predicate.feature),
+        "op": "le",
+        "value": float(predicate.threshold_value),
+        "threshold_col": str(predicate.threshold_col),
+    }
 
 
 def _rule_atom_from_raw_feature(*, feature_name: str, threshold_value: float, is_true_branch: bool) -> dict[str, Any]:
@@ -561,14 +638,40 @@ def _extract_positive_rules_from_h2o_raw(
     return deduped
 
 
+def _rule_comparator_symbol(op: str) -> str:
+    mapping = {
+        "gt": "≥",
+        "ge": "≥",
+        "lt": "<",
+        "le": "≤",
+        "eq": "=",
+        "ne": "≠",
+    }
+    return str(mapping.get(str(op), str(op)))
+
+
+def _format_rule_atom(atom: dict[str, Any]) -> str:
+    feature_name = str(atom.get("feature", "unknown_feature"))
+    op = str(atom.get("op", ""))
+    comparator = _rule_comparator_symbol(op)
+    threshold_col = atom.get("threshold_col")
+    if isinstance(threshold_col, str) and threshold_col.strip():
+        value_text = f"{threshold_col.strip()}"
+    else:
+        raw_value = atom.get("value")
+        if isinstance(raw_value, float):
+            value_text = f"{raw_value:.6g}"
+        else:
+            value_text = str(raw_value)
+    return f"{feature_name} {comparator} {value_text}"
+
+
 def _human_rule_text(label: str, rules: list[dict[str, Any]]) -> str:
     lines: list[str] = [f"{label} rules ({len(rules)}):"]
     for index, rule in enumerate(rules, start=1):
         atoms = rule.get("atoms", [])
-        antecedent = " and ".join(
-            f"{atom['feature']} {atom['op']} {atom['value']:.6g}" for atom in atoms
-        ) or "true"
-        lines.append(f"  {index:02d}. if {antecedent} then {label}")
+        antecedent = " and ".join(_format_rule_atom(dict(atom)) for atom in atoms) or "true"
+        lines.append(f"  {index:02d}. if ({antecedent}) then ({label})")
     return "\n".join(lines) + "\n"
 
 
@@ -660,13 +763,14 @@ def _extract_positive_rules_from_model(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train decision-tree rules for Sage risk + directional shielding.")
+    parser = argparse.ArgumentParser(description="Train decision-tree rules for one-stage or legacy two-stage Sage shielding.")
     parser.add_argument("--repo-root", type=str, default=repo_root_from_script(__file__))
     parser.add_argument("--dataset", required=True)
-    parser.add_argument("--thresholds", required=True)
+    parser.add_argument("--pipeline-mode", choices=["one_stage", "two_stage"], default="one_stage")
+    parser.add_argument("--thresholds", required=False, default=None, help="Legacy clean-feature thresholds for --pipeline-mode two_stage.")
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--backend", choices=["sklearn", "h2o"], default="h2o")
-    parser.add_argument("--risk-feature-mode", choices=["raw", "predicate"], default="raw")
+    parser.add_argument("--risk-feature-mode", choices=["raw", "predicate"], default="raw", help="Legacy risk-model feature mode for --pipeline-mode two_stage. One-stage training always uses raw features.")
     parser.add_argument("--risk-gap-pct", type=float, default=20.0)
     parser.add_argument("--baseline-score-floor", type=float, default=0.3)
     parser.add_argument("--action-margin", type=float, default=0.15)
@@ -675,7 +779,7 @@ def main() -> None:
     parser.add_argument("--max-depth", type=int, default=200)
     parser.add_argument("--max-leaf-nodes", type=int, default=200)
     parser.add_argument("--min-samples-leaf", type=int, default=1)
-    parser.add_argument("--leaf-purity", type=float, default=0.99)
+    parser.add_argument("--leaf-purity", type=float, default=1.0)
     parser.add_argument("--h2o-ntrees", type=int, default=1)
     parser.add_argument("--h2o-max-depth", type=int, default=200)
     parser.add_argument("--h2o-min-rows", type=int, default=1)
@@ -684,23 +788,22 @@ def main() -> None:
     parser.add_argument("--history-len", type=int, default=4)
     args = parser.parse_args()
 
+    pipeline_mode = str(args.pipeline_mode)
     repo_root = os.path.abspath(str(args.repo_root))
     dataset_path = resolve_repo_path(repo_root, str(args.dataset))
-    thresholds_path = resolve_repo_path(repo_root, str(args.thresholds))
+    thresholds_path = resolve_repo_path(repo_root, str(args.thresholds)) if args.thresholds else None
     out_dir = resolve_repo_path(repo_root, str(args.out_dir))
     os.makedirs(out_dir, exist_ok=True)
+    if pipeline_mode == "two_stage" and thresholds_path is None:
+        raise RuntimeError("--thresholds is required for --pipeline-mode two_stage")
+    if pipeline_mode == "one_stage" and str(args.risk_feature_mode) != "raw":
+        raise RuntimeError("one-stage training requires raw feature splits; use --risk-feature-mode raw")
 
     df = pd.read_csv(dataset_path)
     df = df[df.get("has_env_error", 0) == 0].copy()
     if df.empty:
         raise RuntimeError("dataset is empty after filtering invalid rows")
 
-    predicates, threshold_map = _load_threshold_predicates(
-        thresholds_path,
-        threshold_cols=[item.strip() for item in str(args.threshold_cols).split(",") if item.strip()] or None,
-    )
-    x_pred, pred_map = _build_predicate_matrix(df, predicates=predicates)
-    x_risk = _build_raw_feature_matrix(df) if str(args.risk_feature_mode) == "raw" else x_pred
     train_cfg = _TreeTrainingConfig(
         backend=str(args.backend),
         seed=int(args.seed),
@@ -713,13 +816,6 @@ def main() -> None:
         h2o_sample_rate=float(args.h2o_sample_rate),
         h2o_mtries=int(args.h2o_mtries) if args.h2o_mtries is not None else None,
     )
-    risk_y = _label_risk(
-        df,
-        risk_gap_pct=float(args.risk_gap_pct),
-        baseline_score_floor=float(args.baseline_score_floor),
-    )
-    risky_mask = risk_y == int(RISKY_LABEL)
-    backoff_y, push_y = _label_direction(df, risky_mask=risky_mask, action_margin=float(args.action_margin))
     h2o = None
     if str(args.backend) == "h2o":
         try:
@@ -744,131 +840,257 @@ def main() -> None:
                 "and a working Java runtime (JRE/JDK)."
             ) from exc
 
+    bundle: dict[str, Any]
+    rules_json_path: str
+    rules_txt_path: str
     try:
-        risk_model = None
-        num_risk_positive = int(np.sum(risk_y == int(RISKY_LABEL)))
-        if 0 < num_risk_positive < int(x_pred.shape[0]):
-            risk_model = _train_tree_model(
-                x_risk,
-                risk_y,
-                label_name="risk_label",
-                train_cfg=train_cfg,
-                categorical_feature_names=(
-                    {name for name in _RAW_CATEGORICAL_FEATURES if name in x_risk.columns}
-                    if str(args.risk_feature_mode) == "raw"
-                    else set(x_risk.columns)
-                ),
-                enforce_binary_categorical=bool(str(args.risk_feature_mode) == "predicate"),
+        if pipeline_mode == "one_stage":
+            action_y, label_valid_mask, risky_mask = _label_one_stage(
+                df,
+                risk_gap_pct=float(args.risk_gap_pct),
+                baseline_score_floor=float(args.baseline_score_floor),
+                action_margin=float(args.action_margin),
+            )
+            if not np.any(label_valid_mask):
+                raise RuntimeError("dataset has no valid one-stage labels after filtering")
+            df_valid = df.loc[label_valid_mask].reset_index(drop=True)
+            x_action = _build_raw_feature_matrix(df_valid)
+            action_y = action_y[label_valid_mask]
+            risky_mask = risky_mask[label_valid_mask]
+            action_model = None
+            if np.unique(action_y).size >= 2:
+                action_model = _train_tree_model(
+                    x_action,
+                    action_y,
+                    label_name="shield_action_label",
+                    train_cfg=train_cfg,
+                    categorical_feature_names={name for name in _RAW_CATEGORICAL_FEATURES if name in x_action.columns},
+                    enforce_binary_categorical=False,
+                )
+
+            noop_rules = _extract_positive_rules_from_model(
+                action_model,
+                backend=str(args.backend),
+                feature_mode="raw",
+                feature_cols=list(x_action.columns),
+                pred_map={},
+                positive_class=NOOP_LABEL,
+                leaf_purity=float(args.leaf_purity),
+                num_rows=int(x_action.shape[0]),
+                positive_count=int(np.sum(action_y == int(NOOP_LABEL))),
+                label_name="shield_action_label",
+            )
+            backoff_rules = _extract_positive_rules_from_model(
+                action_model,
+                backend=str(args.backend),
+                feature_mode="raw",
+                feature_cols=list(x_action.columns),
+                pred_map={},
+                positive_class=BACKOFF_LABEL,
+                leaf_purity=float(args.leaf_purity),
+                num_rows=int(x_action.shape[0]),
+                positive_count=int(np.sum(action_y == int(BACKOFF_LABEL))),
+                label_name="shield_action_label",
+            )
+            push_rules = _extract_positive_rules_from_model(
+                action_model,
+                backend=str(args.backend),
+                feature_mode="raw",
+                feature_cols=list(x_action.columns),
+                pred_map={},
+                positive_class=PUSH_HARDER_LABEL,
+                leaf_purity=float(args.leaf_purity),
+                num_rows=int(x_action.shape[0]),
+                positive_count=int(np.sum(action_y == int(PUSH_HARDER_LABEL))),
+                label_name="shield_action_label",
             )
 
-        risky_subset = x_pred.loc[risky_mask].reset_index(drop=True)
-        backoff_subset = backoff_y[risky_mask]
-        push_subset = push_y[risky_mask]
-        backoff_model = None
-        push_model = None
-        if risky_subset.shape[0] > 0:
-            num_backoff_positive = int(np.sum(backoff_subset == ACTIVE_LABEL))
-            num_push_positive = int(np.sum(push_subset == ACTIVE_LABEL))
-            if 0 < num_backoff_positive < int(risky_subset.shape[0]):
-                backoff_model = _train_tree_model(
-                    risky_subset,
-                    backoff_subset,
-                    label_name="backoff_label",
-                    train_cfg=train_cfg,
-                    categorical_feature_names=set(risky_subset.columns),
-                    enforce_binary_categorical=True,
-                )
-            if 0 < num_push_positive < int(risky_subset.shape[0]):
-                push_model = _train_tree_model(
-                    risky_subset,
-                    push_subset,
-                    label_name="push_label",
-                    train_cfg=train_cfg,
-                    categorical_feature_names=set(risky_subset.columns),
-                    enforce_binary_categorical=True,
-                )
+            bundle = {
+                "version": 2,
+                "mode": "one_stage",
+                "feature_names": list(FEATURE_COLUMNS),
+                "history_len": int(args.history_len),
+                "actions": {
+                    "noop": {"rules": noop_rules},
+                    "back_off": {"rules": backoff_rules},
+                    "push_harder": {"rules": push_rules},
+                },
+                "metadata": {
+                    "created_at_utc": utc_now_iso(),
+                    "backend": str(args.backend),
+                    "feature_mode": "raw",
+                    "dataset_path": dataset_path,
+                    "thresholds_path": thresholds_path,
+                    "thresholds_ignored": thresholds_path is not None,
+                    "risk_gap_pct": float(args.risk_gap_pct),
+                    "baseline_score_floor": float(args.baseline_score_floor),
+                    "action_margin": float(args.action_margin),
+                    "num_rows": int(df.shape[0]),
+                    "num_valid_rows": int(df_valid.shape[0]),
+                    "num_invalid_rows": int(np.sum(~label_valid_mask)),
+                    "num_risky_rows": int(np.sum(risky_mask)),
+                    "num_noop": int(np.sum(action_y == int(NOOP_LABEL))),
+                    "num_backoff": int(np.sum(action_y == int(BACKOFF_LABEL))),
+                    "num_push_harder": int(np.sum(action_y == int(PUSH_HARDER_LABEL))),
+                    "h2o_ntrees": int(args.h2o_ntrees),
+                    "h2o_max_depth": int(args.h2o_max_depth),
+                    "h2o_min_rows": int(args.h2o_min_rows),
+                    "h2o_sample_rate": float(args.h2o_sample_rate),
+                    "h2o_mtries": int(args.h2o_mtries) if args.h2o_mtries is not None else None,
+                },
+            }
+            rules_json_path = os.path.join(out_dir, "sage_unified_shield_rules.json")
+            rules_txt_path = os.path.join(out_dir, "sage_unified_shield_rules.txt")
         else:
-            num_backoff_positive = 0
-            num_push_positive = 0
+            predicates, threshold_map = _load_threshold_predicates(
+                str(thresholds_path),
+                threshold_cols=[item.strip() for item in str(args.threshold_cols).split(",") if item.strip()] or None,
+            )
+            x_pred, pred_map = _build_predicate_matrix(df, predicates=predicates)
+            x_risk = _build_raw_feature_matrix(df) if str(args.risk_feature_mode) == "raw" else x_pred
+            risk_y = _label_risk(
+                df,
+                risk_gap_pct=float(args.risk_gap_pct),
+                baseline_score_floor=float(args.baseline_score_floor),
+            )
+            risky_mask = risk_y == int(RISKY_LABEL)
+            backoff_y, push_y = _label_direction(df, risky_mask=risky_mask, action_margin=float(args.action_margin))
+            risk_model = None
+            num_risk_positive = int(np.sum(risk_y == int(RISKY_LABEL)))
+            if 0 < num_risk_positive < int(x_pred.shape[0]):
+                risk_model = _train_tree_model(
+                    x_risk,
+                    risk_y,
+                    label_name="risk_label",
+                    train_cfg=train_cfg,
+                    categorical_feature_names=(
+                        {name for name in _RAW_CATEGORICAL_FEATURES if name in x_risk.columns}
+                        if str(args.risk_feature_mode) == "raw"
+                        else set(x_risk.columns)
+                    ),
+                    enforce_binary_categorical=bool(str(args.risk_feature_mode) == "predicate"),
+                )
 
-        risk_rules = _extract_positive_rules_from_model(
-            risk_model,
-            backend=str(args.backend),
-            feature_mode=str(args.risk_feature_mode),
-            feature_cols=list(x_risk.columns),
-            pred_map=pred_map,
-            positive_class=RISKY_LABEL,
-            leaf_purity=float(args.leaf_purity),
-            num_rows=int(x_risk.shape[0]),
-            positive_count=num_risk_positive,
-            label_name="risk_label",
-        )
-        backoff_rules = _extract_positive_rules_from_model(
-            backoff_model,
-            backend=str(args.backend),
-            feature_mode="predicate",
-            feature_cols=list(risky_subset.columns),
-            pred_map=pred_map,
-            positive_class=ACTIVE_LABEL,
-            leaf_purity=float(args.leaf_purity),
-            num_rows=int(risky_subset.shape[0]),
-            positive_count=int(num_backoff_positive),
-            label_name="backoff_label",
-        )
-        push_rules = _extract_positive_rules_from_model(
-            push_model,
-            backend=str(args.backend),
-            feature_mode="predicate",
-            feature_cols=list(risky_subset.columns),
-            pred_map=pred_map,
-            positive_class=ACTIVE_LABEL,
-            leaf_purity=float(args.leaf_purity),
-            num_rows=int(risky_subset.shape[0]),
-            positive_count=int(num_push_positive),
-            label_name="push_label",
-        )
+            risky_subset = x_pred.loc[risky_mask].reset_index(drop=True)
+            backoff_subset = backoff_y[risky_mask]
+            push_subset = push_y[risky_mask]
+            backoff_model = None
+            push_model = None
+            if risky_subset.shape[0] > 0:
+                num_backoff_positive = int(np.sum(backoff_subset == ACTIVE_LABEL))
+                num_push_positive = int(np.sum(push_subset == ACTIVE_LABEL))
+                if 0 < num_backoff_positive < int(risky_subset.shape[0]):
+                    backoff_model = _train_tree_model(
+                        risky_subset,
+                        backoff_subset,
+                        label_name="backoff_label",
+                        train_cfg=train_cfg,
+                        categorical_feature_names=set(risky_subset.columns),
+                        enforce_binary_categorical=True,
+                    )
+                if 0 < num_push_positive < int(risky_subset.shape[0]):
+                    push_model = _train_tree_model(
+                        risky_subset,
+                        push_subset,
+                        label_name="push_label",
+                        train_cfg=train_cfg,
+                        categorical_feature_names=set(risky_subset.columns),
+                        enforce_binary_categorical=True,
+                    )
+            else:
+                num_backoff_positive = 0
+                num_push_positive = 0
+
+            risk_rules = _extract_positive_rules_from_model(
+                risk_model,
+                backend=str(args.backend),
+                feature_mode=str(args.risk_feature_mode),
+                feature_cols=list(x_risk.columns),
+                pred_map=pred_map,
+                positive_class=RISKY_LABEL,
+                leaf_purity=float(args.leaf_purity),
+                num_rows=int(x_risk.shape[0]),
+                positive_count=num_risk_positive,
+                label_name="risk_label",
+            )
+            backoff_rules = _extract_positive_rules_from_model(
+                backoff_model,
+                backend=str(args.backend),
+                feature_mode="predicate",
+                feature_cols=list(risky_subset.columns),
+                pred_map=pred_map,
+                positive_class=ACTIVE_LABEL,
+                leaf_purity=float(args.leaf_purity),
+                num_rows=int(risky_subset.shape[0]),
+                positive_count=int(num_backoff_positive),
+                label_name="backoff_label",
+            )
+            push_rules = _extract_positive_rules_from_model(
+                push_model,
+                backend=str(args.backend),
+                feature_mode="predicate",
+                feature_cols=list(risky_subset.columns),
+                pred_map=pred_map,
+                positive_class=ACTIVE_LABEL,
+                leaf_purity=float(args.leaf_purity),
+                num_rows=int(risky_subset.shape[0]),
+                positive_count=int(num_push_positive),
+                label_name="push_label",
+            )
+            bundle = {
+                "version": 1,
+                "mode": "two_stage",
+                "feature_names": list(FEATURE_COLUMNS),
+                "history_len": int(args.history_len),
+                "risk": {"rules": risk_rules},
+                "backoff": {"rules": backoff_rules},
+                "push": {"rules": push_rules},
+                "metadata": {
+                    "created_at_utc": utc_now_iso(),
+                    "backend": str(args.backend),
+                    "risk_feature_mode": str(args.risk_feature_mode),
+                    "direction_feature_mode": "predicate",
+                    "dataset_path": dataset_path,
+                    "thresholds_path": thresholds_path,
+                    "threshold_map": threshold_map,
+                    "risk_gap_pct": float(args.risk_gap_pct),
+                    "baseline_score_floor": float(args.baseline_score_floor),
+                    "action_margin": float(args.action_margin),
+                    "num_rows": int(df.shape[0]),
+                    "num_risky_rows": int(np.sum(risky_mask)),
+                    "num_backoff_positive": int(np.sum(backoff_y == ACTIVE_LABEL)),
+                    "num_push_positive": int(np.sum(push_y == ACTIVE_LABEL)),
+                    "h2o_ntrees": int(args.h2o_ntrees),
+                    "h2o_max_depth": int(args.h2o_max_depth),
+                    "h2o_min_rows": int(args.h2o_min_rows),
+                    "h2o_sample_rate": float(args.h2o_sample_rate),
+                    "h2o_mtries": int(args.h2o_mtries) if args.h2o_mtries is not None else None,
+                },
+            }
+            rules_json_path = os.path.join(out_dir, "sage_directional_shield_rules.json")
+            rules_txt_path = os.path.join(out_dir, "sage_directional_shield_rules.txt")
     finally:
         if h2o is not None:
             h2o.shutdown(prompt=False)
 
-    bundle = {
-        "version": 1,
-        "feature_names": list(FEATURE_COLUMNS),
-        "history_len": int(args.history_len),
-        "risk": {"rules": risk_rules},
-        "backoff": {"rules": backoff_rules},
-        "push": {"rules": push_rules},
-        "metadata": {
-            "created_at_utc": utc_now_iso(),
-            "backend": str(args.backend),
-            "risk_feature_mode": str(args.risk_feature_mode),
-            "direction_feature_mode": "predicate",
-            "dataset_path": dataset_path,
-            "thresholds_path": thresholds_path,
-            "threshold_map": threshold_map,
-            "risk_gap_pct": float(args.risk_gap_pct),
-            "baseline_score_floor": float(args.baseline_score_floor),
-            "action_margin": float(args.action_margin),
-            "num_rows": int(df.shape[0]),
-            "num_risky_rows": int(np.sum(risky_mask)),
-            "num_backoff_positive": int(np.sum(backoff_y == ACTIVE_LABEL)),
-            "num_push_positive": int(np.sum(push_y == ACTIVE_LABEL)),
-            "h2o_ntrees": int(args.h2o_ntrees),
-            "h2o_max_depth": int(args.h2o_max_depth),
-            "h2o_min_rows": int(args.h2o_min_rows),
-            "h2o_sample_rate": float(args.h2o_sample_rate),
-            "h2o_mtries": int(args.h2o_mtries) if args.h2o_mtries is not None else None,
-        },
-    }
-
-    rules_json_path = os.path.join(out_dir, "sage_directional_shield_rules.json")
+    feature_desc_path = os.path.join(out_dir, "sage_shield_feature_descriptions.json")
+    save_json(feature_desc_path, FEATURE_DESCRIPTIONS)
+    bundle.setdefault("metadata", {})
+    bundle["metadata"]["feature_description_path"] = os.path.relpath(feature_desc_path, repo_root)
     save_json(rules_json_path, bundle)
-    with open(os.path.join(out_dir, "sage_directional_shield_rules.txt"), "w", encoding="utf-8") as file_obj:
-        file_obj.write(_human_rule_text("risky", risk_rules))
-        file_obj.write("\n")
-        file_obj.write(_human_rule_text("back_off", backoff_rules))
-        file_obj.write("\n")
-        file_obj.write(_human_rule_text("push_harder", push_rules))
+    with open(rules_txt_path, "w", encoding="utf-8") as file_obj:
+        if pipeline_mode == "one_stage":
+            file_obj.write(_human_rule_text("noop", bundle["actions"]["noop"]["rules"]))
+            file_obj.write("\n")
+            file_obj.write(_human_rule_text("back_off", bundle["actions"]["back_off"]["rules"]))
+            file_obj.write("\n")
+            file_obj.write(_human_rule_text("push_harder", bundle["actions"]["push_harder"]["rules"]))
+        else:
+            file_obj.write(_human_rule_text("risky", bundle["risk"]["rules"]))
+            file_obj.write("\n")
+            file_obj.write(_human_rule_text("back_off", bundle["backoff"]["rules"]))
+            file_obj.write("\n")
+            file_obj.write(_human_rule_text("push_harder", bundle["push"]["rules"]))
     print(rules_json_path)
 
 

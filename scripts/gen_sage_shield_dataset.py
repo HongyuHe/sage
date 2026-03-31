@@ -5,12 +5,19 @@ Example usage:
 time python scripts/gen_sage_shield_dataset.py \
   --clean-manifest attacks/train/manifest.json \
   --generated-manifest attacks/adv_traces/gap-constrained-all-loss_50ms_300k/generated_manifest.json \
-  --out-dir attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k
+  --out-dir attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k-50len \
+  --feature-history-len 50
+
+time python scripts/gen_sage_shield_dataset.py \
+  --clean-manifest attacks/train/manifest.json \
+  --generated-manifest attacks/adv_traces/random_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/shield-dataset/random_gap-constrained-all-loss_50ms_300k
 
 time python scripts/gen_sage_shield_dataset.py \
   --clean-manifest attacks/train/manifest.json \
   --generated-manifest attacks/adv_traces/hotnets19_50ms_300k/generated_manifest.json \
-  --out-dir attacks/output/shield-dataset/hotnets19_50ms_300k
+  --out-dir attacks/output/shield-dataset/hotnets19_50ms_300k \
+  --skip-thresholds
 """
 
 from __future__ import annotations
@@ -29,7 +36,13 @@ import pandas as pd
 from attacks.envs import ParallelGapAttackEnv, baseline_methods_from_config
 from attacks.online import SageLaunchConfig, acquire_run_namespace
 from sage_rl.shield.features import FEATURE_COLUMNS, ShieldFeatureTracker
-from sage_rl.shield.labels import best_baseline_method, hard_gap_percent
+from sage_rl.shield.labels import (
+    best_baseline_method,
+    hard_gap_percent,
+    is_risky_state,
+    unified_action_label,
+    weak_direction_labels,
+)
 
 
 if __package__ in (None, ""):
@@ -443,6 +456,9 @@ def _collect_episode_rows(
     action_schedule: list[np.ndarray],
     baseline_methods: tuple[str, ...],
     history_len: int,
+    risk_gap_pct: float,
+    baseline_score_floor: float,
+    action_margin: float,
 ) -> list[dict[str, Any]]:
     tracker = ShieldFeatureTracker(history_len=history_len)
     rows: list[dict[str, Any]] = []
@@ -496,6 +512,40 @@ def _collect_episode_rows(
         row["best_baseline_previous_action"] = float(
             row.get(f"baseline_previous_action_{method}", float("nan")) if method else float("nan")
         )
+        shield_risky = is_risky_state(
+            hard_gap_percent=float(row["hard_gap_percent"]),
+            hard_baseline_score=float(row["hard_baseline_score"]),
+            risk_gap_pct=float(risk_gap_pct),
+            baseline_score_floor=float(baseline_score_floor),
+        )
+        backoff_label, push_label = weak_direction_labels(
+            risky=bool(shield_risky),
+            sage_previous_action=float(row["sage_previous_action"]),
+            best_baseline_previous_action=float(row["best_baseline_previous_action"]),
+            action_margin=float(action_margin),
+        )
+        row["shield_risk_label"] = 1 if shield_risky else 0
+        row["shield_backoff_label"] = int(backoff_label)
+        row["shield_push_label"] = int(push_label)
+        if np.isfinite(float(row["sage_previous_action"])) and np.isfinite(float(row["best_baseline_previous_action"])):
+            row["shield_action_delta_to_best_baseline"] = float(
+                float(row["sage_previous_action"]) - float(row["best_baseline_previous_action"])
+            )
+        else:
+            row["shield_action_delta_to_best_baseline"] = float("nan")
+        action_label_id, action_label, action_label_reason, action_label_valid = unified_action_label(
+            hard_gap_percent_value=float(row["hard_gap_percent"]),
+            hard_baseline_score=float(row["hard_baseline_score"]),
+            risk_gap_pct=float(risk_gap_pct),
+            baseline_score_floor=float(baseline_score_floor),
+            sage_previous_action=float(row["sage_previous_action"]),
+            best_baseline_previous_action=float(row["best_baseline_previous_action"]),
+            action_margin=float(action_margin),
+        )
+        row["shield_action_label_id"] = int(action_label_id)
+        row["shield_action_label"] = str(action_label)
+        row["shield_label_valid"] = 1 if bool(action_label_valid) else 0
+        row["shield_label_reason"] = str(action_label_reason)
         rows.append(row)
 
         if terminated or truncated:
@@ -508,6 +558,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a Sage shield-learning dataset from clean/adversarial replays.")
     parser.add_argument("--repo-root", type=str, default=repo_root_from_script(__file__))
     parser.add_argument("--generated-manifest", required=True)
+    parser.add_argument("--pipeline-mode", choices=["one_stage", "two_stage"], default="one_stage")
     parser.add_argument(
         "--clean-manifest",
         default="attacks/train/manifest.json",
@@ -530,22 +581,25 @@ def main() -> None:
     )
     parser.add_argument("--clean-only-rollout", action="store_true")
     parser.add_argument("--feature-history-len", type=int, default=4)
+    parser.add_argument("--risk-gap-pct", type=float, default=20.0)
+    parser.add_argument("--baseline-score-floor", type=float, default=0.3)
+    parser.add_argument("--action-margin", type=float, default=0.15)
     parser.add_argument(
         "--threshold-percentiles",
         type=str,
         default="10,25,90,95",
-        help="Comma-separated clean-feature percentiles to export after dataset generation.",
+        help="Comma-separated clean-feature percentiles to export for the legacy two-stage pipeline.",
     )
     parser.add_argument(
         "--threshold-out",
         type=str,
         default=None,
-        help="Optional explicit output path for clean-feature thresholds. Defaults to <out-dir>/clean_feature_thresholds.csv.",
+        help="Optional explicit output path for legacy clean-feature thresholds. Defaults to <out-dir>/clean_feature_thresholds.csv.",
     )
     parser.add_argument(
         "--skip-thresholds",
         action="store_true",
-        help="Skip clean-feature threshold generation after writing the shield dataset.",
+        help="Skip legacy clean-feature threshold generation after writing the shield dataset.",
     )
     args = parser.parse_args()
 
@@ -651,6 +705,14 @@ def main() -> None:
         "smoothed_gap_percent",
         "best_baseline_method",
         "best_baseline_previous_action",
+        "shield_risk_label",
+        "shield_backoff_label",
+        "shield_push_label",
+        "shield_action_label_id",
+        "shield_action_label",
+        "shield_action_delta_to_best_baseline",
+        "shield_label_valid",
+        "shield_label_reason",
         "has_env_error",
         "env_bootstrap_placeholder",
         "env_nonfinite_sage_values",
@@ -676,8 +738,14 @@ def main() -> None:
         "runtime_dir_resolved": resolved_runtime_dir,
         "trace_set_name": trace_set_name,
         "baseline_methods": list(baseline_methods),
+        "pipeline_mode": str(args.pipeline_mode),
         "feature_history_len": int(args.feature_history_len),
         "feature_columns": list(FEATURE_COLUMNS),
+        "labeling": {
+            "risk_gap_pct": float(args.risk_gap_pct),
+            "baseline_score_floor": float(args.baseline_score_floor),
+            "action_margin": float(args.action_margin),
+        },
         "csv_path": os.path.relpath(csv_path, repo_root),
         "num_clean_episodes": len(clean_schedules),
         "num_adv_episodes": len(adv_schedules),
@@ -719,6 +787,9 @@ def main() -> None:
                         action_schedule=action_schedule,
                         baseline_methods=baseline_methods,
                         history_len=int(args.feature_history_len),
+                        risk_gap_pct=float(args.risk_gap_pct),
+                        baseline_score_floor=float(args.baseline_score_floor),
+                        action_margin=float(args.action_margin),
                     )
                     for row in rows:
                         writer.writerow(row)

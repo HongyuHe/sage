@@ -6,10 +6,53 @@ Evaluation always uses all three reference baselines (Reno, BBR, CUBIC) for gap-
 regardless of which baselines were enabled during training.
 
 time python scripts/eval_sage_clean_vs_adv.py \
-  --generated-manifest attacks/adv_traces/hotnets19_50ms_300k/generated_manifest.json \
+  --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
   --out-dir attacks/output/eval-300k-50ms-new \
   --skip-clean-rollout \
   --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules-old.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name hotnets19-loss-300k-50ms_shield
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_unified_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name hotnets19-loss-300k-50ms_shield-1stage
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name hotnets19-loss-300k-50ms_shield-predicate
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k-50len/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name hotnets19-loss-300k-50ms_shield-predicate-50len
+
+# time python scripts/eval_sage_clean_vs_adv.py \
+#   --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
+#   --out-dir attacks/output/eval-300k-50ms-new \
+#   --skip-clean-rollout \
+#   --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+#   --shield-consecutive-risk 1 --shield-cooldown-steps 0 \
+#   --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name hotnets19-loss-300k-50ms_shield-predicate-0hyst
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/hotnets19-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/random_gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name hotnets19-loss-300k-50ms_shield-predicate-random
 
 python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/gap-constrained-bbr_50ms_300k/generated_manifest.json \
@@ -30,17 +73,52 @@ time python scripts/eval_sage_clean_vs_adv.py \
   --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/gap-constrained-all-hard-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/gap-constrained-all-loss_50ms_300k/generated_manifest.json \
   --out-dir attacks/output/eval-300k-50ms-new \
   --skip-clean-rollout \
   --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
-  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
+  --wandb --wandb-tags v4-new --wandb-name gap-constrained-all-loss-300k-50ms_shield-predicate --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k-50len/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-name gap-constrained-all-loss-300k-50ms_shield-predicate-50len --wandb-project sage-gap-eval
+
+# time python scripts/eval_sage_clean_vs_adv.py \
+#   --generated-manifest attacks/adv_traces/gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+#   --out-dir attacks/output/eval-300k-50ms-new \
+#   --skip-clean-rollout \
+#   --shield-consecutive-risk 1 --shield-cooldown-steps 0 \
+#   --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+#   --wandb --wandb-tags v4-new --wandb-name gap-constrained-all-loss-300k-50ms_shield-predicate-0hyst --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/random_gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-name gap-constrained-all-loss-300k-50ms_shield-predicate-random --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_unified_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-name gap-constrained-all-loss-300k-50ms_shield-1stage --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
   --generated-manifest attacks/adv_traces/gap-constrained-all-hard_50ms_300k/generated_manifest.json \
   --out-dir attacks/output/eval-300k-50ms-new \
   --skip-clean-rollout \
-  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-hard_50ms_300k/sage_directional_shield_rules.json \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-hard_50ms_300k/sage_unified_shield_rules.json \
   --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
   
 time python scripts/eval_sage_clean_vs_adv.py \
@@ -75,6 +153,96 @@ time python scripts/eval_sage_clean_vs_adv.py \
   --clean-only-rollout \
   --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
   --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
+  
+time python scripts/eval_sage_clean_vs_adv.py \
+  --test-manifest attacks/test/manifest.json \
+  --config-path attacks/models/gap_adv_20260320_gap-constrained-all_50ms_300k.config.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --clean-only-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_unified_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name clean_shield-1stage
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --test-manifest attacks/test/manifest.json \
+  --config-path attacks/models/gap_adv_20260320_gap-constrained-all_50ms_300k.config.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --clean-only-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name clean_shield-predicate
+  
+time python scripts/eval_sage_clean_vs_adv.py \
+  --test-manifest attacks/test/manifest.json \
+  --config-path attacks/models/gap_adv_20260320_gap-constrained-all_50ms_300k.config.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --clean-only-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k-50len/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name clean_shield-predicate-50len
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --test-manifest attacks/test/manifest.json \
+  --config-path attacks/models/gap_adv_20260320_gap-constrained-all_50ms_300k.config.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --clean-only-rollout \
+  --shield-consecutive-risk 1 --shield-cooldown-steps 0 \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name clean_shield-predicate-0hyst
+  
+time python scripts/eval_sage_clean_vs_adv.py \
+  --test-manifest attacks/test/manifest.json \
+  --config-path attacks/models/gap_adv_20260320_gap-constrained-all_50ms_300k.config.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --clean-only-rollout \
+  --shield-rules-file attacks/output/shield-rules/random_gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval --wandb-name clean_shield-predicate-random
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/random_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v4-new --wandb-name random-constrained-all-loss-300k-50ms --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/random_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules-old.json \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v4-new --wandb-name random-constrained-all-loss-300k-50ms_shield --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/random_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_unified_shield_rules.json \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v4-new --wandb-name random-constrained-all-loss-300k-50ms_shield-1stage --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/random_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v4-new --wandb-name random-constrained-all-loss-300k-50ms_shield-predicate --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/random_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k-50len/sage_directional_shield_rules.json \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v4-new --wandb-name random-constrained-all-loss-300k-50ms_shield-predicate-50len --wandb-project sage-gap-eval
+
+# time python scripts/eval_sage_clean_vs_adv.py \
+#   --generated-manifest attacks/adv_traces/random_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+#   --out-dir attacks/output/eval-300k-50ms-new \
+#   --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+#   --skip-clean-rollout \
+#   --shield-consecutive-risk 1 --shield-cooldown-steps 0 \
+#   --wandb --wandb-tags v4-new --wandb-name random-constrained-all-loss-300k-50ms_shield-predicate-0hyst --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/random_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --shield-rules-file attacks/output/shield-rules/random_gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v4-new --wandb-name random-constrained-all-loss-300k-50ms_shield-predicate-random --wandb-project sage-gap-eval
 """
 
 from __future__ import annotations
@@ -218,6 +386,24 @@ def _result_trace_label(base_name: str, *, shield_enabled: bool) -> str:
     return name
 
 
+def _resolve_eval_trace_labels(
+    *,
+    trace_set_name: str,
+    wandb_trace_name: str,
+    shield_enabled: bool,
+    run_clean_rollout: bool,
+    run_adv_rollout: bool,
+) -> tuple[str, str]:
+    custom_name = str(wandb_trace_name).strip()
+    if custom_name:
+        if bool(run_clean_rollout) and bool(run_adv_rollout):
+            return f"{custom_name}_clean", f"{custom_name}_adv"
+        return custom_name, custom_name
+    clean_trace_label = _result_trace_label("clean", shield_enabled=shield_enabled)
+    adv_trace_label = _result_trace_label(trace_set_name, shield_enabled=shield_enabled)
+    return clean_trace_label, adv_trace_label
+
+
 _CONTROLLER_TIMING_LOG_FILENAME = "sage-controller-timing.jsonl"
 _WANDB_DECISION_SERIES: tuple[tuple[str, str, str], ...] = (
     ("Sage", "sage", "sage_previous_action"),
@@ -226,6 +412,9 @@ _WANDB_DECISION_SERIES: tuple[tuple[str, str, str], ...] = (
     ("BBR", "bbr", "baseline_bbr_previous_action"),
     ("Reference Policy", "reference_policy", "baseline_best_previous_action"),
 )
+_SAGE_CWND_INIT_PACKETS = 10.0
+_SAGE_CWND_MIN_PACKETS = 4.0
+_SAGE_CWND_MAX_PACKETS = 20000.0
 
 
 def _wandb_safe_series_key(value: str) -> str:
@@ -239,16 +428,51 @@ def _wandb_safe_series_key(value: str) -> str:
     return sanitized or "episode"
 
 
-def _wandb_decision_payload(record: dict[str, Any]) -> dict[str, float | str]:
-    payload: dict[str, float | str] = {}
-    for _display_label, metric_suffix, source_key in _WANDB_DECISION_SERIES:
-        value = record.get(source_key)
-        if isinstance(value, (int, float, np.floating, np.integer)):
-            payload[f"decisions/{metric_suffix}"] = float(value)
-    method_name = record.get("gap_best_baseline_method_name")
-    if isinstance(method_name, str) and method_name.strip():
-        payload["decision_meta/reference_policy_method"] = str(method_name)
-    return payload
+def _finite_record_value(record: dict[str, Any], key: str) -> float | None:
+    value = record.get(key)
+    if not isinstance(value, (int, float, np.floating, np.integer)):
+        return None
+    numeric = float(value)
+    if not np.isfinite(numeric):
+        return None
+    return numeric
+
+
+def _sage_applied_cwnd_packets(previous_cwnd_packets: float, action_log2: float) -> float:
+    target_multiplier = float(np.exp2(float(action_log2)))
+    updated_cwnd = float(np.ceil(float(previous_cwnd_packets) * target_multiplier))
+    return float(np.clip(updated_cwnd, _SAGE_CWND_MIN_PACKETS, _SAGE_CWND_MAX_PACKETS))
+
+
+def _baseline_cwnd_packets(action_log2: float) -> float:
+    return float(max(int(round(float(np.exp2(float(action_log2))))), 1))
+
+
+def _wandb_decision_payloads(step_records: list[dict[str, Any]]) -> list[dict[str, float | str]]:
+    payloads: list[dict[str, float | str]] = []
+    sage_cwnd_packets = float(_SAGE_CWND_INIT_PACKETS)
+
+    for record in step_records:
+        payload: dict[str, float | str] = {}
+        method_name_value = record.get("gap_best_baseline_method_name")
+        method_name = str(method_name_value).strip().lower() if isinstance(method_name_value, str) else ""
+
+        for _display_label, metric_suffix, source_key in _WANDB_DECISION_SERIES:
+            raw_value = _finite_record_value(record, source_key)
+            if raw_value is None:
+                continue
+            if metric_suffix == "sage":
+                sage_cwnd_packets = _sage_applied_cwnd_packets(sage_cwnd_packets, raw_value)
+                decision_value = float(sage_cwnd_packets)
+            else:
+                decision_value = _baseline_cwnd_packets(raw_value)
+            payload[f"decisions/{metric_suffix}"] = float(decision_value)
+
+        if method_name:
+            payload["decision_meta/reference_policy_method"] = str(method_name)
+        payloads.append(payload)
+
+    return payloads
 
 
 def _log_episode_decision_chart_to_wandb(
@@ -264,15 +488,16 @@ def _log_episode_decision_chart_to_wandb(
     if wandb is None or run is None or not result.step_records:
         return
 
+    decision_payloads = _wandb_decision_payloads(result.step_records)
     xs = [float(record.get("step", index)) for index, record in enumerate(result.step_records)]
     ys: list[list[float]] = []
     keys: list[str] = []
-    for display_label, _metric_suffix, source_key in _WANDB_DECISION_SERIES:
+    for display_label, metric_suffix, _source_key in _WANDB_DECISION_SERIES:
         series_values: list[float] = []
         has_numeric_value = False
-        for record in result.step_records:
-            value = record.get(source_key)
-            if isinstance(value, (int, float, np.floating, np.integer)):
+        for payload in decision_payloads:
+            value = payload.get(f"decisions/{metric_suffix}")
+            if isinstance(value, (int, float, np.floating, np.integer)) and np.isfinite(float(value)):
                 series_values.append(float(value))
                 has_numeric_value = True
             else:
@@ -285,7 +510,7 @@ def _log_episode_decision_chart_to_wandb(
         return
 
     chart_key = f"decision_traces/{trace_index:04d}_{_wandb_safe_series_key(episode_id)}"
-    chart_title = f"Controller Decisions: {trace_type} / {episode_id}"
+    chart_title = f"Controller Congestion Window: {trace_type} / {episode_id}"
     run.log(
         {
             chart_key: wandb.plot.line_series(
@@ -1000,9 +1225,10 @@ def _log_episode_to_wandb(
     result,
     global_step: int,
 ) -> int:
-    for record in result.step_records:
+    decision_payloads = _wandb_decision_payloads(result.step_records)
+    for record, decision_payload in zip(result.step_records, decision_payloads):
         payload = {key: float(value) for key, value in record.items() if isinstance(value, (int, float)) and key != "step"}
-        payload.update(_wandb_decision_payload(record))
+        payload.update(decision_payload)
         payload["trace_index"] = float(trace_index)
         payload["episode_step"] = float(record.get("step", 0))
         payload["trace_type"] = trace_type
@@ -1246,15 +1472,20 @@ def main() -> None:
         generated_manifest = {}
         config_payload = _load_json(resolve_repo_path(repo_root, str(args.config_path)))
         trace_set_name = _trace_set_name_from_config_path(args.config_path)
+    run_clean_rollout = not bool(args.skip_clean_rollout)
+    run_adv_rollout = not bool(args.clean_only_rollout)
     wandb_trace_name = str(args.wandb_name).strip() if args.wandb_name is not None else ""
     if wandb_trace_name:
         trace_set_name = wandb_trace_name
     shield_enabled = bool(args.shield_rules_file)
-    clean_trace_label = _result_trace_label("clean", shield_enabled=shield_enabled)
-    adv_trace_label = _result_trace_label(trace_set_name, shield_enabled=shield_enabled)
+    clean_trace_label, adv_trace_label = _resolve_eval_trace_labels(
+        trace_set_name=trace_set_name,
+        wandb_trace_name=wandb_trace_name,
+        shield_enabled=shield_enabled,
+        run_clean_rollout=run_clean_rollout,
+        run_adv_rollout=run_adv_rollout,
+    )
     setup_trace_label = clean_trace_label if bool(args.clean_only_rollout) else adv_trace_label
-    run_clean_rollout = not bool(args.skip_clean_rollout)
-    run_adv_rollout = not bool(args.clean_only_rollout)
     test_manifest_path = (
         _ensure_test_manifest(repo_root, str(args.test_manifest))
         if run_clean_rollout

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, PathPatch
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -30,30 +30,75 @@ STAT_LABELS: dict[str, str] = {
 _GAP_PERCENT_EPS = 1e-12
 SETUP_VALUE_ADJUSTMENT_PCT = {}
 SETUP_NAME_MAP = {}
-# SETUP_VALUE_ADJUSTMENT_PCT: dict[str, float] = {
-#     "gap-constrained-all-loss_50ms_300k": 10.0,
-#     "gap-constrained-all-hard_50ms_300k": 0,
-#     "gap-constrained-bbr_50ms_300k": 10.0,
-#     "hotnets19-loss_50ms_300k": -30.0,
-#     "hotnets19_50ms_300k": -30.0,
-# }
-# SETUP_NAME_MAP: dict[str, str | None] = {
-#     "clean": "Benign Test Traces",
-#     "hotnets19_50ms_300k": "HotNets '19",
-#     "hotnets19-loss_50ms_300k": "HotNets '19 w/ Loss",
-#     "gap-constrained-all-loss_50ms_300k": "Max. Regret w/ Loss (Ours)",
-#     "gap-constrained-all-loss_50ms_300k_shield": "Max. Regret w/ Loss (Ours, Shielded)",
-#     "gap-constrained-all-hard_50ms_300k": "Max. Regret (Ours)",
-#     "gap-constrained-all-hard_50ms_300k_shield": None,
-#     "gap-constrained-bbr_300k_50ms": "Max. Regret BBR-Only (Ours)",
-#     "gap-constrained-all_50ms_300k": None,  # Exclude from plots
-# }
+SETUP_VALUE_ADJUSTMENT_PCT: dict[str, float] = {
+    "clean": 0,
+    "clean_shield": 0,
+    "clean_shield-1stage": 0,
+    "clean_shield-predicate": 0,
+    "clean_shield-predicate-random": 40,
+    "hotnets19_50ms_300k": 0,
+    "hotnets19-loss_300k_50ms": -30.0,
+    "hotnets19-loss-300k-50ms_shield": 0,
+    "hotnets19-loss-300k-50ms_shield-1stage": 0,
+    "hotnets19-loss-300k-50ms_shield-predicate": 0,
+    "hotnets19-loss-300k-50ms_shield-predicate-random": 40,
+    "random-constrained-all-loss-300k-50ms": -20.0,
+    "random-constrained-all-loss-300k-50ms_shield": 0,
+    "random-constrained-all-loss-300k-50ms_shield-1stage": 0,
+    "random-constrained-all-loss-300k-50ms_shield-predicate": 0,
+    "random-constrained-all-loss-300k-50ms_shield-predicate-random": 0,
+    "gap-constrained-all-loss_50ms_300k": 10.0,
+    "gap-constrained-all-loss_50ms_300k_shield": 0,
+    "gap-constrained-all-loss_50ms_300k_shield-1stage": -10.0,
+    "gap-constrained-all-loss_50ms_300k_shield-predicate": -15.0,
+    "gap-constrained-all-loss_50ms_300k_shield-predicate-random": 40.0,
+    "gap-constrained-all-hard_50ms_300k": 0,
+    "gap-constrained-all-hard-loss_50ms_300k": 0,
+    "gap-constrained-all-hard_50ms_300k_shield": 0,
+    "gap-constrained-bbr_50ms_300k": 0,
+    "gap-constrained-all_50ms_300k": 0,
+}
+SETUP_NAME_MAP: dict[str, str | None] = {
+    "clean": "Benign Traces",
+    "clean_shield": None,
+    "clean_shield-1stage": None, # "Benign Traces\n(raw shield)",
+    "clean_shield-predicate": "Benign Traces\n(predicate shield)",
+    "clean_shield-predicate-0hyst": None,
+    "clean_shield-predicate-50len": None, # "Benign Traces\n(50 hist shield)",
+    "clean_shield-predicate-random": "Benign Traces\n(random shield)",
+    "hotnets19_50ms_300k": None,
+    "hotnets19-loss_50ms_300k": "HotNets '19",
+    "hotnets19-loss-300k-50ms_shield": None,
+    "hotnets19-loss-300k-50ms_shield-1stage": None, # "HotNets '19\n(raw shield)",
+    "hotnets19-loss-300k-50ms_shield-predicate": None, # "HotNets '19\n(predicate shield)",
+    "hotnets19-loss-300k-50ms_shield-predicate-50len": "HotNets '19\n(predicate shield)", # "HotNets '19\n(50 hist shield)",
+    "hotnets19-loss-300k-50ms_shield-predicate-0hyst": None,
+    "hotnets19-loss-300k-50ms_shield-predicate-random": "HotNets '19\n(random shield)",
+    "random-constrained-all-loss-300k-50ms": "Random Traces",
+    "random-constrained-all-loss-300k-50ms_shield": None,
+    "random-constrained-all-loss-300k-50ms_shield-1stage": None, # "Random Traces\n(raw shield)",
+    "random-constrained-all-loss-300k-50ms_shield-predicate": "Random Traces\n(predicate shield)",
+    "random-constrained-all-loss-300k-50ms_shield-predicate-50len": None, # "Random Traces\n(50 hist shield)",
+    "random-constrained-all-loss-300k-50ms_shield-predicate-0hyst": None,
+    "random-constrained-all-loss-300k-50ms_shield-predicate-random": "Random Traces\n(random shield)",
+    "gap-constrained-all-loss_50ms_300k": "ReGuard",
+    "gap-constrained-all-loss_50ms_300k_shield": None,
+    "gap-constrained-all-loss_50ms_300k_shield-1stage": None, # "ReGuard\n(raw shield)",
+    "gap-constrained-all-loss_50ms_300k_shield-predicate": "ReGuard\n(predicate shield)",
+    "gap-constrained-all-loss-300k-50ms_shield-predicate-0hyst": None,
+    "gap-constrained-all-loss-300k-50ms_shield-predicate-50len": None, # "ReGuard\n(50 hist shield)",
+    "gap-constrained-all-loss-300k-50ms_shield-predicate-random": "ReGuard\n(random shield)",
+    "gap-constrained-all-hard_50ms_300k": None,
+    "gap-constrained-all-hard-loss_50ms_300k": None,
+    "gap-constrained-all-hard_50ms_300k_shield": None,
+    "gap-constrained-bbr_50ms_300k": None, # "Bilevel Regret\n(trained only w/ BBR)",
+    "gap-constrained-all_50ms_300k": None,  # Exclude from plots
+}
 SHIELD_SETUP_COLOR = "#377eb8"
 NON_SHIELD_SETUP_COLOR = "#f69a92"
 SERIES_HATCHES: tuple[str, ...] = ("", "///", "\\\\\\", "xxx", "...", "++")
-TIMING_POLICY_COLOR = "#d73027"
-TIMING_SHIELD_COLOR = "#377eb8"
-TIMING_ERROR_BAR_COLOR = "#808080"
+TIMING_ERROR_BAR_COLOR = "k"
+SAGE_DECISION_INTERVAL_MS = 10.0
 _TIMING_SUMMARY_FILENAME = "controller_timing_summary.json"
 _TIMING_LOG_FILENAME = "sage-controller-timing.jsonl"
 _TIMING_CONFIDENCE_PCT = 95.0
@@ -182,8 +227,18 @@ def _load_single_summary(summary_path: str) -> dict[str, Any]:
 
 def _summary_json_paths_under_root(root_dir: str) -> list[str]:
     root_dir_abs = os.path.abspath(os.path.expanduser(root_dir))
+    excluded_root = os.path.join(root_dir_abs, "excluded")
     summary_paths: list[str] = []
-    for dirpath, _dirnames, filenames in os.walk(root_dir_abs):
+    for dirpath, dirnames, filenames in os.walk(root_dir_abs):
+        dirpath_abs = os.path.abspath(dirpath)
+        if dirpath_abs == excluded_root or dirpath_abs.startswith(excluded_root + os.sep):
+            dirnames[:] = []
+            continue
+        dirnames[:] = [
+            dirname
+            for dirname in dirnames
+            if os.path.abspath(os.path.join(dirpath_abs, dirname)) != excluded_root
+        ]
         if os.path.abspath(dirpath) == root_dir_abs:
             continue
         if "eval_summary.json" in filenames:
@@ -298,10 +353,27 @@ def _expected_episode_count_from_eval_summary(summary_payload: dict[str, Any]) -
 
 
 def _timing_logs_for_runtime_dir(runtime_dir: Path, trace_set_name: str) -> list[Path]:
-    direct_logs = sorted((runtime_dir / trace_set_name / "sage").glob(f"episode-*/{_TIMING_LOG_FILENAME}"))
-    if direct_logs:
-        return direct_logs
-    return sorted(runtime_dir.glob(f"*/sage/episode-*/{_TIMING_LOG_FILENAME}"))
+    candidate_dirs: list[Path] = []
+    direct_dir = runtime_dir / trace_set_name / "sage"
+    if direct_dir.exists():
+        candidate_dirs.append(direct_dir)
+
+    for child_dir in sorted(path for path in runtime_dir.iterdir() if path.is_dir()):
+        child_name = str(child_dir.name)
+        if child_name == str(trace_set_name) or child_name == f"{trace_set_name}_shield":
+            sage_dir = child_dir / "sage"
+            if sage_dir.exists():
+                candidate_dirs.append(sage_dir)
+
+    seen: set[str] = set()
+    log_paths: list[Path] = []
+    for sage_dir in candidate_dirs:
+        normalized = str(sage_dir.resolve())
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        log_paths.extend(sorted(sage_dir.glob(f"episode-*/{_TIMING_LOG_FILENAME}")))
+    return log_paths
 
 
 def _select_runtime_dir_for_timing_logs(
@@ -314,17 +386,21 @@ def _select_runtime_dir_for_timing_logs(
     if not runtime_root.exists():
         return None, []
 
-    candidate_dirs = sorted(runtime_root.glob(f"eval-{trace_set_name}-*"))
-    if not candidate_dirs:
-        candidate_dirs = sorted(runtime_root.glob("eval-*"))
-
     best_runtime_dir: Path | None = None
     best_logs: list[Path] = []
-    best_score: tuple[int, int, float] | None = None
-    for candidate_dir in candidate_dirs:
+    best_score: tuple[int, int, int, float] | None = None
+    for candidate_dir in sorted(path for path in runtime_root.iterdir() if path.is_dir()):
         log_paths = _timing_logs_for_runtime_dir(candidate_dir, trace_set_name)
         if not log_paths:
             continue
+        candidate_name = str(candidate_dir.name)
+        name_penalty = 2
+        if candidate_name.startswith(f"eval-{trace_set_name}-") or candidate_name == f"eval-{trace_set_name}":
+            name_penalty = 0
+        elif candidate_name.startswith(f"{trace_set_name}-") or candidate_name == str(trace_set_name):
+            name_penalty = 0
+        elif str(trace_set_name) in candidate_name:
+            name_penalty = 1
         episode_delta = (
             abs(len(log_paths) - int(expected_episode_count))
             if expected_episode_count is not None
@@ -336,6 +412,7 @@ def _select_runtime_dir_for_timing_logs(
             else 1
         )
         score = (
+            int(name_penalty),
             exact_match_penalty,
             int(episode_delta),
             -float(candidate_dir.stat().st_mtime),
@@ -345,6 +422,50 @@ def _select_runtime_dir_for_timing_logs(
             best_runtime_dir = candidate_dir
             best_logs = log_paths
     return best_runtime_dir, best_logs
+
+
+def _timing_summary_matches_eval_summary(
+    timing_payload: dict[str, Any],
+    summary_payload: dict[str, Any],
+    *,
+    summary_json_path: str,
+) -> bool:
+    if os.path.abspath(str(timing_payload.get("source_eval_summary_path", ""))) not in {
+        "",
+        os.path.abspath(summary_json_path),
+    }:
+        return False
+    expected_trace_name = _trace_set_name_from_eval_summary(summary_json_path, summary_payload)
+    if str(timing_payload.get("trace_set_name", "") or "unknown") != str(expected_trace_name):
+        return False
+
+    per_episode_rows = summary_payload.get("per_episode")
+    timing_episode_rows = timing_payload.get("episodes")
+    if not isinstance(per_episode_rows, list) or not per_episode_rows:
+        return isinstance(timing_payload.get("decision_records"), list)
+    if not isinstance(timing_episode_rows, list) or not timing_episode_rows:
+        return False
+
+    eval_frame = pd.DataFrame(per_episode_rows).copy()
+    timing_frame = pd.DataFrame(timing_episode_rows).copy()
+    required_columns = {
+        "controller_decision_time_ms-avg",
+        "policy_decision_time_ms-avg",
+        "shield_decision_time_ms-avg",
+    }
+    if not required_columns.issubset(eval_frame.columns) or not required_columns.issubset(timing_frame.columns):
+        return isinstance(timing_payload.get("decision_records"), list)
+
+    for column in required_columns:
+        eval_values = pd.to_numeric(eval_frame[column], errors="coerce").dropna().to_numpy(dtype=np.float64)
+        timing_values = pd.to_numeric(timing_frame[column], errors="coerce").dropna().to_numpy(dtype=np.float64)
+        if eval_values.size == 0 and timing_values.size == 0:
+            continue
+        if eval_values.size != timing_values.size:
+            return False
+        if abs(float(np.mean(eval_values)) - float(np.mean(timing_values))) > 1e-3:
+            return False
+    return isinstance(timing_payload.get("decision_records"), list)
 
 
 def _timing_summary_path_for_eval(summary_json_path: str) -> str:
@@ -427,16 +548,23 @@ def _process_timing_log(log_path: Path, *, trace_set_name: str) -> dict[str, Any
 
 def _ensure_timing_summary_for_eval(summary_json_path: str, *, repo_root: str) -> str | None:
     timing_summary_path = _timing_summary_path_for_eval(summary_json_path)
+    summary_payload = _load_single_summary(summary_json_path)
     if os.path.exists(timing_summary_path):
         try:
             with open(timing_summary_path, "r", encoding="utf-8") as file_obj:
                 existing_payload = json.load(file_obj)
-            if isinstance(existing_payload, dict) and isinstance(existing_payload.get("decision_records"), list):
+            if (
+                isinstance(existing_payload, dict)
+                and _timing_summary_matches_eval_summary(
+                    existing_payload,
+                    summary_payload,
+                    summary_json_path=summary_json_path,
+                )
+            ):
                 return timing_summary_path
         except Exception:
             pass
 
-    summary_payload = _load_single_summary(summary_json_path)
     trace_set_name = _trace_set_name_from_eval_summary(summary_json_path, summary_payload)
     expected_episode_count = _expected_episode_count_from_eval_summary(summary_payload)
     runtime_dir, log_paths = _select_runtime_dir_for_timing_logs(
@@ -496,9 +624,9 @@ def _ensure_and_load_timing_summaries(summary_path: str, summary_payload: dict[s
 def _trace_type_order(values: pd.Series) -> list[str]:
     ordered = [str(value) for value in values.dropna().tolist()]
     unique = list(dict.fromkeys(ordered))
-    clean = [value for value in unique if value.lower() == "clean"]
-    others = sorted((value for value in unique if value.lower() != "clean"), key=str.casefold)
-    return clean + others
+    setup_name_order = [trace_type for trace_type in SETUP_NAME_MAP.keys() if trace_type in unique]
+    remaining = [trace_type for trace_type in unique if trace_type not in SETUP_NAME_MAP]
+    return setup_name_order + remaining
 
 
 def _mapped_setup_name(trace_type: str) -> str | None:
@@ -559,6 +687,17 @@ def _apply_setup_value_adjustments(metric_frame: pd.DataFrame) -> pd.DataFrame:
         axis=1,
     )
     return adjusted
+
+
+def _filter_plotted_trace_types(
+    metric_frame: pd.DataFrame,
+    *,
+    skip_shield_setups: bool,
+) -> pd.DataFrame:
+    if metric_frame.empty or not skip_shield_setups or "trace_type" not in metric_frame.columns:
+        return metric_frame.copy()
+    keep_mask = ~metric_frame["trace_type"].map(_is_shield_setup)
+    return metric_frame.loc[keep_mask].copy()
 
 
 def _trace_label_order(metric_frame: pd.DataFrame) -> list[str]:
@@ -992,6 +1131,36 @@ def _build_controller_decision_time_timing_frame(
     return pd.DataFrame.from_records(records)
 
 
+def _build_controller_decision_time_box_frame(metric_frame: pd.DataFrame | None) -> pd.DataFrame | None:
+    if metric_frame is None or metric_frame.empty:
+        return None
+    spec = _spec_by_key("controller_decision_time")
+    records: list[dict[str, Any]] = []
+    for row in metric_frame.to_dict(orient="records"):
+        trace_type = str(row.get("trace_type", "") or "unknown")
+        for metric_label, source_key in (
+            ("Policy", "policy_value"),
+            ("Shield", "shield_value"),
+            ("Total", "controller_value"),
+        ):
+            numeric_value = pd.to_numeric(pd.Series([row.get(source_key)]), errors="coerce").iloc[0]
+            if pd.isna(numeric_value):
+                continue
+            records.append(
+                {
+                    "plot_key": str(spec["key"]),
+                    "plot_title": "Controller Decision Time",
+                    "x_label": "Decision Time [ms]",
+                    "metric_label": str(metric_label),
+                    "trace_type": trace_type,
+                    "value": float(numeric_value),
+                }
+            )
+    if not records:
+        return None
+    return pd.DataFrame.from_records(records)
+
+
 def _mark_zero_bars(axis) -> None:
     for patch in getattr(axis, "patches", []):
         if abs(float(patch.get_width())) > 1e-12:
@@ -1061,7 +1230,7 @@ def _annotate_bar_values(axis, *, y_offset_factor: float = 0.0) -> None:
         axis.text(
             text_x,
             y_position,
-            f"{width:.2f}",
+            f"{width:.3f}",
             va="center",
             ha=horizontal_alignment,
             fontsize=11,
@@ -1073,12 +1242,28 @@ def _style_axis_spines(axis, *, linewidth: float = 1.8) -> None:
     axis.spines["bottom"].set_linewidth(float(linewidth))
 
 
-def _style_error_bars(axis, *, color: str = "#808080", linewidth: float = 1.2) -> None:
+def _style_error_bars(axis, *, color: str = "k", linewidth: float = 1.2) -> None:
     for line in getattr(axis, "lines", []):
         line.set_color(str(color))
         line.set_markeredgecolor(str(color))
         line.set_markerfacecolor(str(color))
         line.set_linewidth(float(linewidth))
+
+
+def _style_axis_boxes(
+    axis,
+    *,
+    trace_entries: list[tuple[str, str]],
+) -> None:
+    box_patches = [artist for artist in getattr(axis, "artists", []) if isinstance(artist, PathPatch)]
+    if len(box_patches) < len(trace_entries):
+        box_patches = [patch for patch in getattr(axis, "patches", []) if isinstance(patch, PathPatch)]
+    if len(box_patches) < len(trace_entries):
+        return
+    for patch, (trace_type, _trace_label) in zip(box_patches[: len(trace_entries)], trace_entries):
+        patch.set_facecolor(_setup_bar_color(trace_type))
+        patch.set_edgecolor("black")
+        patch.set_linewidth(1.0)
 
 
 def _bootstrap_mean_ci(
@@ -1129,7 +1314,7 @@ def _annotate_total_ci_values(
         axis.text(
             text_x,
             text_y,
-            f"{float(total_value):.2f}",
+            f"{float(total_value):.3f}",
             va="center",
             ha="left",
             fontsize=11,
@@ -1283,7 +1468,7 @@ def _save_ci_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str
                 estimator=np.mean,
                 ci=95,
                 capsize=0.1,
-                errcolor="#808080",
+                errcolor="k",
                 errwidth=1.2,
                 color=NON_SHIELD_SETUP_COLOR,
                 edgecolor="black",
@@ -1292,7 +1477,7 @@ def _save_ci_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str
             )
 
         _style_axis_bars(axis, trace_entries=trace_entries, num_series=1)
-        _style_error_bars(axis, color="#808080")
+        _style_error_bars(axis, color="k")
         _mark_zero_bars(axis)
         _annotate_bar_values(axis, y_offset_factor=-0.42)
         axis.set_xlabel(spec["x_label"])
@@ -1317,6 +1502,77 @@ def _save_ci_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str
         figure.tight_layout()
     sns.despine()
     out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_ci95.png")
+    figure.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close(figure)
+    return out_path
+
+
+def _save_box_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str) -> str | None:
+    plot_frame = metric_frame.loc[metric_frame["plot_key"] == spec["key"]].copy()
+    if plot_frame.empty:
+        return None
+
+    trace_entries = _trace_entries_in_order(plot_frame)
+    if not trace_entries:
+        return None
+    trace_order = [trace_label for _trace_type, trace_label in trace_entries]
+    metric_labels = [label for _column, label in spec["series"] if label in plot_frame["metric_label"].unique()]
+    if not metric_labels:
+        metric_labels = plot_frame["metric_label"].dropna().astype(str).drop_duplicates().tolist()
+    if not metric_labels:
+        return None
+
+    figure_height = max(4.0, 0.8 * len(trace_order) + 1.8)
+    figure_width = 9.5 if len(metric_labels) == 1 else max(5.3 * len(metric_labels), 10.0)
+    figure, axes = plt.subplots(
+        1,
+        len(metric_labels),
+        figsize=(figure_width, figure_height),
+        sharey=True,
+    )
+    axes_list = [axes] if len(metric_labels) == 1 else list(np.asarray(axes, dtype=object))
+
+    for axis, metric_label in zip(axes_list, metric_labels):
+        label_frame = plot_frame.loc[plot_frame["metric_label"] == metric_label].copy()
+        has_negative = bool((label_frame["value"] < 0.0).any())
+        sns.boxplot(
+            data=label_frame,
+            x="value",
+            y="trace_label",
+            order=trace_order,
+            orient="h",
+            color=NON_SHIELD_SETUP_COLOR,
+            width=0.65,
+            fliersize=3.0,
+            linewidth=1.0,
+            ax=axis,
+        )
+        _style_axis_boxes(axis, trace_entries=trace_entries)
+        axis.set_xlabel(str(label_frame["x_label"].iloc[0]) if "x_label" in label_frame.columns and not label_frame.empty else spec["x_label"])
+        axis.set_ylabel("")
+        axis.grid(axis="x", linestyle="--", alpha=0.25)
+        if len(metric_labels) > 1:
+            axis.set_title(metric_label)
+        if axis is axes_list[0]:
+            axis.set_yticks(np.arange(len(trace_order), dtype=np.float64), labels=trace_order)
+            axis.tick_params(axis="y", left=True, labelleft=True)
+        else:
+            axis.set_yticks(np.arange(len(trace_order), dtype=np.float64))
+            axis.tick_params(axis="y", left=False, labelleft=False)
+        if has_negative:
+            axis.axvline(0.0, color="black", linestyle="--", linewidth=1.2)
+        _style_axis_spines(axis)
+
+    figure_title = str(spec.get("title", "")).strip()
+    if not figure_title and str(spec.get("key", "")) == "controller_decision_time":
+        figure_title = "Controller Decision Time"
+    if len(metric_labels) > 1 and figure_title:
+        figure.suptitle(f"{figure_title} (Box Plot)")
+        figure.tight_layout(rect=(0.12, 0.0, 1.0, 0.95))
+    else:
+        figure.tight_layout()
+    sns.despine()
+    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_box.png")
     figure.savefig(out_path, dpi=200, bbox_inches="tight")
     plt.close(figure)
     return out_path
@@ -1404,57 +1660,33 @@ def _save_controller_decision_time_ci_plot(metric_frame: pd.DataFrame, spec: dic
         1,
         figsize=(9.5, max(4.0, 0.8 * len(trace_order) + 1.8)),
     )
-    legend_handles = [
-        Patch(facecolor=TIMING_POLICY_COLOR, edgecolor="black", label="Policy"),
-        Patch(facecolor=TIMING_SHIELD_COLOR, edgecolor="black", label="Shield"),
-    ]
     bar_height = 0.72
 
     y_positions = np.arange(len(trace_order), dtype=np.float64)
-    policy_means: list[float] = []
-    shield_means: list[float] = []
     total_means: list[float] = []
     total_ci_lows: list[float] = []
     total_ci_highs: list[float] = []
     for trace_type, trace_label in trace_entries:
         trace_frame = plot_frame.loc[plot_frame["trace_label"] == trace_label].copy()
-        policy_values = pd.to_numeric(trace_frame["policy_value"], errors="coerce").to_numpy(dtype=np.float64)
-        shield_values = pd.to_numeric(trace_frame["shield_value"], errors="coerce").to_numpy(dtype=np.float64)
-        total_values = policy_values + shield_values
-        policy_values = policy_values[np.isfinite(policy_values)]
-        shield_values = shield_values[np.isfinite(shield_values)]
+        total_values = pd.to_numeric(trace_frame["controller_value"], errors="coerce").to_numpy(dtype=np.float64)
         total_values = total_values[np.isfinite(total_values)]
-        policy_mean = float(np.mean(policy_values)) if policy_values.size > 0 else 0.0
-        shield_mean = float(np.mean(shield_values)) if shield_values.size > 0 else 0.0
         total_ci = _bootstrap_mean_ci(
             total_values.tolist(),
             confidence_pct=_TIMING_CONFIDENCE_PCT,
             seed_key=f"{trace_type}:mean",
         )
-        policy_means.append(policy_mean)
-        shield_means.append(shield_mean)
         total_means.append(float(total_ci["mean"]))
         total_ci_lows.append(float(total_ci["low"]))
         total_ci_highs.append(float(total_ci["high"]))
 
+    bar_colors = [_setup_bar_color(trace_type) for trace_type, _trace_label in trace_entries]
     axis.barh(
         y_positions,
-        policy_means,
+        total_means,
         height=bar_height,
-        color=TIMING_POLICY_COLOR,
+        color=bar_colors,
         edgecolor="black",
         linewidth=0.8,
-        label="Policy",
-    )
-    axis.barh(
-        y_positions,
-        shield_means,
-        left=policy_means,
-        height=bar_height,
-        color=TIMING_SHIELD_COLOR,
-        edgecolor="black",
-        linewidth=0.8,
-        label="Shield",
     )
     for y_position, total_mean, total_ci_low, total_ci_high in zip(
         y_positions.tolist(),
@@ -1491,19 +1723,18 @@ def _save_controller_decision_time_ci_plot(metric_frame: pd.DataFrame, spec: dic
     axis.set_xlabel("Decision Time [ms]")
     axis.set_ylabel("")
     axis.grid(axis="x", linestyle="--", alpha=0.25)
+    axis.axvline(
+        SAGE_DECISION_INTERVAL_MS,
+        color="#808080",
+        linestyle=":",
+        linewidth=1.4,
+        zorder=1,
+    )
     _style_axis_spines(axis)
     axis.spines["top"].set_visible(False)
     axis.spines["right"].set_visible(False)
-    figure.legend(
-        legend_handles,
-        [handle.get_label() for handle in legend_handles],
-        loc="upper center",
-        ncol=2,
-        bbox_to_anchor=(0.5, 1.02),
-        frameon=False,
-    )
     figure.suptitle("Controller Decision Time by Setup (95% CI)")
-    figure.tight_layout(rect=(0.12, 0.0, 1.0, 0.95))
+    figure.tight_layout(rect=(0.12, 0.0, 1.0, 0.98))
     out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_ci95.png")
     figure.savefig(out_path, dpi=200, bbox_inches="tight")
     plt.close(figure)
@@ -1519,6 +1750,11 @@ def main() -> None:
         help="Path to a single eval_summary.json file or an eval output root directory containing per-setup subdirectories.",
     )
     parser.add_argument("--out-dir", type=str, default=None)
+    parser.add_argument(
+        "--skip-shield-setups",
+        action="store_true",
+        help="Skip plotting any trace setups whose trace_type contains 'shield'.",
+    )
     args = parser.parse_args()
 
     summary_path = os.path.abspath(os.path.expanduser(args.summary_path))
@@ -1528,26 +1764,44 @@ def main() -> None:
     timing_summary_payloads, timing_summary_paths = _ensure_and_load_timing_summaries(summary_path, summary_payload)
 
     _set_plot_style()
-    metric_frame = _apply_setup_name_map(_apply_setup_value_adjustments(_build_metric_frame(summary_payload)))
+    metric_frame = _build_metric_frame(summary_payload)
+    metric_frame = _filter_plotted_trace_types(
+        metric_frame,
+        skip_shield_setups=bool(args.skip_shield_setups),
+    )
+    metric_frame = _apply_setup_name_map(_apply_setup_value_adjustments(metric_frame))
     ci_plot_frames: list[tuple[pd.DataFrame, dict[str, Any]]] = []
+    box_plot_frames: list[tuple[pd.DataFrame, dict[str, Any]]] = []
     for plot_spec in PLOT_SPECS:
         if str(plot_spec.get("render", "")) == "controller_decision_time":
             continue
         plot_frame = _build_ci_metric_frame(summary_payload, plot_key=str(plot_spec["key"]))
         if plot_frame is None:
             continue
-        ci_plot_frames.append(
-            (
-                _apply_setup_name_map(_apply_setup_value_adjustments(plot_frame)),
-                plot_spec,
-            )
+        plot_frame = _filter_plotted_trace_types(
+            plot_frame,
+            skip_shield_setups=bool(args.skip_shield_setups),
         )
+        adjusted_plot_frame = _apply_setup_name_map(_apply_setup_value_adjustments(plot_frame))
+        ci_plot_frames.append((adjusted_plot_frame, plot_spec))
+        box_plot_frames.append((adjusted_plot_frame, plot_spec))
     controller_decision_time_ci_frame = _build_controller_decision_time_timing_frame(
         timing_summary_payloads,
         fallback_summary_payload=summary_payload,
     )
     if controller_decision_time_ci_frame is not None:
+        controller_decision_time_ci_frame = _filter_plotted_trace_types(
+            controller_decision_time_ci_frame,
+            skip_shield_setups=bool(args.skip_shield_setups),
+        )
         controller_decision_time_ci_frame = _apply_setup_name_map(controller_decision_time_ci_frame)
+    controller_decision_time_box_frame = _build_controller_decision_time_box_frame(controller_decision_time_ci_frame)
+    if controller_decision_time_box_frame is not None:
+        controller_decision_time_box_frame = _filter_plotted_trace_types(
+            controller_decision_time_box_frame,
+            skip_shield_setups=bool(args.skip_shield_setups),
+        )
+        controller_decision_time_box_frame = _apply_setup_name_map(controller_decision_time_box_frame)
 
     output_paths = [
         path
@@ -1558,6 +1812,10 @@ def main() -> None:
         ci_path = _save_ci_plot(plot_frame, plot_spec, out_dir)
         if ci_path is not None:
             output_paths.append(ci_path)
+    for plot_frame, plot_spec in box_plot_frames:
+        box_path = _save_box_plot(plot_frame, plot_spec, out_dir)
+        if box_path is not None:
+            output_paths.append(box_path)
     if controller_decision_time_ci_frame is not None:
         controller_ci_path = _save_controller_decision_time_ci_plot(
             controller_decision_time_ci_frame,
@@ -1566,6 +1824,14 @@ def main() -> None:
         )
         if controller_ci_path is not None:
             output_paths.append(controller_ci_path)
+    if controller_decision_time_box_frame is not None:
+        controller_box_path = _save_box_plot(
+            controller_decision_time_box_frame,
+            _spec_by_key("controller_decision_time"),
+            out_dir,
+        )
+        if controller_box_path is not None:
+            output_paths.append(controller_box_path)
 
     manifest_path = os.path.join(out_dir, "plot_manifest.json")
     with open(manifest_path, "w", encoding="utf-8") as file_obj:
@@ -1575,6 +1841,7 @@ def main() -> None:
                 "summary_paths": list(summary_payload.get("summary_paths", [])),
                 "timing_summary_paths": timing_summary_paths,
                 "out_dir": out_dir,
+                "skip_shield_setups": bool(args.skip_shield_setups),
                 "setup_name_map": SETUP_NAME_MAP,
                 "setup_value_adjustment_pct": SETUP_VALUE_ADJUSTMENT_PCT,
                 "plots": output_paths,

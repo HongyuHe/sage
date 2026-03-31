@@ -45,9 +45,9 @@ time python scripts/generate_online_adv_traces.py \
   --wandb
 
 time python scripts/generate_online_adv_traces.py \
-  --model-path attacks/models/gap_adv_20260322_gap-constrained-all-hard_50ms_300k.zip \
+  --model-path attacks/models/gap_adv_20260322_gap-constrained-all-hard-loss_50ms_300k.zip \
   --test-manifest attacks/test/manifest.json \
-  --out-dir attacks/adv_traces/gap-constrained-all-hard_50ms_300k \
+  --out-dir attacks/adv_traces/gap-constrained-all-hard-loss_50ms_300k \
   --wandb
 
 Older two-baseline artifacts still replay with cubic,bbr if the saved config predates
