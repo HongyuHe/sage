@@ -1,0 +1,2766 @@
+{
+  "decision_records": [
+    {
+      "controller_decision_time_ms": 8.81837005726993,
+      "decision_index": 0,
+      "episode_id": "episode-00001",
+      "first_action": 1,
+      "policy_decision_time_ms": 8.815719047561288,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.988139029592276,
+      "decision_index": 1,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.985929001122713,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 9.310571942478418,
+      "decision_index": 2,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 9.308513021096587,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 9.262183913961053,
+      "decision_index": 3,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 9.25955199636519,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 9.636446135118604,
+      "decision_index": 4,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 9.634093148633838,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 8.486913051456213,
+      "decision_index": 5,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 8.484303951263428,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.532181192189455,
+      "decision_index": 6,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.530016100034118,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.770680097863078,
+      "decision_index": 7,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.768359009176493,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.1053048595786095,
+      "decision_index": 8,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.103628013283014,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 8.732310961931944,
+      "decision_index": 9,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 8.73070489615202,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.622966146096587,
+      "decision_index": 10,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.621533073484898,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.318417213857174,
+      "decision_index": 11,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.3164230193942785,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.844064125791192,
+      "decision_index": 12,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.841177025809884,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.276032093912363,
+      "decision_index": 13,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.274141043424606,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.752569133415818,
+      "decision_index": 14,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.749843152239919,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.322759039700031,
+      "decision_index": 15,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.320747150108218,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.409104982391,
+      "decision_index": 16,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.407052114605904,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.8841539323329926,
+      "decision_index": 17,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.881877779960632,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.609211813658476,
+      "decision_index": 18,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.607468843460083,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.726572893559933,
+      "decision_index": 19,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.724400816485286,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.427021067589521,
+      "decision_index": 20,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.425207084044814,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 8.32424801774323,
+      "decision_index": 21,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 8.3224109839648,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.877426825463772,
+      "decision_index": 22,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.875749979168177,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.405256990343332,
+      "decision_index": 23,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.403382005169988,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.03675695694983,
+      "decision_index": 24,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.035205839201808,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.680083995684981,
+      "decision_index": 25,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.677516106516123,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.684893975034356,
+      "decision_index": 26,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.682435050606728,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 9.304009145125747,
+      "decision_index": 27,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 9.302088059484959,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.061565898358822,
+      "decision_index": 28,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.059634102508426,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.07192499935627,
+      "decision_index": 29,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.070336861535907,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.280582932755351,
+      "decision_index": 30,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.2783729042857885,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.528020974248648,
+      "decision_index": 31,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.5256479643285275,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.127695018425584,
+      "decision_index": 32,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.125010015442967,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.309141870588064,
+      "decision_index": 33,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.306350929662585,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.719607066363096,
+      "decision_index": 34,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.717773990705609,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.537367029115558,
+      "decision_index": 35,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.5355940237641335,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.68475092202425,
+      "decision_index": 36,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.683021921664476,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.129236029461026,
+      "decision_index": 37,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.127717973664403,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.956151824444532,
+      "decision_index": 38,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.95457393117249,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.654073018580675,
+      "decision_index": 39,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.652587093412876,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.426660878583789,
+      "decision_index": 40,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.424897884950042,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.331759901717305,
+      "decision_index": 41,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.330144988372922,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.945407949388027,
+      "decision_index": 42,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.943888030946255,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.081411080434918,
+      "decision_index": 43,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.079934002831578,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.31495881639421,
+      "decision_index": 44,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.312722943723202,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.806050099432468,
+      "decision_index": 45,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.803612129762769,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.391310969367623,
+      "decision_index": 46,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.389318870380521,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.587389994412661,
+      "decision_index": 47,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.58548404276371,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.71822707913816,
+      "decision_index": 48,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.716554889455438,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.707905929535627,
+      "decision_index": 49,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.706100095063448,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.062929121777415,
+      "decision_index": 50,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.06076100282371,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.36360714957118,
+      "decision_index": 51,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.361391067504883,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.443160025402904,
+      "decision_index": 52,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.44159796461463,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.62798192165792,
+      "decision_index": 53,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.626290872693062,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.569092998281121,
+      "decision_index": 54,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.567328142002225,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.32167311757803,
+      "decision_index": 55,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.319202085956931,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.204239929094911,
+      "decision_index": 56,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.202644107863307,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.894257057458162,
+      "decision_index": 57,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.891516175121069,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.824244184419513,
+      "decision_index": 58,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.8225619830191135,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.616701044142246,
+      "decision_index": 59,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.614327102899551,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.708351101726294,
+      "decision_index": 60,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.706223029643297,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.1581228617578745,
+      "decision_index": 61,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.156689789146185,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.781800020486116,
+      "decision_index": 62,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.779433995485306,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.768786020576954,
+      "decision_index": 63,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.766599042341113,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.347297828644514,
+      "decision_index": 64,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.345559980720282,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.990499000996351,
+      "decision_index": 65,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.988835193216801,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.869116866961122,
+      "decision_index": 66,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.866719875484705,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.569061962887645,
+      "decision_index": 67,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.567057058215141,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.8975099343806505,
+      "decision_index": 68,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.895040998235345,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.849033895879984,
+      "decision_index": 69,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.847018979489803,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.883954931050539,
+      "decision_index": 70,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.881839897483587,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.978382028639317,
+      "decision_index": 71,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.976134980097413,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.865237977355719,
+      "decision_index": 72,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.863281035795808,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.867250099778175,
+      "decision_index": 73,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.8657741863280535,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.986863117665052,
+      "decision_index": 74,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.985145991668105,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.326559068635106,
+      "decision_index": 75,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.323692923411727,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.57636290229857,
+      "decision_index": 76,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.573917016386986,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.53542685136199,
+      "decision_index": 77,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.533646861091256,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.105601157993078,
+      "decision_index": 78,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.102853057906032,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.38566499017179,
+      "decision_index": 79,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.3830810356885195,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.493324086070061,
+      "decision_index": 80,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.490720108151436,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.7421620693057775,
+      "decision_index": 81,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.740059142932296,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.812437109649181,
+      "decision_index": 82,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.810582147911191,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.556840984150767,
+      "decision_index": 83,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.554235842078924,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.671611124649644,
+      "decision_index": 84,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.670014139264822,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.526569999754429,
+      "decision_index": 85,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.524898974224925,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.623673088848591,
+      "decision_index": 86,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.622111959382892,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.793144926428795,
+      "decision_index": 87,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.79103478230536,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.059868795797229,
+      "decision_index": 88,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.057540955021977,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.204331897199154,
+      "decision_index": 89,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.202267853543162,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.140635883435607,
+      "decision_index": 90,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.138950888067484,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.108359830453992,
+      "decision_index": 91,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.106848061084747,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.474301986396313,
+      "decision_index": 92,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.472176941111684,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.875455982983112,
+      "decision_index": 93,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.870031960308552,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.0663340371102095,
+      "decision_index": 94,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.064388969913125,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.82570193707943,
+      "decision_index": 95,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.824131960049272,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.695289069786668,
+      "decision_index": 96,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.693374969065189,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.727269057184458,
+      "decision_index": 97,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.724700935184956,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.634761950001121,
+      "decision_index": 98,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.632859956473112,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.864773014560342,
+      "decision_index": 99,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.862361121922731,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.892454948276281,
+      "decision_index": 100,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.889851901680231,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.309827858582139,
+      "decision_index": 101,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.307501880452037,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.348637932911515,
+      "decision_index": 102,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.345829064026475,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.432451842352748,
+      "decision_index": 103,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.430466961115599,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.177916027605534,
+      "decision_index": 104,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.175058031454682,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.59374294243753,
+      "decision_index": 105,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.591248860582709,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.8219709899276495,
+      "decision_index": 106,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.819463171064854,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.0930308643728495,
+      "decision_index": 107,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.090696970000863,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.717373987659812,
+      "decision_index": 108,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.714786075055599,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.254704970866442,
+      "decision_index": 109,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.25293406099081,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.633596098050475,
+      "decision_index": 110,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.63122914172709,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.564847124740481,
+      "decision_index": 111,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.563150953501463,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.275515140965581,
+      "decision_index": 112,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.2731879986822605,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.639337003231049,
+      "decision_index": 113,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.637378199025989,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.694443825632334,
+      "decision_index": 114,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.692729959264398,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.859798053279519,
+      "decision_index": 115,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.857828073203564,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 8.810864062979817,
+      "decision_index": 116,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 8.808783954009414,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.569297984242439,
+      "decision_index": 117,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.567829055711627,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.15895220451057,
+      "decision_index": 118,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.1572921220213175,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.641308914870024,
+      "decision_index": 119,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.638551967218518,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.155171034857631,
+      "decision_index": 120,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.153032019734383,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.741355009377003,
+      "decision_index": 121,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.738029954954982,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.267415031790733,
+      "decision_index": 122,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.265761002898216,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.764563171193004,
+      "decision_index": 123,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.763012984767556,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.141101079061627,
+      "decision_index": 124,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.138714099302888,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.277699023485184,
+      "decision_index": 125,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.274658953770995,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.658283898606896,
+      "decision_index": 126,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.65588690713048,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.690692061558366,
+      "decision_index": 127,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.688487155362964,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.507229197770357,
+      "decision_index": 128,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.505514167249203,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.399131052196026,
+      "decision_index": 129,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.397254902869463,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.1272640489041805,
+      "decision_index": 130,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.124716183170676,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.357655093073845,
+      "decision_index": 131,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.35595403239131,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.424012990668416,
+      "decision_index": 132,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.422405062243342,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.818517180159688,
+      "decision_index": 133,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.816970020532608,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.692881066352129,
+      "decision_index": 134,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.6906589306890965,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.836686188355088,
+      "decision_index": 135,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.8342200461775064,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.974672105163336,
+      "decision_index": 136,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.973014118149877,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.636557074263692,
+      "decision_index": 137,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.634773125872016,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.241342820227146,
+      "decision_index": 138,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.239357007667422,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.282681969925761,
+      "decision_index": 139,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.281074041500688,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.369140835478902,
+      "decision_index": 140,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.367174813523889,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.557132048532367,
+      "decision_index": 141,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.555130869150162,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.729345139116049,
+      "decision_index": 142,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.726572126150131,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.176035920158029,
+      "decision_index": 143,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.173624958842993,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.323077853769064,
+      "decision_index": 144,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.321347922086716,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.545456962659955,
+      "decision_index": 145,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.543722840026021,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.290606128051877,
+      "decision_index": 146,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.28826198913157,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 13.208742020651698,
+      "decision_index": 147,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 13.204782037064433,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 9.106703102588654,
+      "decision_index": 148,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 9.104473982006311,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.256476044654846,
+      "decision_index": 149,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.252618040889502,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 8.628330891951919,
+      "decision_index": 150,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 8.624559035524726,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 8.539722068235278,
+      "decision_index": 151,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 8.536795154213905,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.973170140758157,
+      "decision_index": 152,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.971327984705567,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.694133996963501,
+      "decision_index": 153,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.692533053457737,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.668992970138788,
+      "decision_index": 154,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.667256984859705,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.426412982866168,
+      "decision_index": 155,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.42472193390131,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.588021922856569,
+      "decision_index": 156,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.585363928228617,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.327939124777913,
+      "decision_index": 157,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.326388938352466,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.258579108864069,
+      "decision_index": 158,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.257078981027007,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.561711801216006,
+      "decision_index": 159,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.559851950034499,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.794586079195142,
+      "decision_index": 160,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.792742991819978,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.73924889229238,
+      "decision_index": 161,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.7375059220939875,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.267319036647677,
+      "decision_index": 162,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.264644045382738,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.49791706725955,
+      "decision_index": 163,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.495202029123902,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.577648127451539,
+      "decision_index": 164,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.575232043862343,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.327114835381508,
+      "decision_index": 165,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.324244033545256,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.722678102552891,
+      "decision_index": 166,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.720988217741251,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.455432994291186,
+      "decision_index": 167,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.45336289703846,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.373154999688268,
+      "decision_index": 168,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.371219012886286,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.410303991287947,
+      "decision_index": 169,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.408570799976587,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.063387099653482,
+      "decision_index": 170,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.061844130977988,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.4236499816179276,
+      "decision_index": 171,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.421320976689458,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.722390091046691,
+      "decision_index": 172,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.720783093944192,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.524369956925511,
+      "decision_index": 173,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.522236995398998,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.080350838601589,
+      "decision_index": 174,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.078517995774746,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.301716970279813,
+      "decision_index": 175,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.300047807395458,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.005536997690797,
+      "decision_index": 176,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.004109978675842,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.4677671287208796,
+      "decision_index": 177,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.4661009926348925,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.273597151041031,
+      "decision_index": 178,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.271778976544738,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.329528987407684,
+      "decision_index": 179,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.327243987470865,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.377653986215591,
+      "decision_index": 180,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.375351058319211,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.57704602740705,
+      "decision_index": 181,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.5751959551125765,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.225319949910045,
+      "decision_index": 182,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.223597003147006,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.491724073886871,
+      "decision_index": 183,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.48983209207654,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.3240441009402275,
+      "decision_index": 184,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.321248037740588,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.3261731043457985,
+      "decision_index": 185,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.3118169996887445,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.5986191146075726,
+      "decision_index": 186,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.596196977421641,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.684863146394491,
+      "decision_index": 187,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.682392114773393,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.029180018231273,
+      "decision_index": 188,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.027575116604567,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.505472024902701,
+      "decision_index": 189,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.503749078139663,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.353428026661277,
+      "decision_index": 190,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.35120495967567,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.844447994604707,
+      "decision_index": 191,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.842827958986163,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.568313015624881,
+      "decision_index": 192,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.5661721378564835,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.797184003517032,
+      "decision_index": 193,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.795483874157071,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.402542883530259,
+      "decision_index": 194,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.399774992838502,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.267964977771044,
+      "decision_index": 195,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.266252974048257,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.189418163150549,
+      "decision_index": 196,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.187889164313674,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.4014849700033665,
+      "decision_index": 197,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.3999371118843555,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.374942975118756,
+      "decision_index": 198,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.371782997623086,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.982965998351574,
+      "decision_index": 199,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.98084188438952,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.4875758942216635,
+      "decision_index": 200,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.485382862389088,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.2781340200454,
+      "decision_index": 201,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.275909090414643,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.082349129021168,
+      "decision_index": 202,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.080723039805889,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.513187101110816,
+      "decision_index": 203,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.511452047154307,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.824585048481822,
+      "decision_index": 204,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.822851857170463,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.393002018332481,
+      "decision_index": 205,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.3790629133582115,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.071404855698347,
+      "decision_index": 206,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.0691720098257065,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.315582199022174,
+      "decision_index": 207,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.31338800303638,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.792967811226845,
+      "decision_index": 208,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.790402948856354,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.129651002585888,
+      "decision_index": 209,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.127641906961799,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.632682867348194,
+      "decision_index": 210,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.630284944549203,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.535148084163666,
+      "decision_index": 211,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.53356995806098,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.087654106318951,
+      "decision_index": 212,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.085987970232964,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.452987108379602,
+      "decision_index": 213,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.451279994100332,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.656443070620298,
+      "decision_index": 214,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.654378095641732,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.8905001021921635,
+      "decision_index": 215,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.888046998530626,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.671571077778935,
+      "decision_index": 216,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.66976803727448,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.982620943337679,
+      "decision_index": 217,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.9803429283201694,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.295230843126774,
+      "decision_index": 218,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.292958881705999,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.67736879363656,
+      "decision_index": 219,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.674281924962997,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.543089075013995,
+      "decision_index": 220,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.541269037872553,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.820507951080799,
+      "decision_index": 221,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.817903973162174,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.461791832000017,
+      "decision_index": 222,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.459921969100833,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.885286023840308,
+      "decision_index": 223,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.882730940356851,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.566806066781282,
+      "decision_index": 224,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.564741091802716,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.283888963982463,
+      "decision_index": 225,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.282060079276562,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.750808933749795,
+      "decision_index": 226,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.748643841594458,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.795736167579889,
+      "decision_index": 227,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.793705185875297,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.757432034239173,
+      "decision_index": 228,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.755744012072682,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.3897549621760845,
+      "decision_index": 229,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.3873239774256945,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.481414195150137,
+      "decision_index": 230,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.479451199993491,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.7795812133699656,
+      "decision_index": 231,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.776791203767061,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.566187901422381,
+      "decision_index": 232,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.5639969650655985,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.720480112358928,
+      "decision_index": 233,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.717059131711721,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.9638571217656136,
+      "decision_index": 234,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.961908096447587,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 8.09301994740963,
+      "decision_index": 235,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 8.089937968179584,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 9.900752920657396,
+      "decision_index": 236,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 9.89666604436934,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 7.705698953941464,
+      "decision_index": 237,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 7.702623028308153,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 6.022266810759902,
+      "decision_index": 238,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 6.01942790672183,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.203995922580361,
+      "decision_index": 239,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.2020948603749275,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.818490007892251,
+      "decision_index": 240,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.816633183509111,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.895218880847096,
+      "decision_index": 241,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.893461940810084,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.334127927199006,
+      "decision_index": 242,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.331811960786581,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.802592797204852,
+      "decision_index": 243,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.800761817023158,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.684258019551635,
+      "decision_index": 244,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.682433092966676,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.880618071183562,
+      "decision_index": 245,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.878908162936568,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.876499995589256,
+      "decision_index": 246,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.874700913205743,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.8708629328757524,
+      "decision_index": 247,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.868997959420085,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.87488298676908,
+      "decision_index": 248,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.872760036960244,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.322378896176815,
+      "decision_index": 249,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.320060834288597,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.646099172532558,
+      "decision_index": 250,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.6440111473202705,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.128466058522463,
+      "decision_index": 251,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.126342875882983,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.724700935184956,
+      "decision_index": 252,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.722828045487404,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.6640990767627954,
+      "decision_index": 253,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.662337945774198,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.1667509358376265,
+      "decision_index": 254,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.164836835116148,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.947060951963067,
+      "decision_index": 255,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.944578977301717,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.771122010424733,
+      "decision_index": 256,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.768704064190388,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.541482008993626,
+      "decision_index": 257,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.538154859095812,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.43278020247817,
+      "decision_index": 258,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.430492175742984,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.04828111641109,
+      "decision_index": 259,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.04600310139358,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.1842310931533575,
+      "decision_index": 260,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.182625958696008,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.313835805281997,
+      "decision_index": 261,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.311931017786264,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.550602916628122,
+      "decision_index": 262,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.548509070649743,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 3.949248930439353,
+      "decision_index": 263,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 3.9472568314522505,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.5617960169911385,
+      "decision_index": 264,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.548838060349226,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.397061118856072,
+      "decision_index": 265,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.394458072260022,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.374234937131405,
+      "decision_index": 266,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.3720819521695375,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.213985055685043,
+      "decision_index": 267,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.211920080706477,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.463352961465716,
+      "decision_index": 268,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.46175504475832,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 5.246231099590659,
+      "decision_index": 269,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 5.24427997879684,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.867170006036758,
+      "decision_index": 270,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.86425100825727,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.248320125043392,
+      "decision_index": 271,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.2467310559004545,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.26860898733139,
+      "decision_index": 272,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.266593139618635,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    },
+    {
+      "controller_decision_time_ms": 4.2481988202780485,
+      "decision_index": 273,
+      "episode_id": "episode-00001",
+      "first_action": 0,
+      "policy_decision_time_ms": 4.245782038196921,
+      "shield_decision_time_ms": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    }
+  ],
+  "episodes": [
+    {
+      "controller_decision_count": 274,
+      "controller_decision_time_ms-avg": 5.38675665233393,
+      "controller_decision_time_ms-p50": 4.976527066901326,
+      "controller_decision_time_ms-p95": 8.173949772026383,
+      "episode_id": "episode-00001",
+      "log_path": "/users/hy/sage/attacks/runtime/eval-gap-constrained-all-loss_50ms_300k-20260326-013553-p1284135-s0002/gap-constrained-all-loss_50ms_300k/sage/episode-00001/sage-controller-timing.jsonl",
+      "policy_decision_time_ms-avg": 5.384505964326163,
+      "policy_decision_time_ms-p50": 4.974574549123645,
+      "policy_decision_time_ms-p95": 8.171303523704402,
+      "shield_decision_time_ms-avg": 0.0,
+      "shield_decision_time_ms-p50": 0.0,
+      "shield_decision_time_ms-p95": 0.0,
+      "shield_enabled": 0,
+      "trace_type": "gap-constrained-all-loss_50ms_300k"
+    }
+  ],
+  "runtime_dir": "/users/hy/sage/attacks/runtime/eval-gap-constrained-all-loss_50ms_300k-20260326-013553-p1284135-s0002",
+  "source_eval_summary_path": "/users/hy/sage/attacks/output/eval-300k-50ms-new/gap-constrained-all-loss_50ms_300k/eval_summary.json",
+  "timing_log_count": 1,
+  "trace_set_name": "gap-constrained-all-loss_50ms_300k"
+}

@@ -1,0 +1,36 @@
+{
+  "decision_records": [
+    {
+      "controller_decision_time_ms": 6.860462017357349,
+      "decision_index": 0,
+      "episode_id": "episode-00001",
+      "first_action": 1,
+      "policy_decision_time_ms": 4.584816982969642,
+      "shield_decision_time_ms": 2.27241194806993,
+      "shield_enabled": 1,
+      "trace_type": "gap-constrained-all-loss-300k-50ms_shield-predicate-50len"
+    }
+  ],
+  "episodes": [
+    {
+      "controller_decision_count": 1,
+      "controller_decision_time_ms-avg": 6.860462017357349,
+      "controller_decision_time_ms-p50": 6.860462017357349,
+      "controller_decision_time_ms-p95": 6.860462017357349,
+      "episode_id": "episode-00001",
+      "log_path": "/users/hy/sage/attacks/runtime/gap-constrained-all-loss-300k-50ms_shield-predic-20260326-222848-p2368011-s0000/gap-constrained-all-loss-300k-50ms_shield-predicate-50len/sage/episode-00001/sage-controller-timing.jsonl",
+      "policy_decision_time_ms-avg": 4.584816982969642,
+      "policy_decision_time_ms-p50": 4.584816982969642,
+      "policy_decision_time_ms-p95": 4.584816982969642,
+      "shield_decision_time_ms-avg": 2.27241194806993,
+      "shield_decision_time_ms-p50": 2.27241194806993,
+      "shield_decision_time_ms-p95": 2.27241194806993,
+      "shield_enabled": 1,
+      "trace_type": "gap-constrained-all-loss-300k-50ms_shield-predicate-50len"
+    }
+  ],
+  "runtime_dir": "/users/hy/sage/attacks/runtime/gap-constrained-all-loss-300k-50ms_shield-predic-20260326-222848-p2368011-s0000",
+  "source_eval_summary_path": "/users/hy/sage/attacks/output/eval-300k-50ms-new/gap-constrained-all-loss-300k-50ms_shield-predicate-50len/eval_summary.json",
+  "timing_log_count": 1,
+  "trace_set_name": "gap-constrained-all-loss-300k-50ms_shield-predicate-50len"
+}
