@@ -33,7 +33,7 @@ attacks/output/
 # attacks/train/
 # attacks/test/
 attacks/trace_split_manifest.json
-attacks/adv_traces/
+attacks/adv_traces/archive/
 ccBench/mahimahi/src/frontend/mm-adv-net
 
 # Generic crash/temp files
