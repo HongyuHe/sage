@@ -8,9 +8,15 @@ time python scripts/train_sage_shield_dt.py \
 
 time python scripts/train_sage_shield_dt.py \
   --pipeline-mode two_stage --risk-feature-mode predicate \
-  --dataset attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k-2stage/sage_shield_dataset.csv \
-  --thresholds attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k-2stage/clean_feature_thresholds.csv \
-  --out-dir attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k
+  --dataset attacks/shield/shield-dataset/synthetic-deficiency-part3/sage_shield_dataset.csv \
+  --thresholds attacks/shield/shield-dataset/synthetic-deficiency-part3/clean_feature_thresholds.csv \
+  --out-dir attacks/shield/shield-rules/synthetic-deficiency-part3
+
+time python scripts/train_sage_shield_dt.py \
+  --pipeline-mode two_stage --risk-feature-mode predicate \
+  --dataset attacks/shield/shield-dataset/gap-constrained-all-loss_50ms_300k/sage_shield_dataset.csv \
+  --thresholds attacks/shield/shield-dataset/gap-constrained-all-loss_50ms_300k/clean_feature_thresholds.csv \
+  --out-dir attacks/shield/shield-rules/gap-constrained-all-loss_50ms_300k-support
 
 time python scripts/train_sage_shield_dt.py \
   --pipeline-mode two_stage --risk-feature-mode predicate \
@@ -163,6 +169,67 @@ def _build_raw_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
     if not out_data:
         raise RuntimeError("no raw feature columns were found in the dataset")
     return pd.DataFrame(out_data)
+
+
+def _rule_atom_match_mask(values: np.ndarray, *, op: str, threshold: float) -> np.ndarray:
+    finite = np.isfinite(values)
+    if str(op) == "gt":
+        return finite & (values > float(threshold))
+    if str(op) == "ge":
+        return finite & (values >= float(threshold))
+    if str(op) == "lt":
+        return finite & (values < float(threshold))
+    if str(op) == "le":
+        return finite & (values <= float(threshold))
+    if str(op) == "eq":
+        return finite & (np.abs(values - float(threshold)) <= 1e-9)
+    if str(op) == "ne":
+        return finite & (np.abs(values - float(threshold)) > 1e-9)
+    raise RuntimeError(f"unsupported rule operator for support computation: {op}")
+
+
+def _annotate_rule_support(rules: list[dict[str, Any]], *, support_df: pd.DataFrame) -> list[dict[str, Any]]:
+    total_rows = int(support_df.shape[0])
+    if total_rows <= 0:
+        return [
+            {
+                **dict(rule),
+                "support": 0.0,
+                "support_frac": 0.0,
+            }
+            for rule in rules
+        ]
+    value_cache: dict[str, np.ndarray] = {}
+    annotated_rules: list[dict[str, Any]] = []
+    for rule in rules:
+        atoms = [dict(atom) for atom in rule.get("atoms", [])]
+        if not atoms:
+            support_count = total_rows
+        else:
+            mask = np.ones(total_rows, dtype=bool)
+            for atom in atoms:
+                feature_name = str(atom.get("feature", ""))
+                if feature_name not in support_df.columns:
+                    mask &= False
+                    break
+                if feature_name not in value_cache:
+                    value_cache[feature_name] = pd.to_numeric(
+                        support_df[feature_name],
+                        errors="coerce",
+                    ).to_numpy(dtype=np.float64, copy=False)
+                mask &= _rule_atom_match_mask(
+                    value_cache[feature_name],
+                    op=str(atom.get("op", "")),
+                    threshold=float(atom.get("value", 0.0)),
+                )
+                if not np.any(mask):
+                    break
+            support_count = int(np.sum(mask))
+        annotated_rule = dict(rule)
+        annotated_rule["support"] = float(support_count)
+        annotated_rule["support_frac"] = float(support_count / total_rows)
+        annotated_rules.append(annotated_rule)
+    return annotated_rules
 
 
 def _positive_rules_for_constant_label(*, num_rows: int, positive_active: bool) -> list[dict[str, Any]]:
@@ -666,12 +733,34 @@ def _format_rule_atom(atom: dict[str, Any]) -> str:
     return f"{feature_name} {comparator} {value_text}"
 
 
-def _human_rule_text(label: str, rules: list[dict[str, Any]]) -> str:
+def _format_rule_support(rule: dict[str, Any], *, total_rows: int | None) -> str:
+    support_value = rule.get("support")
+    support_frac = rule.get("support_frac")
+    if not isinstance(support_value, (int, float, np.integer, np.floating)):
+        return ""
+    support_count = int(round(float(support_value)))
+    if isinstance(support_frac, (int, float, np.integer, np.floating)):
+        support_ratio = float(support_frac)
+    elif total_rows is not None and int(total_rows) > 0:
+        support_ratio = float(support_count / int(total_rows))
+    else:
+        support_ratio = None
+    if total_rows is not None and int(total_rows) >= 0:
+        if support_ratio is None:
+            return f" [support={support_count}/{int(total_rows)}]"
+        return f" [support={support_count}/{int(total_rows)} ({support_ratio:.2%})]"
+    if support_ratio is None:
+        return f" [support={support_count}]"
+    return f" [support={support_count} ({support_ratio:.2%})]"
+
+
+def _human_rule_text(label: str, rules: list[dict[str, Any]], *, total_rows: int | None = None) -> str:
     lines: list[str] = [f"{label} rules ({len(rules)}):"]
     for index, rule in enumerate(rules, start=1):
         atoms = rule.get("atoms", [])
         antecedent = " and ".join(_format_rule_atom(dict(atom)) for atom in atoms) or "true"
-        lines.append(f"  {index:02d}. if ({antecedent}) then ({label})")
+        support_text = _format_rule_support(dict(rule), total_rows=total_rows)
+        lines.append(f"  {index:02d}. if ({antecedent}) then ({label}){support_text}")
     return "\n".join(lines) + "\n"
 
 
@@ -843,6 +932,7 @@ def main() -> None:
     bundle: dict[str, Any]
     rules_json_path: str
     rules_txt_path: str
+    txt_rule_totals: dict[str, int] = {}
     try:
         if pipeline_mode == "one_stage":
             action_y, label_valid_mask, risky_mask = _label_one_stage(
@@ -904,6 +994,14 @@ def main() -> None:
                 positive_count=int(np.sum(action_y == int(PUSH_HARDER_LABEL))),
                 label_name="shield_action_label",
             )
+            noop_rules = _annotate_rule_support(noop_rules, support_df=df_valid)
+            backoff_rules = _annotate_rule_support(backoff_rules, support_df=df_valid)
+            push_rules = _annotate_rule_support(push_rules, support_df=df_valid)
+            txt_rule_totals = {
+                "noop": int(df_valid.shape[0]),
+                "back_off": int(df_valid.shape[0]),
+                "push_harder": int(df_valid.shape[0]),
+            }
 
             bundle = {
                 "version": 2,
@@ -1037,6 +1135,16 @@ def main() -> None:
                 positive_count=int(num_push_positive),
                 label_name="push_label",
             )
+            risk_support_df = df.reset_index(drop=True)
+            risky_support_df = df.loc[risky_mask].reset_index(drop=True)
+            risk_rules = _annotate_rule_support(risk_rules, support_df=risk_support_df)
+            backoff_rules = _annotate_rule_support(backoff_rules, support_df=risky_support_df)
+            push_rules = _annotate_rule_support(push_rules, support_df=risky_support_df)
+            txt_rule_totals = {
+                "risky": int(risk_support_df.shape[0]),
+                "back_off": int(risky_support_df.shape[0]),
+                "push_harder": int(risky_support_df.shape[0]),
+            }
             bundle = {
                 "version": 1,
                 "mode": "two_stage",
@@ -1080,17 +1188,17 @@ def main() -> None:
     save_json(rules_json_path, bundle)
     with open(rules_txt_path, "w", encoding="utf-8") as file_obj:
         if pipeline_mode == "one_stage":
-            file_obj.write(_human_rule_text("noop", bundle["actions"]["noop"]["rules"]))
+            file_obj.write(_human_rule_text("noop", bundle["actions"]["noop"]["rules"], total_rows=txt_rule_totals.get("noop")))
             file_obj.write("\n")
-            file_obj.write(_human_rule_text("back_off", bundle["actions"]["back_off"]["rules"]))
+            file_obj.write(_human_rule_text("back_off", bundle["actions"]["back_off"]["rules"], total_rows=txt_rule_totals.get("back_off")))
             file_obj.write("\n")
-            file_obj.write(_human_rule_text("push_harder", bundle["actions"]["push_harder"]["rules"]))
+            file_obj.write(_human_rule_text("push_harder", bundle["actions"]["push_harder"]["rules"], total_rows=txt_rule_totals.get("push_harder")))
         else:
-            file_obj.write(_human_rule_text("risky", bundle["risk"]["rules"]))
+            file_obj.write(_human_rule_text("risky", bundle["risk"]["rules"], total_rows=txt_rule_totals.get("risky")))
             file_obj.write("\n")
-            file_obj.write(_human_rule_text("back_off", bundle["backoff"]["rules"]))
+            file_obj.write(_human_rule_text("back_off", bundle["backoff"]["rules"], total_rows=txt_rule_totals.get("back_off")))
             file_obj.write("\n")
-            file_obj.write(_human_rule_text("push_harder", bundle["push"]["rules"]))
+            file_obj.write(_human_rule_text("push_harder", bundle["push"]["rules"], total_rows=txt_rule_totals.get("push_harder")))
     print(rules_json_path)
 
 

@@ -1,0 +1,14 @@
+risky rules (7):
+  01. if (current_min_rtt_ratio_min ≤ p10 and current_rtt_ms_avg ≥ p95 and loss_to_windowed_rate_ratio ≥ p95) then (risky) [support=727/3456 (21.04%)]
+  02. if (current_min_rtt_ratio_min ≤ p10 and current_rtt_ms_avg ≥ p95 and loss_to_windowed_rate_ratio ≤ p95 and windowed_delivery_rate_mbps_avg ≥ p95) then (risky) [support=2/3456 (0.06%)]
+  03. if (current_rtt_ms_avg ≤ p95 and max_delivery_growth_ratio ≥ p95 and previous_action_avg ≤ p90 and windowed_delivery_rate_mbps_avg ≥ p95 and windowed_delivery_rate_mbps_min ≥ p95) then (risky) [support=336/3456 (9.72%)]
+  04. if (current_delivery_rate_mbps ≥ p95 and current_min_rtt_ratio_avg ≤ p25 and current_rtt_ms_avg ≤ p95 and max_delivery_growth_ratio ≤ p95 and previous_action_avg ≤ p90 and rtt_inflation ≥ p90 and windowed_delivery_rate_mbps_avg ≥ p95 and windowed_delivery_rate_mbps_max ≥ p95 and windowed_delivery_rate_mbps_min ≥ p95) then (risky) [support=23/3456 (0.67%)]
+  05. if (current_delivery_rate_mbps ≥ p95 and current_min_rtt_ratio_avg ≤ p25 and current_min_rtt_ratio_delta ≥ p90 and current_rtt_ms_avg ≤ p95 and max_delivery_growth_ratio ≤ p95 and previous_action_avg ≤ p90 and rtt_inflation ≤ p90 and windowed_delivery_rate_mbps_avg ≥ p95 and windowed_delivery_rate_mbps_max ≥ p95 and windowed_delivery_rate_mbps_min ≥ p95) then (risky) [support=6/3456 (0.17%)]
+  06. if (current_delivery_rate_mbps ≥ p95 and current_min_rtt_ratio_avg ≥ p25 and current_rtt_ms_avg ≤ p95 and max_delivery_growth_ratio ≤ p95 and previous_action ≤ p25 and previous_action_avg ≤ p90 and windowed_delivery_rate_mbps_avg ≥ p95 and windowed_delivery_rate_mbps_max ≥ p95 and windowed_delivery_rate_mbps_min ≥ p95) then (risky) [support=22/3456 (0.64%)]
+  07. if (current_delivery_rate_mbps ≥ p90 and current_rtt_ms_avg ≤ p95 and max_delivery_growth_ratio ≥ p90 and previous_action_avg ≤ p25 and previous_action_delta ≤ p95 and windowed_delivery_rate_mbps_min ≤ p95) then (risky) [support=36/3456 (1.04%)]
+
+back_off rules (1):
+  01. if (previous_action_max ≥ p90) then (back_off) [support=384/1152 (33.33%)]
+
+push_harder rules (1):
+  01. if (previous_action_max ≤ p90) then (push_harder) [support=768/1152 (66.67%)]

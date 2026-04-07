@@ -1,0 +1,361 @@
+{
+  "actions": {
+    "back_off": {
+      "rules": [
+        {
+          "atoms": [
+            {
+              "feature": "current_loss_mbps_max",
+              "op": "gt",
+              "value": 0.23081155
+            },
+            {
+              "feature": "current_rtt_ms",
+              "op": "gt",
+              "value": 59.76191
+            }
+          ],
+          "purity": 1.0,
+          "support": 768.0,
+          "support_frac": 0.2222222222222222
+        }
+      ]
+    },
+    "noop": {
+      "rules": [
+        {
+          "atoms": [
+            {
+              "feature": "current_min_rtt_ratio_max",
+              "op": "le",
+              "value": 0.9329278
+            },
+            {
+              "feature": "current_min_rtt_ratio_min",
+              "op": "le",
+              "value": 0.8982799
+            },
+            {
+              "feature": "current_rtt_ms",
+              "op": "le",
+              "value": 58.25521
+            },
+            {
+              "feature": "current_rtt_ms_max",
+              "op": "gt",
+              "value": 70.6452
+            }
+          ],
+          "purity": 1.0,
+          "support": 1.0,
+          "support_frac": 0.00028935185185185184
+        },
+        {
+          "atoms": [
+            {
+              "feature": "current_min_rtt_ratio_max",
+              "op": "gt",
+              "value": 0.9329278
+            },
+            {
+              "feature": "current_min_rtt_ratio_min",
+              "op": "le",
+              "value": 0.8982799
+            },
+            {
+              "feature": "current_rtt_ms",
+              "op": "le",
+              "value": 58.25521
+            },
+            {
+              "feature": "windowed_delivery_rate_mbps",
+              "op": "le",
+              "value": 61.701782
+            }
+          ],
+          "purity": 1.0,
+          "support": 76.0,
+          "support_frac": 0.02199074074074074
+        },
+        {
+          "atoms": [
+            {
+              "feature": "current_min_rtt_ratio_min",
+              "op": "le",
+              "value": 0.8982799
+            },
+            {
+              "feature": "current_rtt_ms",
+              "op": "gt",
+              "value": 58.25521
+            },
+            {
+              "feature": "current_rtt_ms",
+              "op": "le",
+              "value": 59.349922
+            },
+            {
+              "feature": "current_rtt_ms_avg",
+              "op": "le",
+              "value": 56.221985
+            }
+          ],
+          "purity": 1.0,
+          "support": 2.0,
+          "support_frac": 0.0005787037037037037
+        },
+        {
+          "atoms": [
+            {
+              "feature": "current_loss_mbps_delta",
+              "op": "le",
+              "value": -0.39836767
+            },
+            {
+              "feature": "current_min_rtt_ratio_min",
+              "op": "le",
+              "value": 0.8982799
+            },
+            {
+              "feature": "current_rtt_ms",
+              "op": "gt",
+              "value": 58.25521
+            },
+            {
+              "feature": "current_rtt_ms_avg",
+              "op": "gt",
+              "value": 56.221985
+            },
+            {
+              "feature": "current_rtt_ms_min",
+              "op": "le",
+              "value": 59.41375
+            }
+          ],
+          "purity": 1.0,
+          "support": 3.0,
+          "support_frac": 0.0008680555555555555
+        },
+        {
+          "atoms": [
+            {
+              "feature": "current_loss_mbps_avg",
+              "op": "le",
+              "value": 0.022749487
+            },
+            {
+              "feature": "current_min_rtt_ratio_min",
+              "op": "gt",
+              "value": 0.8982799
+            }
+          ],
+          "purity": 1.0,
+          "support": 2220.0,
+          "support_frac": 0.6423611111111112
+        },
+        {
+          "atoms": [
+            {
+              "feature": "current_loss_mbps_avg",
+              "op": "gt",
+              "value": 0.022749487
+            },
+            {
+              "feature": "current_min_rtt_ratio_min",
+              "op": "gt",
+              "value": 0.8982799
+            },
+            {
+              "feature": "windowed_vs_max_rate_ratio",
+              "op": "le",
+              "value": 0.737117
+            }
+          ],
+          "purity": 1.0,
+          "support": 2.0,
+          "support_frac": 0.0005787037037037037
+        }
+      ]
+    },
+    "push_harder": {
+      "rules": [
+        {
+          "atoms": [
+            {
+              "feature": "current_delivery_rate_mbps",
+              "op": "gt",
+              "value": 62.35605
+            },
+            {
+              "feature": "current_loss_mbps",
+              "op": "le",
+              "value": 0.014616035
+            },
+            {
+              "feature": "current_loss_mbps_max",
+              "op": "gt",
+              "value": 0.03349508
+            },
+            {
+              "feature": "current_rtt_ms_max",
+              "op": "le",
+              "value": 67.18358
+            }
+          ],
+          "purity": 1.0,
+          "support": 11.0,
+          "support_frac": 0.00318287037037037
+        },
+        {
+          "atoms": [
+            {
+              "feature": "current_loss_mbps",
+              "op": "gt",
+              "value": 0.014616035
+            },
+            {
+              "feature": "current_loss_mbps_max",
+              "op": "gt",
+              "value": 0.03349508
+            },
+            {
+              "feature": "current_rtt_ms_max",
+              "op": "le",
+              "value": 67.18358
+            },
+            {
+              "feature": "windowed_vs_max_rate_ratio",
+              "op": "gt",
+              "value": 0.78199947
+            }
+          ],
+          "purity": 1.0,
+          "support": 178.0,
+          "support_frac": 0.05150462962962963
+        },
+        {
+          "atoms": [
+            {
+              "feature": "current_loss_mbps_max",
+              "op": "gt",
+              "value": 0.03349508
+            },
+            {
+              "feature": "current_rtt_ms_max",
+              "op": "gt",
+              "value": 67.18358
+            },
+            {
+              "feature": "current_rtt_ms_max",
+              "op": "le",
+              "value": 83.41687
+            },
+            {
+              "feature": "previous_action_min",
+              "op": "le",
+              "value": -0.0052957674
+            }
+          ],
+          "purity": 1.0,
+          "support": 194.0,
+          "support_frac": 0.05613425925925926
+        },
+        {
+          "atoms": [
+            {
+              "feature": "current_loss_mbps_max",
+              "op": "gt",
+              "value": 0.03349508
+            },
+            {
+              "feature": "current_rtt_ms_max",
+              "op": "gt",
+              "value": 67.18358
+            },
+            {
+              "feature": "previous_action_min",
+              "op": "gt",
+              "value": -0.0052957674
+            },
+            {
+              "feature": "previous_action_min",
+              "op": "le",
+              "value": -0.0013602755
+            },
+            {
+              "feature": "windowed_delivery_rate_mbps_avg",
+              "op": "le",
+              "value": 26.09242
+            }
+          ],
+          "purity": 1.0,
+          "support": 1.0,
+          "support_frac": 0.00028935185185185184
+        }
+      ]
+    }
+  },
+  "feature_names": [
+    "current_rtt_ms",
+    "current_rttvar_ms",
+    "current_delivery_rate_mbps",
+    "windowed_delivery_rate_mbps",
+    "max_windowed_delivery_rate_mbps",
+    "current_loss_mbps",
+    "current_min_rtt_ratio",
+    "previous_action",
+    "time_delta_ms",
+    "delivery_growth_ratio",
+    "max_delivery_growth_ratio",
+    "rtt_inflation",
+    "windowed_vs_max_rate_ratio",
+    "loss_to_windowed_rate_ratio",
+    "current_rtt_ms_avg",
+    "current_rtt_ms_min",
+    "current_rtt_ms_max",
+    "current_rtt_ms_delta",
+    "windowed_delivery_rate_mbps_avg",
+    "windowed_delivery_rate_mbps_min",
+    "windowed_delivery_rate_mbps_max",
+    "windowed_delivery_rate_mbps_delta",
+    "current_loss_mbps_avg",
+    "current_loss_mbps_min",
+    "current_loss_mbps_max",
+    "current_loss_mbps_delta",
+    "current_min_rtt_ratio_avg",
+    "current_min_rtt_ratio_min",
+    "current_min_rtt_ratio_max",
+    "current_min_rtt_ratio_delta",
+    "previous_action_avg",
+    "previous_action_min",
+    "previous_action_max",
+    "previous_action_delta"
+  ],
+  "history_len": 4,
+  "metadata": {
+    "action_margin": 0.15,
+    "backend": "h2o",
+    "baseline_score_floor": 0.3,
+    "created_at_utc": "2026-04-06T15:51:24Z",
+    "dataset_path": "/users/hy/sage/attacks/shield/shield-dataset/synthetic-deficiency-part3/sage_shield_dataset.csv",
+    "feature_description_path": "attacks/shield/shield-rules/synthetic-deficiency-part3/sage_shield_feature_descriptions.json",
+    "feature_mode": "raw",
+    "h2o_max_depth": 200,
+    "h2o_min_rows": 1,
+    "h2o_mtries": null,
+    "h2o_ntrees": 1,
+    "h2o_sample_rate": 1.0,
+    "num_backoff": 768,
+    "num_invalid_rows": 0,
+    "num_noop": 2304,
+    "num_push_harder": 384,
+    "num_risky_rows": 1152,
+    "num_rows": 3456,
+    "num_valid_rows": 3456,
+    "risk_gap_pct": 20.0,
+    "thresholds_ignored": true,
+    "thresholds_path": "/users/hy/sage/attacks/shield/shield-dataset/synthetic-deficiency-part3/clean_feature_thresholds.csv"
+  },
+  "mode": "one_stage",
+  "version": 2
+}

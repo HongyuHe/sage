@@ -1,0 +1,18 @@
+noop rules (7):
+  01. if (current_loss_mbps_max ≤ 0.0208919 and current_min_rtt_ratio_min ≤ 0.952414 and previous_action ≥ -0.0236298 and previous_action_avg ≤ -0.00460047 and windowed_delivery_rate_mbps_avg ≤ 71.2783) then (noop) [support=22/3456 (0.64%)]
+  02. if (current_loss_mbps_delta ≤ -0.0120374 and current_loss_mbps_max ≤ 0.0208919 and current_min_rtt_ratio_min ≤ 0.952414 and current_rttvar_ms ≤ 2.3525 and previous_action_avg ≥ -0.00460047 and windowed_delivery_rate_mbps_avg ≤ 71.2783 and windowed_delivery_rate_mbps_delta ≤ 26.9721) then (noop) [support=29/3456 (0.84%)]
+  03. if (current_loss_mbps_delta ≥ -0.0120374 and current_loss_mbps_max ≤ 0.0208919 and current_min_rtt_ratio_min ≤ 0.952414 and current_rttvar_ms ≤ 2.3525 and previous_action_avg ≥ -0.00460047 and previous_action_min ≤ -0.0240761 and windowed_delivery_rate_mbps_avg ≤ 71.2783 and windowed_vs_max_rate_ratio ≤ 0.816559) then (noop) [support=11/3456 (0.32%)]
+  04. if (current_delivery_rate_mbps ≤ 75.2809 and current_loss_mbps_delta ≥ -0.0120374 and current_loss_mbps_max ≤ 0.0208919 and current_min_rtt_ratio_min ≤ 0.952414 and current_rttvar_ms ≤ 2.3525 and previous_action_avg ≥ -0.00460047 and previous_action_min ≥ -0.0240761 and windowed_delivery_rate_mbps_avg ≤ 71.2783) then (noop) [support=2059/3456 (59.58%)]
+  05. if (current_loss_mbps_max ≤ 0.0208919 and current_min_rtt_ratio_min ≤ 0.952414 and delivery_growth_ratio ≤ 0.623475 and windowed_delivery_rate_mbps_avg ≥ 71.2783) then (noop) [support=2/3456 (0.06%)]
+  06. if (current_delivery_rate_mbps ≤ 58.0746 and current_loss_mbps_max ≤ 0.0208919 and current_min_rtt_ratio_min ≥ 0.952414) then (noop) [support=117/3456 (3.39%)]
+  07. if (current_loss_mbps ≤ 0.0186798 and current_loss_mbps_max ≥ 0.0208919 and current_min_rtt_ratio ≥ 0.908026 and windowed_delivery_rate_mbps_avg ≤ 70.9297) then (noop) [support=64/3456 (1.85%)]
+
+back_off rules (1):
+  01. if (current_rtt_ms ≥ 79.1748) then (back_off) [support=384/3456 (11.11%)]
+
+push_harder rules (5):
+  01. if (current_min_rtt_ratio_min ≥ 0.647098 and current_min_rtt_ratio_min ≤ 0.898124 and current_min_rtt_ratio_min ≤ 0.951944 and rtt_inflation ≤ 1.06716 and windowed_delivery_rate_mbps ≥ 57.6693) then (push_harder) [support=2/3456 (0.06%)]
+  02. if (current_min_rtt_ratio_min ≥ 0.647098 and current_min_rtt_ratio_min ≤ 0.898124 and current_min_rtt_ratio_min ≤ 0.951944 and current_rtt_ms_avg ≥ 53.8808 and rtt_inflation ≥ 1.06716 and rtt_inflation ≤ 1.07433) then (push_harder) [support=4/3456 (0.12%)]
+  03. if (current_min_rtt_ratio_min ≥ 0.647098 and current_min_rtt_ratio_min ≤ 0.898124 and current_min_rtt_ratio_min ≤ 0.951944 and rtt_inflation ≥ 1.06716 and rtt_inflation ≥ 1.07433) then (push_harder) [support=375/3456 (10.85%)]
+  04. if (current_delivery_rate_mbps ≥ 62.2374 and current_min_rtt_ratio_min ≥ 0.898124 and current_min_rtt_ratio_min ≤ 0.951944) then (push_harder) [support=139/3456 (4.02%)]
+  05. if (current_min_rtt_ratio_min ≥ 0.951944 and windowed_delivery_rate_mbps_max ≥ 61.6872 and windowed_vs_max_rate_ratio ≥ 0.662829) then (push_harder) [support=248/3456 (7.18%)]

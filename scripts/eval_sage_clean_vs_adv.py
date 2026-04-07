@@ -147,6 +147,26 @@ time python scripts/eval_sage_clean_vs_adv.py \
   --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
 
 time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/pgd_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --wandb --wandb-tags v4-new --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/pgd_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-name pgd_gap-constrained-all-loss-300k-50ms_shield-predicate --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
+  --generated-manifest attacks/adv_traces/pgd_gap-constrained-all-loss_50ms_300k/generated_manifest.json \
+  --out-dir attacks/output/eval-300k-50ms-new \
+  --skip-clean-rollout \
+  --shield-rules-file attacks/output/shield-rules/random_gap-constrained-all-loss_50ms_300k/sage_directional_shield_rules.json \
+  --wandb --wandb-tags v4-new --wandb-name pgd_gap-constrained-all-loss-300k-50ms_shield-predicate-random --wandb-project sage-gap-eval
+
+time python scripts/eval_sage_clean_vs_adv.py \
   --test-manifest attacks/test/manifest.json \
   --config-path attacks/models/gap_adv_20260320_gap-constrained-all_50ms_300k.config.json \
   --out-dir attacks/output/eval-300k-50ms-new \
@@ -258,7 +278,7 @@ from typing import Any
 
 import numpy as np
 
-from attacks.envs import DEFAULT_BASELINE_METHODS, ParallelGapAttackEnv, baseline_methods_from_config
+from attacks.envs import AttackBounds, DEFAULT_BASELINE_METHODS, ParallelGapAttackEnv, baseline_methods_from_config
 from attacks.online import SageLaunchConfig, acquire_run_namespace
 
 
@@ -268,7 +288,6 @@ if __package__ in (None, ""):
         IndependentAttackEnv,
         attack_bounds_from_config,
         build_clean_action_schedule,
-        expand_attack_bounds_for_bandwidth,
         load_mahimahi_trace_schedule,
         load_trace_entries,
         materialize_trace_splits,
@@ -285,7 +304,6 @@ else:
         IndependentAttackEnv,
         attack_bounds_from_config,
         build_clean_action_schedule,
-        expand_attack_bounds_for_bandwidth,
         load_mahimahi_trace_schedule,
         load_trace_entries,
         materialize_trace_splits,
@@ -1034,6 +1052,49 @@ def _max_bandwidth_from_schedules(action_schedules: list[list[np.ndarray]]) -> f
     return float(max_bw)
 
 
+def _replay_bounds_for_schedules(base_bounds: AttackBounds, action_schedules: list[list[np.ndarray]]) -> AttackBounds:
+    flattened_actions: list[np.ndarray] = []
+    for schedule in action_schedules:
+        if not schedule:
+            continue
+        schedule_array = np.asarray(
+            [np.asarray(action, dtype=np.float32).reshape(-1) for action in schedule],
+            dtype=np.float32,
+        )
+        if schedule_array.ndim != 2 or schedule_array.shape[1] < 6:
+            continue
+        flattened_actions.append(schedule_array[:, :6])
+    if not flattened_actions:
+        return base_bounds
+    values = np.concatenate(flattened_actions, axis=0)
+    return AttackBounds(
+        uplink_bw_mbps=(
+            min(float(base_bounds.uplink_bw_mbps[0]), float(np.min(values[:, 0]))),
+            max(float(base_bounds.uplink_bw_mbps[1]), float(np.max(values[:, 0]))),
+        ),
+        downlink_bw_mbps=(
+            min(float(base_bounds.downlink_bw_mbps[0]), float(np.min(values[:, 1]))),
+            max(float(base_bounds.downlink_bw_mbps[1]), float(np.max(values[:, 1]))),
+        ),
+        uplink_loss=(
+            min(float(base_bounds.uplink_loss[0]), float(np.min(values[:, 2]))),
+            max(float(base_bounds.uplink_loss[1]), float(np.max(values[:, 2]))),
+        ),
+        downlink_loss=(
+            min(float(base_bounds.downlink_loss[0]), float(np.min(values[:, 3]))),
+            max(float(base_bounds.downlink_loss[1]), float(np.max(values[:, 3]))),
+        ),
+        uplink_delay_ms=(
+            min(float(base_bounds.uplink_delay_ms[0]), float(np.min(values[:, 4]))),
+            max(float(base_bounds.uplink_delay_ms[1]), float(np.max(values[:, 4]))),
+        ),
+        downlink_delay_ms=(
+            min(float(base_bounds.downlink_delay_ms[0]), float(np.min(values[:, 5]))),
+            max(float(base_bounds.downlink_delay_ms[1]), float(np.max(values[:, 5]))),
+        ),
+    )
+
+
 def _configured_adv_bandwidth_max(config_payload: dict[str, Any]) -> float | None:
     effective_high = config_payload.get("effective_action_high")
     if isinstance(effective_high, list) and len(effective_high) >= 2:
@@ -1055,8 +1116,13 @@ def _validate_adversarial_schedule_bounds(
     episode_id: str,
     action_schedule: list[np.ndarray],
     config_payload: dict[str, Any],
+    generation_method: str | None = None,
     tolerance_mbps: float = 1e-3,
 ) -> None:
+    #* Clean-trace PGD schedules replay clean-trace bandwidth regimes, so RL training-band
+    #* validation is intentionally skipped for that generation path.
+    if str(generation_method or "").strip().lower() == "clean_trace_surrogate_pgd":
+        return
     configured_max = _configured_adv_bandwidth_max(config_payload)
     if configured_max is None:
         return
@@ -1262,6 +1328,7 @@ def _evaluate_trace_set(
     *,
     trace_type: str,
     is_clean_rollout: bool,
+    adversarial_generation_method: str | None,
     repo_root: str,
     runtime_dir: str,
     config_payload: dict[str, Any],
@@ -1333,6 +1400,7 @@ def _evaluate_trace_set(
                     episode_id=episode_id,
                     action_schedule=action_schedule,
                     config_payload=config_payload,
+                    generation_method=adversarial_generation_method,
                 )
             result = run_online_policy_episode(
                 env,
@@ -1467,11 +1535,13 @@ def main() -> None:
         generated_manifest = _load_json(generated_manifest_path)
         config_payload = _load_training_config(repo_root, generated_manifest, args.config_path)
         trace_set_name = _trace_set_name(generated_manifest_path, generated_manifest)
+        generated_manifest_generation_method = str(generated_manifest.get("generation_method", "") or "")
     else:
         generated_manifest_path = ""
         generated_manifest = {}
         config_payload = _load_json(resolve_repo_path(repo_root, str(args.config_path)))
         trace_set_name = _trace_set_name_from_config_path(args.config_path)
+        generated_manifest_generation_method = ""
     run_clean_rollout = not bool(args.skip_clean_rollout)
     run_adv_rollout = not bool(args.clean_only_rollout)
     wandb_trace_name = str(args.wandb_name).strip() if args.wandb_name is not None else ""
@@ -1533,15 +1603,9 @@ def main() -> None:
         raise RuntimeError("no adversarial schedules were found in the generated manifest")
 
     base_bounds = attack_bounds_from_config(config_payload)
-    clean_replay_bounds = expand_attack_bounds_for_bandwidth(
-        base_bounds,
-        _max_bandwidth_from_schedules([actions for _, actions in clean_schedules]) if clean_schedules else 0.0,
-    )
+    clean_replay_bounds = _replay_bounds_for_schedules(base_bounds, [actions for _, actions in clean_schedules])
     adv_replay_bounds = (
-        expand_attack_bounds_for_bandwidth(
-            base_bounds,
-            _max_bandwidth_from_schedules([actions for _, actions in adv_schedules]),
-        )
+        _replay_bounds_for_schedules(base_bounds, [actions for _, actions in adv_schedules])
         if adv_schedules
         else base_bounds
     )
@@ -1591,6 +1655,7 @@ def main() -> None:
         clean_results = _evaluate_trace_set(
             trace_type=clean_trace_label,
             is_clean_rollout=True,
+            adversarial_generation_method=None,
             repo_root=repo_root,
             runtime_dir=os.path.join(run_namespace.runtime_dir, clean_trace_label),
             config_payload=config_payload,
@@ -1628,6 +1693,7 @@ def main() -> None:
         adv_results = _evaluate_trace_set(
             trace_type=adv_trace_label,
             is_clean_rollout=False,
+            adversarial_generation_method=(generated_manifest_generation_method or None),
             repo_root=repo_root,
             runtime_dir=os.path.join(run_namespace.runtime_dir, adv_trace_label),
             config_payload=config_payload,

@@ -3,8 +3,8 @@ Derive clean-trace percentile thresholds for the legacy two-stage Sage shield pi
 
 Example usage:
 python scripts/gen_sage_shield_thresholds.py \
-  --dataset attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k/sage_shield_dataset.csv \
-  --out attacks/output/shield-dataset/gap-constrained-all-loss_50ms_300k/clean_feature_thresholds.csv
+  --dataset attacks/shield/shield-dataset/gap-constrained-all-loss_50ms_300k/sage_shield_dataset.csv \
+  --out attacks/shield/shield-dataset/gap-constrained-all-loss_50ms_300k/clean_feature_thresholds.csv
 
 python scripts/gen_sage_shield_thresholds.py \
   --dataset attacks/output/shield-dataset/hotnets19-loss_50ms_300k/sage_shield_dataset.csv \

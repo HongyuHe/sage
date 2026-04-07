@@ -1,0 +1,148 @@
+{
+  "allowed_deficiencies": [
+    "under_aggressiveness",
+    "delayed_recovery"
+  ],
+  "baseline_methods": [
+    "reno",
+    "bbr",
+    "cubic"
+  ],
+  "clean_manifest_path": null,
+  "created_at_utc": "2026-04-06T13:46:25Z",
+  "csv_path": "attacks/shield/shield-dataset/synthetic_allowed_subset_smoke/sage_shield_dataset.csv",
+  "feature_columns": [
+    "current_rtt_ms",
+    "current_rttvar_ms",
+    "current_delivery_rate_mbps",
+    "windowed_delivery_rate_mbps",
+    "max_windowed_delivery_rate_mbps",
+    "current_loss_mbps",
+    "current_min_rtt_ratio",
+    "previous_action",
+    "time_delta_ms",
+    "delivery_growth_ratio",
+    "max_delivery_growth_ratio",
+    "rtt_inflation",
+    "windowed_vs_max_rate_ratio",
+    "loss_to_windowed_rate_ratio",
+    "current_rtt_ms_avg",
+    "current_rtt_ms_min",
+    "current_rtt_ms_max",
+    "current_rtt_ms_delta",
+    "windowed_delivery_rate_mbps_avg",
+    "windowed_delivery_rate_mbps_min",
+    "windowed_delivery_rate_mbps_max",
+    "windowed_delivery_rate_mbps_delta",
+    "current_loss_mbps_avg",
+    "current_loss_mbps_min",
+    "current_loss_mbps_max",
+    "current_loss_mbps_delta",
+    "current_min_rtt_ratio_avg",
+    "current_min_rtt_ratio_min",
+    "current_min_rtt_ratio_max",
+    "current_min_rtt_ratio_delta",
+    "previous_action_avg",
+    "previous_action_min",
+    "previous_action_max",
+    "previous_action_delta"
+  ],
+  "feature_descriptions": {
+    "current_delivery_rate_mbps": "Current Sage delivery-rate estimate in Mbps.",
+    "current_loss_mbps": "Current Sage loss estimate, expressed as an equivalent Mbps loss signal.",
+    "current_loss_mbps_avg": "Rolling average of the current Sage loss signal over the retained shield history.",
+    "current_loss_mbps_delta": "Difference between the newest and oldest retained values of the current Sage loss signal.",
+    "current_loss_mbps_max": "Rolling maximum of the current Sage loss signal over the retained shield history.",
+    "current_loss_mbps_min": "Rolling minimum of the current Sage loss signal over the retained shield history.",
+    "current_min_rtt_ratio": "Current ratio between min RTT and current RTT; lower values imply stronger inflation.",
+    "current_min_rtt_ratio_avg": "Rolling average of the current min-RTT ratio over the retained shield history.",
+    "current_min_rtt_ratio_delta": "Difference between the newest and oldest retained values of the current min-RTT ratio.",
+    "current_min_rtt_ratio_max": "Rolling maximum of the current min-RTT ratio over the retained shield history.",
+    "current_min_rtt_ratio_min": "Rolling minimum of the current min-RTT ratio over the retained shield history.",
+    "current_rtt_ms": "Current Sage RTT estimate in milliseconds.",
+    "current_rtt_ms_avg": "Rolling average of the current Sage RTT estimate over the retained shield history.",
+    "current_rtt_ms_delta": "Difference between the newest and oldest retained values of the current Sage RTT estimate.",
+    "current_rtt_ms_max": "Rolling maximum of the current Sage RTT estimate over the retained shield history.",
+    "current_rtt_ms_min": "Rolling minimum of the current Sage RTT estimate over the retained shield history.",
+    "current_rttvar_ms": "Current Sage RTT variation estimate in milliseconds.",
+    "delivery_growth_ratio": "Ratio of current delivery rate to the previous delivery rate.",
+    "loss_to_windowed_rate_ratio": "Ratio of current loss signal to the current windowed delivery rate.",
+    "max_delivery_growth_ratio": "Maximum recent delivery-growth ratio observed by Sage.",
+    "max_windowed_delivery_rate_mbps": "Maximum recent windowed Sage delivery-rate estimate in Mbps.",
+    "previous_action": "Most recent Sage control action before the current decision.",
+    "previous_action_avg": "Rolling average of the previous Sage action over the retained shield history.",
+    "previous_action_delta": "Difference between the newest and oldest retained values of the previous Sage action.",
+    "previous_action_max": "Rolling maximum of the previous Sage action over the retained shield history.",
+    "previous_action_min": "Rolling minimum of the previous Sage action over the retained shield history.",
+    "rtt_inflation": "Reciprocal of current_min_rtt_ratio, summarizing RTT inflation relative to the minimum RTT.",
+    "time_delta_ms": "Elapsed time in milliseconds since the previous Sage observation update.",
+    "windowed_delivery_rate_mbps": "Windowed Sage delivery-rate estimate in Mbps.",
+    "windowed_delivery_rate_mbps_avg": "Rolling average of the windowed Sage delivery-rate estimate over the retained shield history.",
+    "windowed_delivery_rate_mbps_delta": "Difference between the newest and oldest retained values of the windowed Sage delivery-rate estimate.",
+    "windowed_delivery_rate_mbps_max": "Rolling maximum of the windowed Sage delivery-rate estimate over the retained shield history.",
+    "windowed_delivery_rate_mbps_min": "Rolling minimum of the windowed Sage delivery-rate estimate over the retained shield history.",
+    "windowed_vs_max_rate_ratio": "Ratio of windowed delivery rate to the recent maximum windowed delivery rate."
+  },
+  "feature_history_len": 4,
+  "full_semantic_taxonomy": [
+    "under_aggressiveness",
+    "over_aggressiveness",
+    "delayed_recovery",
+    "delayed_backoff",
+    "rtt_insensitivity",
+    "loss_insensitivity",
+    "unstable_probing"
+  ],
+  "generated_manifest_path": null,
+  "ground_truth_csv_path": "attacks/shield/shield-dataset/synthetic_allowed_subset_smoke/synthetic_semantic_ground_truth.csv",
+  "ground_truth_json_path": "attacks/shield/shield-dataset/synthetic_allowed_subset_smoke/synthetic_semantic_ground_truth.json",
+  "labeling": {
+    "action_margin": 0.15,
+    "baseline_score_floor": 0.3,
+    "risk_gap_pct": 20.0
+  },
+  "num_adv_episodes": 4,
+  "num_clean_episodes": 3,
+  "num_rows": 112,
+  "pipeline_mode": "synthetic_ground_truth",
+  "repo_root": "/users/hy/sage",
+  "runtime_dir_resolved": null,
+  "synthetic_episode_counts": {
+    "episodes_per_deficiency": {
+      "delayed_recovery": 2,
+      "under_aggressiveness": 2
+    },
+    "num_adv_episodes": 4,
+    "num_clean_episodes": 3
+  },
+  "synthetic_generator": "closed_taxonomy_v1",
+  "synthetic_taxonomy": [
+    "under_aggressiveness",
+    "delayed_recovery"
+  ],
+  "threshold_metadata": {
+    "dataset_path": "/users/hy/sage/attacks/shield/shield-dataset/synthetic_allowed_subset_smoke/sage_shield_dataset.csv",
+    "num_clean_error_free_rows": 48,
+    "num_threshold_rows": 34,
+    "percentiles": [
+      10,
+      25,
+      90,
+      95
+    ],
+    "thresholds_path": "/users/hy/sage/attacks/shield/shield-dataset/synthetic_allowed_subset_smoke/clean_feature_thresholds.csv",
+    "trace_type_counts": {
+      "adv": 64,
+      "clean": 48
+    }
+  },
+  "threshold_percentiles": [
+    10,
+    25,
+    90,
+    95
+  ],
+  "thresholds_path": "attacks/shield/shield-dataset/synthetic_allowed_subset_smoke/clean_feature_thresholds.csv",
+  "trace_set_name": "synthetic_allowed_subset_smoke",
+  "training_config_path": null
+}

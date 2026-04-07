@@ -1,0 +1,631 @@
+{
+  "backoff": {
+    "rules": [
+      {
+        "atoms": [
+          {
+            "feature": "previous_action_max",
+            "op": "gt",
+            "threshold_col": "p90",
+            "value": 0.0473147465913679
+          }
+        ],
+        "purity": 1.0,
+        "support": 384.0,
+        "support_frac": 0.3333333333333333
+      }
+    ]
+  },
+  "feature_names": [
+    "current_rtt_ms",
+    "current_rttvar_ms",
+    "current_delivery_rate_mbps",
+    "windowed_delivery_rate_mbps",
+    "max_windowed_delivery_rate_mbps",
+    "current_loss_mbps",
+    "current_min_rtt_ratio",
+    "previous_action",
+    "time_delta_ms",
+    "delivery_growth_ratio",
+    "max_delivery_growth_ratio",
+    "rtt_inflation",
+    "windowed_vs_max_rate_ratio",
+    "loss_to_windowed_rate_ratio",
+    "current_rtt_ms_avg",
+    "current_rtt_ms_min",
+    "current_rtt_ms_max",
+    "current_rtt_ms_delta",
+    "windowed_delivery_rate_mbps_avg",
+    "windowed_delivery_rate_mbps_min",
+    "windowed_delivery_rate_mbps_max",
+    "windowed_delivery_rate_mbps_delta",
+    "current_loss_mbps_avg",
+    "current_loss_mbps_min",
+    "current_loss_mbps_max",
+    "current_loss_mbps_delta",
+    "current_min_rtt_ratio_avg",
+    "current_min_rtt_ratio_min",
+    "current_min_rtt_ratio_max",
+    "current_min_rtt_ratio_delta",
+    "previous_action_avg",
+    "previous_action_min",
+    "previous_action_max",
+    "previous_action_delta"
+  ],
+  "history_len": 4,
+  "metadata": {
+    "action_margin": 0.15,
+    "backend": "h2o",
+    "baseline_score_floor": 0.3,
+    "created_at_utc": "2026-04-06T15:50:34Z",
+    "dataset_path": "/users/hy/sage/attacks/shield/shield-dataset/synthetic-deficiency-part1/sage_shield_dataset.csv",
+    "direction_feature_mode": "predicate",
+    "feature_description_path": "attacks/shield/shield-rules/synthetic-deficiency-part1/sage_shield_feature_descriptions.json",
+    "h2o_max_depth": 200,
+    "h2o_min_rows": 1,
+    "h2o_mtries": null,
+    "h2o_ntrees": 1,
+    "h2o_sample_rate": 1.0,
+    "num_backoff_positive": 384,
+    "num_push_positive": 768,
+    "num_risky_rows": 1152,
+    "num_rows": 3456,
+    "risk_feature_mode": "predicate",
+    "risk_gap_pct": 20.0,
+    "threshold_map": {
+      "current_delivery_rate_mbps": {
+        "p10": 28.02061011531016,
+        "p25": 31.71204116252111,
+        "p90": 47.56904261756633,
+        "p95": 49.53628142022109
+      },
+      "current_loss_mbps": {
+        "p10": 0.0010626548179762,
+        "p25": 0.0035238491948824,
+        "p90": 0.0117990652587556,
+        "p95": 0.0134283895451096
+      },
+      "current_loss_mbps_avg": {
+        "p10": 0.0036926769145106,
+        "p25": 0.0051121476384188,
+        "p90": 0.0095312371182816,
+        "p95": 0.0102797694567613
+      },
+      "current_loss_mbps_delta": {
+        "p10": -0.0073646825218566,
+        "p25": -0.0038162854450269,
+        "p90": 0.0072248199676339,
+        "p95": 0.0089818547387843
+      },
+      "current_loss_mbps_max": {
+        "p10": 0.0065546334223048,
+        "p25": 0.0087157704152326,
+        "p90": 0.014756072217961,
+        "p95": 0.0160685984686732
+      },
+      "current_loss_mbps_min": {
+        "p10": 0.0,
+        "p25": 0.0003706966836468,
+        "p90": 0.006483341835732,
+        "p95": 0.0074476645271418
+      },
+      "current_min_rtt_ratio": {
+        "p10": 0.9308656875207144,
+        "p25": 0.940480483426203,
+        "p90": 0.9687352677205524,
+        "p95": 0.9737514245330384
+      },
+      "current_min_rtt_ratio_avg": {
+        "p10": 0.9403983550092196,
+        "p25": 0.9448490417897142,
+        "p90": 0.9598655843661932,
+        "p95": 0.9623524325029542
+      },
+      "current_min_rtt_ratio_delta": {
+        "p10": -0.0278368197203973,
+        "p25": -0.0134341946437165,
+        "p90": 0.0272670084955289,
+        "p95": 0.0352106602777587
+      },
+      "current_min_rtt_ratio_max": {
+        "p10": 0.9519363826289932,
+        "p25": 0.958407061071804,
+        "p90": 0.9785512377922988,
+        "p95": 0.9848189134690682
+      },
+      "current_min_rtt_ratio_min": {
+        "p10": 0.9205228269311018,
+        "p25": 0.9287031218766836,
+        "p90": 0.9479939102886789,
+        "p95": 0.9516963455648262
+      },
+      "current_rtt_ms": {
+        "p10": 49.11237349512247,
+        "p25": 50.758083171764405,
+        "p90": 56.908407335907285,
+        "p95": 57.651583949027525
+      },
+      "current_rtt_ms_avg": {
+        "p10": 49.621570136492046,
+        "p25": 50.696370128486805,
+        "p90": 56.41839334262362,
+        "p95": 56.86242539528841
+      },
+      "current_rtt_ms_delta": {
+        "p10": -2.991638428202857,
+        "p25": -1.6311243686885712,
+        "p90": 2.980431112937601,
+        "p95": 3.79264551210852
+      },
+      "current_rtt_ms_max": {
+        "p10": 51.10207902951803,
+        "p25": 52.36109809886202,
+        "p90": 58.000275648087225,
+        "p95": 58.650878939395135
+      },
+      "current_rtt_ms_min": {
+        "p10": 47.82297639008512,
+        "p25": 49.04208293417093,
+        "p90": 55.017570333863446,
+        "p95": 55.63791181701311
+      },
+      "current_rttvar_ms": {
+        "p10": 0.3159093855800234,
+        "p25": 0.4328120322383555,
+        "p90": 1.0647835958077525,
+        "p95": 1.2162851855728571
+      },
+      "delivery_growth_ratio": {
+        "p10": 0.8615222613242127,
+        "p25": 0.9303662274195632,
+        "p90": 1.1561612533696706,
+        "p95": 1.2239190598058896
+      },
+      "loss_to_windowed_rate_ratio": {
+        "p10": 2.969851035015029e-05,
+        "p25": 9.72078079352318e-05,
+        "p90": 0.000353815256726,
+        "p95": 0.0004159728217919
+      },
+      "max_delivery_growth_ratio": {
+        "p10": 1.032905351553351,
+        "p25": 1.071569677513978,
+        "p90": 1.2554140877723765,
+        "p95": 1.2985350317803892
+      },
+      "max_windowed_delivery_rate_mbps": {
+        "p10": 34.571695085281064,
+        "p25": 37.3134527880346,
+        "p90": 48.76242289488143,
+        "p95": 49.96680260353136
+      },
+      "previous_action": {
+        "p10": 0.0015092852910532,
+        "p25": 0.0094264316514741,
+        "p90": 0.0392749051029796,
+        "p95": 0.0443287203301337
+      },
+      "previous_action_avg": {
+        "p10": 0.0047715208329296,
+        "p25": 0.0104396026498391,
+        "p90": 0.0356311197802109,
+        "p95": 0.0382447286860229
+      },
+      "previous_action_delta": {
+        "p10": -0.0184666422856596,
+        "p25": -0.0092195911012748,
+        "p90": 0.019134397275332,
+        "p95": 0.0248930430424618
+      },
+      "previous_action_max": {
+        "p10": 0.0132698448834847,
+        "p25": 0.020051328521092,
+        "p90": 0.0473147465913679,
+        "p95": 0.0510238960989025
+      },
+      "previous_action_min": {
+        "p10": -0.0064522549314053,
+        "p25": 0.0007845168397672,
+        "p90": 0.0258352420396501,
+        "p95": 0.0292473446504657
+      },
+      "rtt_inflation": {
+        "p10": 1.032273762837271,
+        "p25": 1.0412636412568106,
+        "p90": 1.074268837498772,
+        "p95": 1.0803667175447738
+      },
+      "time_delta_ms": {
+        "p10": 0.3083970362795635,
+        "p25": 0.3232821027572645,
+        "p90": 0.373348518280839,
+        "p95": 0.3834506086607377
+      },
+      "windowed_delivery_rate_mbps": {
+        "p10": 27.10860029289957,
+        "p25": 30.535452282852035,
+        "p90": 46.69624981477358,
+        "p95": 48.35382774658177
+      },
+      "windowed_delivery_rate_mbps_avg": {
+        "p10": 27.771958086383474,
+        "p25": 30.45782208644397,
+        "p90": 45.94621079841743,
+        "p95": 46.87187416120484
+      },
+      "windowed_delivery_rate_mbps_delta": {
+        "p10": -6.599083646294855,
+        "p25": -3.4620745601198566,
+        "p90": 6.327479848698883,
+        "p95": 8.23486760679078
+      },
+      "windowed_delivery_rate_mbps_max": {
+        "p10": 30.50695837337885,
+        "p25": 33.80854269033611,
+        "p90": 49.31336121324072,
+        "p95": 50.78592933162154
+      },
+      "windowed_delivery_rate_mbps_min": {
+        "p10": 24.46420459113951,
+        "p25": 27.16759600221682,
+        "p90": 42.82334211363899,
+        "p95": 44.03822983655595
+      },
+      "windowed_vs_max_rate_ratio": {
+        "p10": 0.7152774324123021,
+        "p25": 0.7958806406524728,
+        "p90": 1.0,
+        "p95": 1.0
+      }
+    },
+    "thresholds_path": "/users/hy/sage/attacks/shield/shield-dataset/synthetic-deficiency-part1/clean_feature_thresholds.csv"
+  },
+  "mode": "two_stage",
+  "push": {
+    "rules": [
+      {
+        "atoms": [
+          {
+            "feature": "previous_action_max",
+            "op": "le",
+            "threshold_col": "p90",
+            "value": 0.0473147465913679
+          }
+        ],
+        "purity": 1.0,
+        "support": 768.0,
+        "support_frac": 0.6666666666666666
+      }
+    ]
+  },
+  "risk": {
+    "rules": [
+      {
+        "atoms": [
+          {
+            "feature": "current_min_rtt_ratio_min",
+            "op": "le",
+            "threshold_col": "p10",
+            "value": 0.9205228269311018
+          },
+          {
+            "feature": "current_rtt_ms_avg",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 56.86242539528841
+          },
+          {
+            "feature": "loss_to_windowed_rate_ratio",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 0.0004159728217919
+          }
+        ],
+        "purity": 1.0,
+        "support": 727.0,
+        "support_frac": 0.2103587962962963
+      },
+      {
+        "atoms": [
+          {
+            "feature": "current_min_rtt_ratio_min",
+            "op": "le",
+            "threshold_col": "p10",
+            "value": 0.9205228269311018
+          },
+          {
+            "feature": "current_rtt_ms_avg",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 56.86242539528841
+          },
+          {
+            "feature": "loss_to_windowed_rate_ratio",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 0.0004159728217919
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_avg",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 46.87187416120484
+          }
+        ],
+        "purity": 1.0,
+        "support": 2.0,
+        "support_frac": 0.0005787037037037037
+      },
+      {
+        "atoms": [
+          {
+            "feature": "current_rtt_ms_avg",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 56.86242539528841
+          },
+          {
+            "feature": "max_delivery_growth_ratio",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 1.2985350317803892
+          },
+          {
+            "feature": "previous_action_avg",
+            "op": "le",
+            "threshold_col": "p90",
+            "value": 0.0356311197802109
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_avg",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 46.87187416120484
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_min",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 44.03822983655595
+          }
+        ],
+        "purity": 1.0,
+        "support": 336.0,
+        "support_frac": 0.09722222222222222
+      },
+      {
+        "atoms": [
+          {
+            "feature": "current_delivery_rate_mbps",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 49.53628142022109
+          },
+          {
+            "feature": "current_min_rtt_ratio_avg",
+            "op": "le",
+            "threshold_col": "p25",
+            "value": 0.9448490417897142
+          },
+          {
+            "feature": "current_rtt_ms_avg",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 56.86242539528841
+          },
+          {
+            "feature": "max_delivery_growth_ratio",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 1.2985350317803892
+          },
+          {
+            "feature": "previous_action_avg",
+            "op": "le",
+            "threshold_col": "p90",
+            "value": 0.0356311197802109
+          },
+          {
+            "feature": "rtt_inflation",
+            "op": "gt",
+            "threshold_col": "p90",
+            "value": 1.074268837498772
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_avg",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 46.87187416120484
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_max",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 50.78592933162154
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_min",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 44.03822983655595
+          }
+        ],
+        "purity": 1.0,
+        "support": 23.0,
+        "support_frac": 0.006655092592592593
+      },
+      {
+        "atoms": [
+          {
+            "feature": "current_delivery_rate_mbps",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 49.53628142022109
+          },
+          {
+            "feature": "current_min_rtt_ratio_avg",
+            "op": "le",
+            "threshold_col": "p25",
+            "value": 0.9448490417897142
+          },
+          {
+            "feature": "current_min_rtt_ratio_delta",
+            "op": "gt",
+            "threshold_col": "p90",
+            "value": 0.0272670084955289
+          },
+          {
+            "feature": "current_rtt_ms_avg",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 56.86242539528841
+          },
+          {
+            "feature": "max_delivery_growth_ratio",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 1.2985350317803892
+          },
+          {
+            "feature": "previous_action_avg",
+            "op": "le",
+            "threshold_col": "p90",
+            "value": 0.0356311197802109
+          },
+          {
+            "feature": "rtt_inflation",
+            "op": "le",
+            "threshold_col": "p90",
+            "value": 1.074268837498772
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_avg",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 46.87187416120484
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_max",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 50.78592933162154
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_min",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 44.03822983655595
+          }
+        ],
+        "purity": 1.0,
+        "support": 6.0,
+        "support_frac": 0.001736111111111111
+      },
+      {
+        "atoms": [
+          {
+            "feature": "current_delivery_rate_mbps",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 49.53628142022109
+          },
+          {
+            "feature": "current_min_rtt_ratio_avg",
+            "op": "gt",
+            "threshold_col": "p25",
+            "value": 0.9448490417897142
+          },
+          {
+            "feature": "current_rtt_ms_avg",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 56.86242539528841
+          },
+          {
+            "feature": "max_delivery_growth_ratio",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 1.2985350317803892
+          },
+          {
+            "feature": "previous_action",
+            "op": "le",
+            "threshold_col": "p25",
+            "value": 0.0094264316514741
+          },
+          {
+            "feature": "previous_action_avg",
+            "op": "le",
+            "threshold_col": "p90",
+            "value": 0.0356311197802109
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_avg",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 46.87187416120484
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_max",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 50.78592933162154
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_min",
+            "op": "gt",
+            "threshold_col": "p95",
+            "value": 44.03822983655595
+          }
+        ],
+        "purity": 1.0,
+        "support": 22.0,
+        "support_frac": 0.00636574074074074
+      },
+      {
+        "atoms": [
+          {
+            "feature": "current_delivery_rate_mbps",
+            "op": "gt",
+            "threshold_col": "p90",
+            "value": 47.56904261756633
+          },
+          {
+            "feature": "current_rtt_ms_avg",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 56.86242539528841
+          },
+          {
+            "feature": "max_delivery_growth_ratio",
+            "op": "gt",
+            "threshold_col": "p90",
+            "value": 1.2554140877723765
+          },
+          {
+            "feature": "previous_action_avg",
+            "op": "le",
+            "threshold_col": "p25",
+            "value": 0.0104396026498391
+          },
+          {
+            "feature": "previous_action_delta",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 0.0248930430424618
+          },
+          {
+            "feature": "windowed_delivery_rate_mbps_min",
+            "op": "le",
+            "threshold_col": "p95",
+            "value": 44.03822983655595
+          }
+        ],
+        "purity": 1.0,
+        "support": 36.0,
+        "support_frac": 0.010416666666666666
+      }
+    ]
+  },
+  "version": 1
+}

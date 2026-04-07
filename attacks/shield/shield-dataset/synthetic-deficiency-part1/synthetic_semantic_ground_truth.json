@@ -1,0 +1,2259 @@
+{
+  "allowed_deficiencies": [
+    "under_aggressiveness",
+    "over_aggressiveness",
+    "delayed_recovery"
+  ],
+  "clean_profiles": [
+    "benign_steady"
+  ],
+  "created_at_utc": "2026-04-06T15:49:43Z",
+  "episodes": [
+    {
+      "episode_id": "clean-000",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.5684808436607272,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-001",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.38857012651607137,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-002",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.4124928454074982,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-003",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.38575763911004457,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-004",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.5819210047814558,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-005",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.4192184873946635,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-006",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.5339298250765747,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-007",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.5893531924013753,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-008",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.6820520289042948,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-009",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.26403752136014197,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-010",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.2604784482928071,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-011",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.6125136371456217,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-012",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.2925658069567012,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-013",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.5050410636544762,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-014",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.27909392009824846,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-015",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.27993829171307694,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-016",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.49544894531763223,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-017",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.7088782109432603,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-018",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.5072369647634178,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-019",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.5860053550049371,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-020",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.2903502505051043,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-021",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.4887958292299778,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-022",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.7004075718692536,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-023",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.674321718573523,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-024",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.47849785735234796,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-025",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.6813638226392476,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-026",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.4775357878521203,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-027",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.3979224404268427,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-028",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.3139995802113229,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-029",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.4279803336715719,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-030",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.7006624569012967,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-031",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.2577944751633148,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-032",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.6087625388708287,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-033",
+      "segments": [
+        {
+          "best_baseline_method": "reno",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.25463311045839626,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-034",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.6889921507822306,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "episode_id": "clean-035",
+      "segments": [
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign synthetic clean profile: benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "clean_profile",
+          "severity": 0.3450049148790317,
+          "start_step": 0
+        }
+      ],
+      "setup": "clean",
+      "trace_type": "clean"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-000",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.26816214354278556,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.893959370743209,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.593404308005236,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-001",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.4424760259442971,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.6620160826445657,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.583826064148347,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-002",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.38740321074698514,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.4898669103991078,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.3772268275267534,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-003",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.4262501142580467,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.6255887999357556,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.5808543644937829,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-004",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.6123249964722488,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.617400559625781,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.592754233385496,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-005",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.41089129941382324,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.9535205572792538,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.47159701892296135,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-006",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.6166481414903813,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.6626400736355897,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.5346221001629776,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-007",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.5001318595857618,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.9605397632863051,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.4457277626717283,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-008",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.25893876711959385,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.8412356817815656,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.26810069318972957,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-009",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.5561690725388482,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.6959501037837874,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.34524653443896325,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-010",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.3739005075363982,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.5789880629246001,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.6446106440413149,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-011",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.3494675740610604,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.6349673960989988,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.5268205962119705,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-012",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.5482742394689919,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.5792367069081187,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.36144787243809634,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-013",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.4040302788994754,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.8030924215671762,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.4278780812690658,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-014",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.37964429933318444,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.686098683016952,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.26190239195503096,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-015",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.5581192447801926,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.5352272301742902,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.5548810229141896,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-016",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.4208090624928669,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.7913269246342738,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.4154430434402565,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-017",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.26675313749721685,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.7512551759366128,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.40978115373971913,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-018",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.35389202294833727,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.946779824254967,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.5025068635336802,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-019",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.6071324453448786,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.6676891903793397,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.4541289238955056,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-020",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.5839551023240461,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.5842333394826328,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.28572324879919303,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-021",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.5499911844906469,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.792351945517577,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.6238957549279573,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-022",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.4521650817969307,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.6420942619132576,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.546575432668964,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-023",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.29202419675226887,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.8198950960372002,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.4712097449617721,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-024",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.2586986758537867,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.8102322122432468,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.5254287819718835,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-025",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.4748069503042265,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.5716923659368814,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.3022018240638093,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-026",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.5706577388358649,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.8659654837535892,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.41020009201601704,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-027",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.3103849523290873,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.7306144329715398,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.2796345095733457,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-028",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.35657594392626124,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.6101114256048574,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.631061334555534,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-029",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.644647708421358,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.5736358864445992,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.2548986336829965,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-030",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.5649488942145025,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.7338622178787888,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.35361283751154116,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-031",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.6207842508285034,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.5967656248627345,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.4569507057356732,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "over_aggressiveness"
+      ],
+      "episode_id": "adv-over_aggressiveness-032",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.3950171559080913,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "reno",
+          "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+          "end_step": 39,
+          "intended_action": "back_off",
+          "segment_index": 1,
+          "segment_label": "over_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.9401958812665527,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.6369517975391624,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-033",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.5689997894351586,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.7149825846228426,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.27252050791191795,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "delayed_recovery"
+      ],
+      "episode_id": "adv-delayed_recovery-034",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.6137174274656418,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "delayed_recovery",
+          "segment_role": "deficiency",
+          "severity": 0.4945225692020366,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.39294599926767104,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    },
+    {
+      "deficiency_subset": [
+        "under_aggressiveness"
+      ],
+      "episode_id": "adv-under_aggressiveness-035",
+      "segments": [
+        {
+          "best_baseline_method": "bbr",
+          "description": "Benign warm-up context using benign_steady.",
+          "end_step": 7,
+          "intended_action": "noop",
+          "segment_index": 0,
+          "segment_label": "benign_steady",
+          "segment_role": "warmup_context",
+          "severity": 0.6329617268665237,
+          "start_step": 0
+        },
+        {
+          "best_baseline_method": "bbr",
+          "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+          "end_step": 39,
+          "intended_action": "push_harder",
+          "segment_index": 1,
+          "segment_label": "under_aggressiveness",
+          "segment_role": "deficiency",
+          "severity": 0.8298983751042928,
+          "start_step": 8
+        },
+        {
+          "best_baseline_method": "cubic",
+          "description": "Benign cool-down context using benign_steady.",
+          "end_step": 47,
+          "intended_action": "noop",
+          "segment_index": 2,
+          "segment_label": "benign_steady",
+          "segment_role": "cooldown_context",
+          "severity": 0.5650190412514258,
+          "start_step": 40
+        }
+      ],
+      "setup": "synthetic-deficiency-part1",
+      "trace_type": "adv"
+    }
+  ],
+  "full_semantic_taxonomy": [
+    "under_aggressiveness",
+    "over_aggressiveness",
+    "delayed_recovery",
+    "delayed_backoff",
+    "rtt_insensitivity",
+    "loss_insensitivity",
+    "unstable_probing"
+  ],
+  "ground_truth_csv_path": "attacks/shield/shield-dataset/synthetic-deficiency-part1/synthetic_semantic_ground_truth.csv",
+  "seed": 0,
+  "taxonomy": {
+    "delayed_recovery": {
+      "description": "Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough.",
+      "intended_action": "push_harder",
+      "label": "delayed_recovery",
+      "salient_features": [
+        "delivery_growth_ratio",
+        "max_delivery_growth_ratio",
+        "previous_action",
+        "current_loss_mbps",
+        "current_min_rtt_ratio"
+      ]
+    },
+    "over_aggressiveness": {
+      "description": "Sage remains too aggressive under persistent congestion, inflating RTT and loss while not converting that aggression into delivery rate.",
+      "intended_action": "back_off",
+      "label": "over_aggressiveness",
+      "salient_features": [
+        "previous_action",
+        "current_rtt_ms",
+        "current_loss_mbps",
+        "current_min_rtt_ratio",
+        "windowed_vs_max_rate_ratio"
+      ]
+    },
+    "under_aggressiveness": {
+      "description": "Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom.",
+      "intended_action": "push_harder",
+      "label": "under_aggressiveness",
+      "salient_features": [
+        "previous_action",
+        "current_rtt_ms",
+        "current_loss_mbps",
+        "windowed_delivery_rate_mbps",
+        "windowed_vs_max_rate_ratio"
+      ]
+    }
+  },
+  "trace_set_name": "synthetic-deficiency-part1"
+}

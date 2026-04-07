@@ -1,0 +1,113 @@
+setup,trace_type,episode_id,episode_step,segment_index,segment_role,segment_label,severity,intended_action,best_baseline_method,description
+clean,clean,clean-000,0,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,1,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,2,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,3,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,4,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,5,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,6,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,7,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,8,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,9,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,10,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,11,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,12,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,13,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,14,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-000,15,0,clean_profile,benign_steady,0.3142851013845998,noop,reno,Benign synthetic clean profile: benign_steady.
+clean,clean,clean-001,0,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,1,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,2,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,3,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,4,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,5,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,6,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,7,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,8,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,9,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,10,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,11,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,12,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,13,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,14,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-001,15,0,clean_profile,benign_capacity_swing,0.4579351006565909,noop,bbr,Benign synthetic clean profile: benign_capacity_swing.
+clean,clean,clean-002,0,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,1,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,2,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,3,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,4,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,5,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,6,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,7,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,8,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,9,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,10,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,11,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,12,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,13,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,14,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+clean,clean,clean-002,15,0,clean_profile,benign_mild_loss,0.3772755128206034,noop,cubic,Benign synthetic clean profile: benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,0,0,warmup_context,benign_mild_loss,0.41671069952260664,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,1,0,warmup_context,benign_mild_loss,0.41671069952260664,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,2,0,warmup_context,benign_mild_loss,0.41671069952260664,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,3,0,warmup_context,benign_mild_loss,0.41671069952260664,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,4,0,warmup_context,benign_mild_loss,0.41671069952260664,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,5,0,warmup_context,benign_mild_loss,0.41671069952260664,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,6,1,deficiency,delayed_recovery,0.9691500637118051,push_harder,bbr,"Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough."
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,7,1,deficiency,delayed_recovery,0.9691500637118051,push_harder,bbr,"Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough."
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,8,1,deficiency,delayed_recovery,0.9691500637118051,push_harder,bbr,"Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough."
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,9,1,deficiency,delayed_recovery,0.9691500637118051,push_harder,bbr,"Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough."
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,10,2,cooldown_context,benign_steady,0.41709743034249325,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,11,2,cooldown_context,benign_steady,0.41709743034249325,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,12,2,cooldown_context,benign_steady,0.41709743034249325,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,13,2,cooldown_context,benign_steady,0.41709743034249325,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,14,2,cooldown_context,benign_steady,0.41709743034249325,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-000,15,2,cooldown_context,benign_steady,0.41709743034249325,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,0,0,warmup_context,benign_steady,0.5965224577475468,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,1,0,warmup_context,benign_steady,0.5965224577475468,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,2,0,warmup_context,benign_steady,0.5965224577475468,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,3,0,warmup_context,benign_steady,0.5965224577475468,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,4,0,warmup_context,benign_steady,0.5965224577475468,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,5,0,warmup_context,benign_steady,0.5965224577475468,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,6,1,deficiency,under_aggressiveness,0.7118931580342891,push_harder,bbr,"Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom."
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,7,1,deficiency,under_aggressiveness,0.7118931580342891,push_harder,bbr,"Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom."
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,8,1,deficiency,under_aggressiveness,0.7118931580342891,push_harder,bbr,"Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom."
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,9,1,deficiency,under_aggressiveness,0.7118931580342891,push_harder,bbr,"Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom."
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,10,2,cooldown_context,benign_capacity_swing,0.46703075610756,noop,cubic,Benign cool-down context using benign_capacity_swing.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,11,2,cooldown_context,benign_capacity_swing,0.46703075610756,noop,cubic,Benign cool-down context using benign_capacity_swing.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,12,2,cooldown_context,benign_capacity_swing,0.46703075610756,noop,cubic,Benign cool-down context using benign_capacity_swing.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,13,2,cooldown_context,benign_capacity_swing,0.46703075610756,noop,cubic,Benign cool-down context using benign_capacity_swing.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,14,2,cooldown_context,benign_capacity_swing,0.46703075610756,noop,cubic,Benign cool-down context using benign_capacity_swing.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-001,15,2,cooldown_context,benign_capacity_swing,0.46703075610756,noop,cubic,Benign cool-down context using benign_capacity_swing.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,0,0,warmup_context,benign_steady,0.3186153278196928,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,1,0,warmup_context,benign_steady,0.3186153278196928,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,2,0,warmup_context,benign_steady,0.3186153278196928,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,3,0,warmup_context,benign_steady,0.3186153278196928,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,4,0,warmup_context,benign_steady,0.3186153278196928,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,5,0,warmup_context,benign_steady,0.3186153278196928,noop,bbr,Benign warm-up context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,6,1,deficiency,delayed_recovery,0.6835943191896381,push_harder,bbr,"Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough."
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,7,1,deficiency,delayed_recovery,0.6835943191896381,push_harder,bbr,"Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough."
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,8,1,deficiency,delayed_recovery,0.6835943191896381,push_harder,bbr,"Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough."
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,9,1,deficiency,delayed_recovery,0.6835943191896381,push_harder,bbr,"Network conditions improve, but Sage recovers too slowly and fails to increase its action quickly enough."
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,10,2,cooldown_context,benign_steady,0.5153501362944424,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,11,2,cooldown_context,benign_steady,0.5153501362944424,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,12,2,cooldown_context,benign_steady,0.5153501362944424,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,13,2,cooldown_context,benign_steady,0.5153501362944424,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,14,2,cooldown_context,benign_steady,0.5153501362944424,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-delayed_recovery-002,15,2,cooldown_context,benign_steady,0.5153501362944424,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,0,0,warmup_context,benign_mild_loss,0.5528337296543415,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,1,0,warmup_context,benign_mild_loss,0.5528337296543415,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,2,0,warmup_context,benign_mild_loss,0.5528337296543415,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,3,0,warmup_context,benign_mild_loss,0.5528337296543415,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,4,0,warmup_context,benign_mild_loss,0.5528337296543415,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,5,0,warmup_context,benign_mild_loss,0.5528337296543415,noop,bbr,Benign warm-up context using benign_mild_loss.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,6,1,deficiency,under_aggressiveness,0.6402289750828254,push_harder,bbr,"Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom."
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,7,1,deficiency,under_aggressiveness,0.6402289750828254,push_harder,bbr,"Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom."
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,8,1,deficiency,under_aggressiveness,0.6402289750828254,push_harder,bbr,"Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom."
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,9,1,deficiency,under_aggressiveness,0.6402289750828254,push_harder,bbr,"Sage keeps its action too low despite favorable RTT, low loss, and available delivery-rate headroom."
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,10,2,cooldown_context,benign_steady,0.5913800598094257,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,11,2,cooldown_context,benign_steady,0.5913800598094257,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,12,2,cooldown_context,benign_steady,0.5913800598094257,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,13,2,cooldown_context,benign_steady,0.5913800598094257,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,14,2,cooldown_context,benign_steady,0.5913800598094257,noop,cubic,Benign cool-down context using benign_steady.
+synthetic_allowed_subset_smoke,adv,adv-under_aggressiveness-003,15,2,cooldown_context,benign_steady,0.5913800598094257,noop,cubic,Benign cool-down context using benign_steady.

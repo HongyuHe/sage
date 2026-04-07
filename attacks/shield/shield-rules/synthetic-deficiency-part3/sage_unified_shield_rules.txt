@@ -1,0 +1,16 @@
+noop rules (6):
+  01. if (current_min_rtt_ratio_max ≤ 0.932928 and current_min_rtt_ratio_min ≤ 0.89828 and current_rtt_ms ≤ 58.2552 and current_rtt_ms_max ≥ 70.6452) then (noop) [support=1/3456 (0.03%)]
+  02. if (current_min_rtt_ratio_max ≥ 0.932928 and current_min_rtt_ratio_min ≤ 0.89828 and current_rtt_ms ≤ 58.2552 and windowed_delivery_rate_mbps ≤ 61.7018) then (noop) [support=76/3456 (2.20%)]
+  03. if (current_min_rtt_ratio_min ≤ 0.89828 and current_rtt_ms ≥ 58.2552 and current_rtt_ms ≤ 59.3499 and current_rtt_ms_avg ≤ 56.222) then (noop) [support=2/3456 (0.06%)]
+  04. if (current_loss_mbps_delta ≤ -0.398368 and current_min_rtt_ratio_min ≤ 0.89828 and current_rtt_ms ≥ 58.2552 and current_rtt_ms_avg ≥ 56.222 and current_rtt_ms_min ≤ 59.4138) then (noop) [support=3/3456 (0.09%)]
+  05. if (current_loss_mbps_avg ≤ 0.0227495 and current_min_rtt_ratio_min ≥ 0.89828) then (noop) [support=2220/3456 (64.24%)]
+  06. if (current_loss_mbps_avg ≥ 0.0227495 and current_min_rtt_ratio_min ≥ 0.89828 and windowed_vs_max_rate_ratio ≤ 0.737117) then (noop) [support=2/3456 (0.06%)]
+
+back_off rules (1):
+  01. if (current_loss_mbps_max ≥ 0.230812 and current_rtt_ms ≥ 59.7619) then (back_off) [support=768/3456 (22.22%)]
+
+push_harder rules (4):
+  01. if (current_delivery_rate_mbps ≥ 62.3561 and current_loss_mbps ≤ 0.014616 and current_loss_mbps_max ≥ 0.0334951 and current_rtt_ms_max ≤ 67.1836) then (push_harder) [support=11/3456 (0.32%)]
+  02. if (current_loss_mbps ≥ 0.014616 and current_loss_mbps_max ≥ 0.0334951 and current_rtt_ms_max ≤ 67.1836 and windowed_vs_max_rate_ratio ≥ 0.781999) then (push_harder) [support=178/3456 (5.15%)]
+  03. if (current_loss_mbps_max ≥ 0.0334951 and current_rtt_ms_max ≥ 67.1836 and current_rtt_ms_max ≤ 83.4169 and previous_action_min ≤ -0.00529577) then (push_harder) [support=194/3456 (5.61%)]
+  04. if (current_loss_mbps_max ≥ 0.0334951 and current_rtt_ms_max ≥ 67.1836 and previous_action_min ≥ -0.00529577 and previous_action_min ≤ -0.00136028 and windowed_delivery_rate_mbps_avg ≤ 26.0924) then (push_harder) [support=1/3456 (0.03%)]

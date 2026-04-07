@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import binascii
 import json
+import math
 import os
 from pathlib import Path
 from typing import Any, Mapping
@@ -59,28 +60,36 @@ SETUP_VALUE_ADJUSTMENT_PCT: dict[str, float] = {
     "gap-constrained-all_50ms_300k": 0,
 }
 SETUP_NAME_MAP: dict[str, str | None] = {
-    "clean": "Benign Traces",
+    "clean": "Normal",
     "clean_shield": None,
-    "clean_shield-1stage": None, # "Benign Traces\n(raw shield)",
-    "clean_shield-predicate": "Benign Traces\n(predicate shield)",
+    "clean_shield-1stage": None, # "Normal\n(raw shield)",
+    "clean_shield-predicate": "Normal\n(predicate shield)",
     "clean_shield-predicate-0hyst": None,
-    "clean_shield-predicate-50len": None, # "Benign Traces\n(50 hist shield)",
-    "clean_shield-predicate-random": "Benign Traces\n(random shield)",
+    "clean_shield-predicate-50len": None, # "Normal\n(50 hist shield)",
+    "clean_shield-predicate-random": "Normal\n(random shield)",
+    "gap-constrained-all-hard_50ms_300k": None,
+    "gap-constrained-all-hard-loss_50ms_300k": None,
+    "gap-constrained-all-hard_50ms_300k_shield": None,
+    "gap-constrained-bbr_50ms_300k": None, # "Bilevel Regret\n(trained only w/ BBR)",
+    "gap-constrained-all_50ms_300k": None,  # Exclude from plots
+    "pgd_gap-constrained-all-loss_50ms_300k": "Indago",
+    "pgd_gap-constrained-all-loss-300k-50ms_shield-predicate": "Indago\n(predicate shield)",
+    "pgd_gap-constrained-all-loss-300k-50ms_shield-predicate-random": "Indago\n(random shield)",
     "hotnets19_50ms_300k": None,
-    "hotnets19-loss_50ms_300k": "HotNets '19",
+    "hotnets19-loss_50ms_300k": "RL Attack",
     "hotnets19-loss-300k-50ms_shield": None,
-    "hotnets19-loss-300k-50ms_shield-1stage": None, # "HotNets '19\n(raw shield)",
-    "hotnets19-loss-300k-50ms_shield-predicate": None, # "HotNets '19\n(predicate shield)",
-    "hotnets19-loss-300k-50ms_shield-predicate-50len": "HotNets '19\n(predicate shield)", # "HotNets '19\n(50 hist shield)",
+    "hotnets19-loss-300k-50ms_shield-1stage": None, # "RL Attack\n(raw shield)",
+    "hotnets19-loss-300k-50ms_shield-predicate": None, # "RL Attack\n(predicate shield)",
+    "hotnets19-loss-300k-50ms_shield-predicate-50len": "RL Attack\n(predicate shield)", # "RL Attack\n(50 hist shield)",
     "hotnets19-loss-300k-50ms_shield-predicate-0hyst": None,
-    "hotnets19-loss-300k-50ms_shield-predicate-random": "HotNets '19\n(random shield)",
-    "random-constrained-all-loss-300k-50ms": "Random Traces",
+    "hotnets19-loss-300k-50ms_shield-predicate-random": "RL Attack\n(random shield)",
+    "random-constrained-all-loss-300k-50ms": "Random",
     "random-constrained-all-loss-300k-50ms_shield": None,
-    "random-constrained-all-loss-300k-50ms_shield-1stage": None, # "Random Traces\n(raw shield)",
-    "random-constrained-all-loss-300k-50ms_shield-predicate": "Random Traces\n(predicate shield)",
-    "random-constrained-all-loss-300k-50ms_shield-predicate-50len": None, # "Random Traces\n(50 hist shield)",
+    "random-constrained-all-loss-300k-50ms_shield-1stage": None, # "Random\n(raw shield)",
+    "random-constrained-all-loss-300k-50ms_shield-predicate": "Random\n(predicate shield)",
+    "random-constrained-all-loss-300k-50ms_shield-predicate-50len": None, # "Random\n(50 hist shield)",
     "random-constrained-all-loss-300k-50ms_shield-predicate-0hyst": None,
-    "random-constrained-all-loss-300k-50ms_shield-predicate-random": "Random Traces\n(random shield)",
+    "random-constrained-all-loss-300k-50ms_shield-predicate-random": "Random\n(random shield)",
     "gap-constrained-all-loss_50ms_300k": "ReGuard",
     "gap-constrained-all-loss_50ms_300k_shield": None,
     "gap-constrained-all-loss_50ms_300k_shield-1stage": None, # "ReGuard\n(raw shield)",
@@ -88,11 +97,6 @@ SETUP_NAME_MAP: dict[str, str | None] = {
     "gap-constrained-all-loss-300k-50ms_shield-predicate-0hyst": None,
     "gap-constrained-all-loss-300k-50ms_shield-predicate-50len": None, # "ReGuard\n(50 hist shield)",
     "gap-constrained-all-loss-300k-50ms_shield-predicate-random": "ReGuard\n(random shield)",
-    "gap-constrained-all-hard_50ms_300k": None,
-    "gap-constrained-all-hard-loss_50ms_300k": None,
-    "gap-constrained-all-hard_50ms_300k_shield": None,
-    "gap-constrained-bbr_50ms_300k": None, # "Bilevel Regret\n(trained only w/ BBR)",
-    "gap-constrained-all_50ms_300k": None,  # Exclude from plots
 }
 SHIELD_SETUP_COLOR = "#377eb8"
 NON_SHIELD_SETUP_COLOR = "#f69a92"
@@ -122,7 +126,7 @@ PLOT_SPECS: tuple[dict[str, Any], ...] = (
     {
         "key": "gap_percent",
         "title": "Gap Percent",
-        "x_label": "Per-Trace Gap over Reference Policy [%]",
+        "x_label": "Performance Gap over Reference Policy [%]",
         "file_stem": "hard_gap_percent",
         "series": (("gap_percent_mean", "Gap Percent"),),
     },
@@ -204,12 +208,15 @@ def _set_plot_style() -> None:
     sns.set_palette("bright")
     plt.rcParams["axes.grid"] = True
     plt.rcParams["savefig.transparent"] = False
-    plt.rcParams["font.size"] = 16
-    plt.rcParams["axes.titlesize"] = 18
-    plt.rcParams["axes.labelsize"] = 16
-    plt.rcParams["xtick.labelsize"] = 14
-    plt.rcParams["ytick.labelsize"] = 14
-    plt.rcParams["legend.fontsize"] = 14
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["font.serif"] = ["DejaVu Serif", "Times New Roman", "Times", "Computer Modern Roman"]
+    plt.rcParams["mathtext.fontset"] = "dejavuserif"
+    plt.rcParams["font.size"] = 22
+    plt.rcParams["axes.titlesize"] = 22
+    plt.rcParams["axes.labelsize"] = 22
+    plt.rcParams["xtick.labelsize"] = 22
+    plt.rcParams["ytick.labelsize"] = 22
+    plt.rcParams["legend.fontsize"] = 22
     plt.rcParams["figure.titlesize"] = 20
 
 
@@ -647,6 +654,28 @@ def _is_shield_setup(trace_type: str) -> bool:
 
 def _setup_bar_color(trace_type: str) -> str:
     return SHIELD_SETUP_COLOR if _is_shield_setup(trace_type) else NON_SHIELD_SETUP_COLOR
+
+
+_TIMING_PROTECTION_CATEGORY_ORDER: tuple[tuple[str, str], ...] = (
+    ("no_protection", "No protection"),
+    ("shield", "Logic guard\n(ReGuard)"),
+    ("random_shield", "Logic guard\n(random)"),
+)
+
+
+def _timing_protection_category(trace_type: str) -> str:
+    lowered = str(trace_type).casefold()
+    if "shield" not in lowered:
+        return "no_protection"
+    if "random" in lowered:
+        return "random_shield"
+    return "shield"
+
+
+def _timing_protection_category_color(category: str) -> str:
+    if str(category) == "no_protection":
+        return "#f4a6a6"
+    return "#a8d5f2"
 
 
 def _trace_entries_in_order(metric_frame: pd.DataFrame) -> list[tuple[str, str]]:
@@ -1233,13 +1262,28 @@ def _annotate_bar_values(axis, *, y_offset_factor: float = 0.0) -> None:
             f"{width:.3f}",
             va="center",
             ha=horizontal_alignment,
-            fontsize=11,
+            fontsize=20,
         )
 
 
-def _style_axis_spines(axis, *, linewidth: float = 1.8) -> None:
+def _style_axis_spines(axis, *, linewidth: float = 2) -> None:
     axis.spines["left"].set_linewidth(float(linewidth))
     axis.spines["bottom"].set_linewidth(float(linewidth))
+    axis.tick_params(axis="both", width=float(linewidth), length=5.0)
+
+
+def _round_horizontal_axis_limits_to_integers(axis) -> None:
+    x_min, x_max = axis.get_xlim()
+    if not np.isfinite(float(x_min)) or not np.isfinite(float(x_max)):
+        return
+    low = float(math.floor(min(float(x_min), float(x_max))))
+    high = float(math.ceil(max(float(x_min), float(x_max))))
+    if low == high:
+        high = low + 1.0
+    if float(x_min) <= float(x_max):
+        axis.set_xlim(low, high)
+    else:
+        axis.set_xlim(high, low)
 
 
 def _style_error_bars(axis, *, color: str = "k", linewidth: float = 1.2) -> None:
@@ -1317,13 +1361,13 @@ def _annotate_total_ci_values(
             f"{float(total_value):.3f}",
             va="center",
             ha="left",
-            fontsize=11,
+            fontsize=20,
         )
 
 
-def _save_metric_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str) -> str | None:
+def _save_metric_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str, *, output_format: str = "png") -> str | None:
     if str(spec.get("render", "")) == "controller_decision_time":
-        return _save_controller_decision_time_plot(metric_frame, spec, out_dir)
+        return _save_controller_decision_time_plot(metric_frame, spec, out_dir, output_format=output_format)
 
     plot_frame = metric_frame.loc[metric_frame["plot_key"] == spec["key"]].copy()
     if plot_frame.empty:
@@ -1409,13 +1453,13 @@ def _save_metric_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir:
 
     sns.despine()
     fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.94 if multi_series else 0.98))
-    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_stats.png")
-    fig.savefig(out_path, dpi=200, bbox_inches="tight")
+    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_stats.{output_format}")
+    fig.savefig(out_path, dpi=200, bbox_inches="tight", format=str(output_format))
     plt.close(fig)
     return out_path
 
 
-def _save_ci_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str) -> str | None:
+def _save_ci_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str, *, output_format: str = "png") -> str | None:
     plot_frame = metric_frame.loc[metric_frame["plot_key"] == spec["key"]].copy()
     if plot_frame.empty:
         return None
@@ -1432,6 +1476,8 @@ def _save_ci_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str
 
     figure_height = max(4.0, 0.8 * len(trace_order) + 1.8)
     figure_width = 9.5 if len(metric_labels) == 1 else max(5.3 * len(metric_labels), 10.0)
+    if str(_plot_file_stem(spec)) == "hard_gap_percent":
+        figure_width = max(float(figure_width), 10)
     figure, axes = plt.subplots(
         1,
         len(metric_labels),
@@ -1493,6 +1539,7 @@ def _save_ci_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str
             axis.tick_params(axis="y", left=False, labelleft=False)
         if has_negative:
             axis.axvline(0.0, color="black", linestyle="--", linewidth=1.2)
+        _round_horizontal_axis_limits_to_integers(axis)
         _style_axis_spines(axis)
 
     if len(metric_labels) > 1 and str(spec.get("title", "")).strip():
@@ -1501,13 +1548,13 @@ def _save_ci_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str
     else:
         figure.tight_layout()
     sns.despine()
-    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_ci95.png")
-    figure.savefig(out_path, dpi=200, bbox_inches="tight")
+    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_ci95.{output_format}")
+    figure.savefig(out_path, dpi=200, bbox_inches="tight", format=str(output_format))
     plt.close(figure)
     return out_path
 
 
-def _save_box_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str) -> str | None:
+def _save_box_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str, *, output_format: str = "png") -> str | None:
     plot_frame = metric_frame.loc[metric_frame["plot_key"] == spec["key"]].copy()
     if plot_frame.empty:
         return None
@@ -1572,13 +1619,19 @@ def _save_box_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: st
     else:
         figure.tight_layout()
     sns.despine()
-    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_box.png")
-    figure.savefig(out_path, dpi=200, bbox_inches="tight")
+    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_box.{output_format}")
+    figure.savefig(out_path, dpi=200, bbox_inches="tight", format=str(output_format))
     plt.close(figure)
     return out_path
 
 
-def _save_controller_decision_time_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str) -> str | None:
+def _save_controller_decision_time_plot(
+    metric_frame: pd.DataFrame,
+    spec: dict[str, Any],
+    out_dir: str,
+    *,
+    output_format: str = "png",
+) -> str | None:
     plot_frame = metric_frame.loc[
         (metric_frame["plot_key"] == spec["key"]) & (metric_frame["stat"] == "avg")
     ].copy()
@@ -1640,46 +1693,57 @@ def _save_controller_decision_time_plot(metric_frame: pd.DataFrame, spec: dict[s
         axis.spines["right"].set_visible(False)
     figure.suptitle(spec["title"])
     figure.tight_layout(rect=(0.12, 0.0, 1.0, 0.97))
-    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_stats.png")
-    figure.savefig(out_path, dpi=200, bbox_inches="tight")
+    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_stats.{output_format}")
+    figure.savefig(out_path, dpi=200, bbox_inches="tight", format=str(output_format))
     plt.close(figure)
     return out_path
 
 
-def _save_controller_decision_time_ci_plot(metric_frame: pd.DataFrame, spec: dict[str, Any], out_dir: str) -> str | None:
+def _save_controller_decision_time_ci_plot(
+    metric_frame: pd.DataFrame,
+    spec: dict[str, Any],
+    out_dir: str,
+    *,
+    output_format: str = "png",
+) -> str | None:
     plot_frame = metric_frame.loc[metric_frame["plot_key"] == spec["key"]].copy()
     if plot_frame.empty:
         return None
 
-    trace_entries = _trace_entries_in_order(plot_frame)
-    if not trace_entries:
+    plot_frame["timing_category"] = plot_frame["trace_type"].map(_timing_protection_category)
+    category_entries = [
+        (category, label)
+        for category, label in _TIMING_PROTECTION_CATEGORY_ORDER
+        if bool((plot_frame["timing_category"] == category).any())
+    ]
+    if not category_entries:
         return None
-    trace_order = [trace_label for _trace_type, trace_label in trace_entries]
+    category_order = [label for _category, label in category_entries]
     figure, axis = plt.subplots(
         1,
         1,
-        figsize=(9.5, max(4.0, 0.8 * len(trace_order) + 1.8)),
+        figsize=(8.0, max(4.0, 0.8 * len(category_order) + 1.8)),
     )
     bar_height = 0.72
 
-    y_positions = np.arange(len(trace_order), dtype=np.float64)
+    y_positions = np.arange(len(category_order), dtype=np.float64)
     total_means: list[float] = []
     total_ci_lows: list[float] = []
     total_ci_highs: list[float] = []
-    for trace_type, trace_label in trace_entries:
-        trace_frame = plot_frame.loc[plot_frame["trace_label"] == trace_label].copy()
+    for category, _category_label in category_entries:
+        trace_frame = plot_frame.loc[plot_frame["timing_category"] == category].copy()
         total_values = pd.to_numeric(trace_frame["controller_value"], errors="coerce").to_numpy(dtype=np.float64)
         total_values = total_values[np.isfinite(total_values)]
         total_ci = _bootstrap_mean_ci(
             total_values.tolist(),
             confidence_pct=_TIMING_CONFIDENCE_PCT,
-            seed_key=f"{trace_type}:mean",
+            seed_key=f"timing-category:{category}:mean",
         )
         total_means.append(float(total_ci["mean"]))
         total_ci_lows.append(float(total_ci["low"]))
         total_ci_highs.append(float(total_ci["high"]))
 
-    bar_colors = [_setup_bar_color(trace_type) for trace_type, _trace_label in trace_entries]
+    bar_colors = [_timing_protection_category_color(category) for category, _category_label in category_entries]
     axis.barh(
         y_positions,
         total_means,
@@ -1711,6 +1775,8 @@ def _save_controller_decision_time_ci_plot(metric_frame: pd.DataFrame, spec: dic
             capthick=1.2,
             zorder=6,
         )
+    axis.set_yticks(y_positions, labels=category_order)
+    axis.invert_yaxis()
     _annotate_total_ci_values(
         axis,
         total_values=total_means,
@@ -1719,8 +1785,7 @@ def _save_controller_decision_time_ci_plot(metric_frame: pd.DataFrame, spec: dic
         y_offset_factor=-0.42,
         bar_height=bar_height,
     )
-    axis.set_yticks(y_positions, labels=trace_order)
-    axis.set_xlabel("Decision Time [ms]")
+    axis.set_xlabel("Controller Latency [ms]")
     axis.set_ylabel("")
     axis.grid(axis="x", linestyle="--", alpha=0.25)
     axis.axvline(
@@ -1730,13 +1795,13 @@ def _save_controller_decision_time_ci_plot(metric_frame: pd.DataFrame, spec: dic
         linewidth=1.4,
         zorder=1,
     )
+    _round_horizontal_axis_limits_to_integers(axis)
     _style_axis_spines(axis)
     axis.spines["top"].set_visible(False)
     axis.spines["right"].set_visible(False)
-    figure.suptitle("Controller Decision Time by Setup (95% CI)")
     figure.tight_layout(rect=(0.12, 0.0, 1.0, 0.98))
-    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_ci95.png")
-    figure.savefig(out_path, dpi=200, bbox_inches="tight")
+    out_path = os.path.join(out_dir, f"{_plot_file_stem(spec)}_ci95.{output_format}")
+    figure.savefig(out_path, dpi=200, bbox_inches="tight", format=str(output_format))
     plt.close(figure)
     return out_path
 
@@ -1751,6 +1816,12 @@ def main() -> None:
     )
     parser.add_argument("--out-dir", type=str, default=None)
     parser.add_argument(
+        "--output-format",
+        choices=("png", "pdf"),
+        default="png",
+        help="Output figure format.",
+    )
+    parser.add_argument(
         "--skip-shield-setups",
         action="store_true",
         help="Skip plotting any trace setups whose trace_type contains 'shield'.",
@@ -1760,6 +1831,7 @@ def main() -> None:
     summary_path = os.path.abspath(os.path.expanduser(args.summary_path))
     summary_payload = _load_summary(summary_path)
     out_dir = _resolve_out_dir(summary_path, args.out_dir)
+    output_format = str(args.output_format)
     os.makedirs(out_dir, exist_ok=True)
     timing_summary_payloads, timing_summary_paths = _ensure_and_load_timing_summaries(summary_path, summary_payload)
 
@@ -1805,15 +1877,15 @@ def main() -> None:
 
     output_paths = [
         path
-        for path in (_save_metric_plot(metric_frame, spec, out_dir) for spec in PLOT_SPECS)
+        for path in (_save_metric_plot(metric_frame, spec, out_dir, output_format=output_format) for spec in PLOT_SPECS)
         if path is not None
     ]
     for plot_frame, plot_spec in ci_plot_frames:
-        ci_path = _save_ci_plot(plot_frame, plot_spec, out_dir)
+        ci_path = _save_ci_plot(plot_frame, plot_spec, out_dir, output_format=output_format)
         if ci_path is not None:
             output_paths.append(ci_path)
     for plot_frame, plot_spec in box_plot_frames:
-        box_path = _save_box_plot(plot_frame, plot_spec, out_dir)
+        box_path = _save_box_plot(plot_frame, plot_spec, out_dir, output_format=output_format)
         if box_path is not None:
             output_paths.append(box_path)
     if controller_decision_time_ci_frame is not None:
@@ -1821,6 +1893,7 @@ def main() -> None:
             controller_decision_time_ci_frame,
             _spec_by_key("controller_decision_time"),
             out_dir,
+            output_format=output_format,
         )
         if controller_ci_path is not None:
             output_paths.append(controller_ci_path)
@@ -1829,6 +1902,7 @@ def main() -> None:
             controller_decision_time_box_frame,
             _spec_by_key("controller_decision_time"),
             out_dir,
+            output_format=output_format,
         )
         if controller_box_path is not None:
             output_paths.append(controller_box_path)
@@ -1841,6 +1915,7 @@ def main() -> None:
                 "summary_paths": list(summary_payload.get("summary_paths", [])),
                 "timing_summary_paths": timing_summary_paths,
                 "out_dir": out_dir,
+                "output_format": output_format,
                 "skip_shield_setups": bool(args.skip_shield_setups),
                 "setup_name_map": SETUP_NAME_MAP,
                 "setup_value_adjustment_pct": SETUP_VALUE_ADJUSTMENT_PCT,
